@@ -46,6 +46,7 @@ localStorage["shelteros_crm_v2"] = JSON.stringify({
 | 23 | `expense` | รายจ่าย (รวม marketing cost) | `id` (uid) | `propertyId` หรือ `dealId` | Expense form | Finance summary · Owner Report (marketing cost) |
 | 24 | `settings` | Config user-defined | `id` (single) | — | saveTaxSettings() etc. | ทุก module |
 | 25 | `auditLog` | Change log สำหรับตรวจย้อน | `id` (uid) | field `entity`, `entityId` | auditLog() wrapper | renderAudit() ใน Backup modal |
+| 26 | `ownerMergeQueue` | คิว review สำหรับ owner match (Phase 1 infra) | `id` (uid) | `propertyId`, candidate `ownerId` | (Phase 2+ populate) | (Phase 2+ UI) — ตอนนี้ยัง passive |
 
 ## นอก DBKEYS แต่อยู่ใน state root
 

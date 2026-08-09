@@ -65,10 +65,11 @@ Owner ──1:N──▶ OwnerLog / OwnerCare
 
 | จุด | ปัจจุบัน | Phase | หมายเหตุ |
 |---|---|---|---|
-| `deals.prop` | ข้อความ (fallback ถ้าไม่มี `propertyId`) | Phase 1 | `propOfDeal()` fuzzy-match ชื่อ — เลิกใช้ทั้งระบบ ให้ `propertyId` เป็นบังคับ |
-| `props.ownerName` / `.ownerPhone` / `.ownerLine` | ข้อความ legacy | Phase 1 | เก็บไว้ backward-compat แต่ `ownerId` เป็นแหล่งความจริง (`ownerOf()` เอา `ownerId` ก่อน) |
-| `deals.custId` | Alias เก่าของ `customerId` | Phase 1 | Migrate ทุก record ใช้ `customerId` เท่านั้น (alias อ่านได้ 1 release แล้วเลิก) |
+| `deals.prop` | ข้อความ (fallback ถ้าไม่มี `propertyId`) | Phase 1 ✓ marked / Phase 2 remove write path | `propOfDeal()` มาร์ค `_guessed:true` + auditLog แล้ว · ยังคง read-fallback ไว้ backward-compat |
+| `props.ownerName` / `.ownerPhone` / `.ownerLine` | ข้อความ legacy | Phase 1 ✓ audited | `migrateOwners()` เขียน auditLog ทุกครั้งที่ auto-link/auto-create · Owner CRM มี Merge Review banner |
+| `deals.custId` | Alias เก่าของ `customerId` | Phase 1 ✓ sync 2-way | `migrateMatchingV2()` sync ทั้งสองทางอยู่แล้ว · readers ทุกที่ check `d.customerId \|\| d.custId` · plan Phase 2 stop writes to `custId` |
 | `leads.ltype` | Single-value journey | Phase 2 | ขยายเป็น `leads.journeys[]` = multi-value (buy, rent, sell, let, invest) |
+| `ownerMergeQueue` | ใหม่ (Phase 1 infra) | Phase 2+ populate | โครง DB key พร้อมใช้ · ยังไม่มี writer/consumer ตอนนี้ · Phase 2 จะให้ user-flow ที่ต้อง review เขียนที่นี่ |
 
 ## กระบวนการเมื่อสร้าง entity ใหม่
 

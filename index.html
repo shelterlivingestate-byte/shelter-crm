@@ -1487,8 +1487,8 @@ const needsTemplate=["งบประมาณสูงสุดที่รั�
 
 /* ================= STATE ================= */
 const KEY="shelteros_crm_v2";
-const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog"];
-let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[]};
+const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue"];
+let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[]};
 let kb=[]; let todos=[]; let needsState=needsTemplate.map(()=>false);
 DB.kb=kb;
 const uid=()=>"id"+Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36);
@@ -2911,10 +2911,15 @@ function umMerge(gid){ const keep=($("#mg-keep-"+gid)||{}).value, drop=($("#mg-d
 function normOwKey(name,phone){ return String(name||"").trim().toLowerCase()+"|"+normPh(phone); }
 function migrateOwners(){ let ch=false; DB.props.forEach(p=>{ if(!p.id){p.id=uid();ch=true;} });
   const byKey={}; DB.owners.forEach(o=>{ byKey[normOwKey(o.name,o.phone)]=o; });
-  DB.props.forEach(p=>{ if(p.ownerId){ if(!DB.owners.some(o=>o.id===p.ownerId)){p.ownerId="";ch=true;} else return; }
+  DB.props.forEach(p=>{ if(p.ownerId){ if(!DB.owners.some(o=>o.id===p.ownerId)){ try{auditLog("property",p.id,"ownerId-orphaned",p.ownerId,"");}catch(e){} p.ownerId="";ch=true;} else return; }
     const nm=(p.ownerName||"").trim(), ph=(p.ownerPhone||"").trim();
-    if(nm&&ph){ const k=normOwKey(nm,ph); let o=byKey[k]; if(!o){ o={id:uid(),name:nm,phone:ph,line:(p.ownerLine||""),email:"",notes:"",createdAt:todayISO(),updatedAt:todayISO()}; DB.owners.push(o); byKey[k]=o; ch=true; } if(p.ownerId!==o.id){p.ownerId=o.id;ch=true;} }
-  });
+    if(nm&&ph){ const k=normOwKey(nm,ph); let o=byKey[k]; const isNew=!o;
+      if(isNew){ o={id:uid(),name:nm,phone:ph,line:(p.ownerLine||""),email:"",notes:"",createdAt:todayISO(),updatedAt:todayISO()}; DB.owners.push(o); byKey[k]=o; ch=true;
+        /* Phase 1: audit trail for auto-create — user can review in Backup > Audit Log */
+        try{auditLog("owner",o.id,"auto-created",""," from property "+(p.code||p.title||p.id)+" (name+phone key match)");}catch(e){} }
+      if(p.ownerId!==o.id){ /* Phase 1: audit trail for auto-link */
+        try{auditLog("property",p.id,"ownerId-auto-linked",p.ownerId||"",o.id+" ("+(isNew?"newly-created":"existing")+" via name+phone key)");}catch(e){}
+        p.ownerId=o.id;ch=true; } } });
   if(ch)save(); }
 function ownerOf(p){ if(p&&p.ownerId){ const o=DB.owners.find(x=>x.id===p.ownerId); if(o)return o; } return {id:null,name:p&&p.ownerName,phone:p&&p.ownerPhone,line:p&&p.ownerLine}; }
 function propsOfOwner(ownerId){ return DB.props.filter(p=>p.ownerId===ownerId); }
@@ -4394,7 +4399,13 @@ const CF_TABS=[["dashboard","💰 Dashboard"],["deals","🤝 ดีล/คอม
 const MKT_CATS=["ถ่ายภาพ","วิดีโอ","โดรน","ออกแบบกราฟิก","Facebook Ads","ค่าลงประกาศแพลตฟอร์ม","ป้าย","จัดบ้าน (Staging)"];
 function isMktCat(c){ return MKT_CATS.includes(c); }
 function bn(v){ try{return numBaht(v)||0;}catch(e){return num(v);} }
-function propOfDeal(d){ if(!d)return {}; if(d.propertyId){const p=DB.props.find(x=>x.id===d.propertyId); if(p)return p;} if(d.prop){const q=String(d.prop).toLowerCase(); const p=DB.props.find(x=>(x.code&&q.includes(x.code.toLowerCase()))||(x.title&&x.title.toLowerCase()&&q.includes(x.title.toLowerCase().slice(0,8)))); if(p)return p;} return {}; }
+function propOfDeal(d){ if(!d)return {}; if(d.propertyId){const p=DB.props.find(x=>x.id===d.propertyId); if(p)return p;}
+  /* Phase 1: fuzzy match by name is unreliable — return a wrapper marked _guessed so callers can warn */
+  if(d.prop){const q=String(d.prop).toLowerCase(); const p=DB.props.find(x=>(x.code&&q.includes(x.code.toLowerCase()))||(x.title&&x.title.toLowerCase()&&q.includes(x.title.toLowerCase().slice(0,8))));
+    if(p){ /* audit once per deal — check flag to avoid noisy repeats on every render */
+      if(!d._guessedPropAudited){ try{auditLog("deal",d.id,"propertyId-guessed-from-name",d.prop||"",p.id+" ("+(p.code||p.title||"")+")");}catch(e){} d._guessedPropAudited=true; }
+      return Object.assign({},p,{_guessed:true}); } }
+  return {}; }
 function dealLabel(d){ const p=propOfDeal(d); return (d.n||"ดีล")+(p.code?" · "+p.code:"")+(d.prop&&!p.code?" · "+d.prop:""); }
 function computeDealFinance(d){ const f=DB.finance.find(x=>x.dealId===d.id)||{};
   const price=bn(d.val)||bn(propOfDeal(d).price)||0;
@@ -4526,7 +4537,11 @@ function ownerActivity(o){ const acts=[]; const propIds=new Set(o.props.map(p=>p
   return acts.sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,20); }
 function ownerContracts(o){ const propIds=new Set(o.props.map(p=>p.id)); return DB.contracts.filter(c=>propIds.has(c.propertyId)); }
 function renderOwnerCRM(){ const box=$("#ownercrmPanel"); if(!box)return; const list=ownerList();
-  const head=`<div class="rc-kpis"><div class="rc-kpi"><div class="lbl">เจ้าของทั้งหมด</div><div class="val">${list.length}</div></div><div class="rc-kpi"><div class="lbl">ทรัพย์ที่มีเจ้าของ</div><div class="val">${list.reduce((s,o)=>s+o.props.length,0)}</div></div></div><div class="rc-sec-title">👤 ฐานเจ้าของ (ดึงจากทรัพย์อัตโนมัติ)</div>`;
+  /* Phase 1: Merge Review banner — surface duplicates + unlinked properties so user can review */
+  const dups=(typeof ownerDuplicates==="function"?ownerDuplicates():[]);
+  const unlinked=(typeof unlinkedOwnerProps==="function"?unlinkedOwnerProps():[]);
+  const reviewBanner=(dups.length||unlinked.length)?`<div class="card" style="background:var(--gold-soft);border-left:3px solid var(--gold);margin-bottom:12px;padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><b style="color:var(--brand)">⚠ Merge Review</b><div style="font-size:12.5px;color:var(--ink-2);margin-top:2px">${dups.length?`เจ้าของอาจซ้ำ <b>${dups.length}</b> กลุ่ม`:""}${dups.length&&unlinked.length?" · ":""}${unlinked.length?`ทรัพย์ยังไม่ผูก Owner ID <b>${unlinked.length}</b> รายการ`:""} · ตรวจก่อนรวม (ไม่ auto-merge)</div></div><button class="btn primary sm" onclick="openUnmatched()">เปิดตรวจ &amp; รวม</button></div></div>`:"";
+  const head=reviewBanner+`<div class="rc-kpis"><div class="rc-kpi"><div class="lbl">เจ้าของทั้งหมด</div><div class="val">${list.length}</div></div><div class="rc-kpi"><div class="lbl">ทรัพย์ที่มีเจ้าของ</div><div class="val">${list.reduce((s,o)=>s+o.props.length,0)}</div></div></div><div class="rc-sec-title">👤 ฐานเจ้าของ (ดึงจากทรัพย์อัตโนมัติ)</div>`;
   if(!list.length){ box.innerHTML=head+`<div class="rc-empty">ยังไม่มีข้อมูลเจ้าของ — กรอกชื่อ/เบอร์เจ้าของในฟอร์มทรัพย์</div>`; return; }
   box.innerHTML=head+list.map(o=>{ const op=ownerOpen[o.key]; const cons=ownerContracts(o); const acts=op?ownerActivity(o):[];
     return `<div class="rc-card"><div class="rh" onclick="ownerToggle('${esc(o.key)}')" style="cursor:pointer"><div><div class="rt">👤 ${esc(o.name)}</div>
