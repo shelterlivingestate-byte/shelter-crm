@@ -899,14 +899,14 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
         <div class="toolbar">
           <input class="search" id="pmSearch" placeholder="ค้นหารหัส / โครงการ / ทำเล…" oninput="renderPropMkt()">
           <select id="pmDeal" onchange="renderPropMkt()"><option value="">ขาย + เช่า</option><option value="ขาย">ขาย</option><option value="เช่า">เช่า</option></select>
-          <select id="pmChan" onchange="renderPropMkt()"><option value="">ทุกช่องทาง</option><option value="lv">Livinginsider</option><option value="ph">PropertyHub</option><option value="fb">Facebook</option><option value="dd">DDproperty</option><option value="none">ยังไม่ลงตลาด</option></select>
+          <select id="pmChan" onchange="renderPropMkt()"><option value="">ทุกช่องทาง</option><option value="lv">Livinginsider</option><option value="ph">PropertyHub</option><option value="fb">Facebook</option><option value="dd">DDproperty</option><option value="hip">Hipflat</option><option value="tp">Thailand Property</option><option value="pro">Proppit</option><option value="web">Website</option><option value="none">ยังไม่ลงตลาด</option></select>
         </div>
         <div style="overflow-x:auto"><table>
           <thead><tr><th>รหัส / ทรัพย์</th><th>ดีล</th><th>ทำเล</th><th>ราคา</th><th>ช่องทางที่ลง</th><th>คอนเทนต์</th><th>สถานะ</th></tr></thead>
           <tbody id="pmBody"></tbody>
         </table></div>
       </div>
-      <div class="hint">ช่องทางการตลาดของแต่ละบ้าน (ดึงจากชีต) — กดตราสัญลักษณ์เพื่อเปิดประกาศจริง: DD=DDproperty · LV=Livinginsider · PH=PropertyHub · FB=Facebook · Doc=Copywriting</div>
+      <div class="hint">ช่องทาง Part 4 · DD=DDproperty · LV=Livinginsider · PH=PropertyHub · FB=Facebook · HF=Hipflat · TP=Thailand Property · PP=Proppit · Web=Website ของเรา · Doc=Copywriting — กดตราสัญลักษณ์เพื่อเปิดประกาศจริง</div>
     </section>
 
     <!-- OWNER REPORT -->
@@ -1412,7 +1412,12 @@ const SCHEMA={
     {k:"ch_lv",l:"Livinginsider (ลิงก์)",type:"text",full:1},
     {k:"ch_ph",l:"PropertyHub (ลิงก์)",type:"text",full:1},
     {k:"ch_fb",l:"Facebook (ลิงก์)",type:"text",full:1},
-    {k:"ch_dd",l:"DDproperty (ลิงก์)",type:"text",full:1},
+    {k:"ch_dd",l:"DDproperty / DotProperty (ลิงก์)",type:"text",full:1},
+    /* Part 4: additional platforms per spec §F */
+    {k:"ch_hip",l:"Hipflat (ลิงก์)",type:"text",full:1},
+    {k:"ch_tp",l:"Thailand Property (ลิงก์)",type:"text",full:1},
+    {k:"ch_pro",l:"Proppit / PP+ (ลิงก์)",type:"text",full:1},
+    {k:"ch_web",l:"Website (ของเรา — ลิงก์)",type:"text",full:1},
     {k:"ch_copy",l:"Copywriting / เอกสาร (ลิงก์)",type:"text",full:1},
     {k:"driveFolder",l:"โฟลเดอร์รูปใน Drive (ลิงก์)",type:"text",full:1},
     {type:"heading",k:"_hpub",l:"🌐 หน้าแชร์สาธารณะ (Public Share)"},
@@ -1472,16 +1477,27 @@ const SCHEMA={
     {k:"needs",l:"โจทย์ความต้องการ (Needs)",type:"textarea",full:1}]},
   mkt:{title:"การตลาด · ช่องทาง & ค่าใช้จ่าย", fields:[
     {k:"name",l:"ชื่อแคมเปญ / ทรัพย์ / รอบ",type:"text",req:1,full:1},
-    {k:"ch",l:"ช่องทาง / เว็บการตลาด",type:"select",opts:["Livinginsider","PropertyHub","DDproperty","Facebook Ads","Marketplace","Line OA","TikTok","Google Ads","YouTube","ป้าย / ออฟไลน์","อื่น ๆ"]},
-    {k:"budget",l:"ค่าโฆษณา / ค่าลงเว็บ (บาท)",type:"number"},
-    {k:"consultFee",l:"ค่าคอนเซาท์ (พี่เบน)",type:"number"},
+    {k:"propertyId",l:"ทรัพย์ที่โปรโมท (Property ID — ถ้ามี)",type:"propertyselect",full:1},
+    /* Part 4: 9 platforms per spec §F — Hipflat, Thailand Property, Proppit, Website added */
+    {k:"ch",l:"ช่องทาง / เว็บการตลาด",type:"select",opts:["Livinginsider","PropertyHub","DDproperty","Hipflat","Thailand Property","Proppit","Website","Facebook Ads","Marketplace","Line OA","TikTok","Google Ads","YouTube","ป้าย / ออฟไลน์","อื่น ๆ"]},
+    {k:"url",l:"Listing URL (ลิงก์ประกาศจริง)",type:"text",full:1},
+    {k:"publishedAt",l:"วันที่เริ่มลง (YYYY-MM-DD)",type:"text"},
+    {k:"lastUpdatedAt",l:"วันที่อัปเดตล่าสุด (YYYY-MM-DD)",type:"text"},
+    {k:"status",l:"สถานะ",type:"select",opts:["Live","Active","Paused","Expired","Removed","Draft","กำลังรัน","หยุดชั่วคราว","จบแล้ว"]},
+    /* Metrics — user-input (no API yet); 0 = no data */
+    {k:"views",l:"Views (ยอดเข้าชม)",type:"number"},
+    {k:"reach",l:"Reach (ยอดเข้าถึง)",type:"number"},
+    {k:"clicks",l:"Clicks",type:"number"},
+    {k:"saves",l:"Saves / Bookmarks",type:"number"},
+    {k:"inquiries",l:"Inquiries (สอบถาม)",type:"number"},
+    {k:"leads",l:"Leads (คนติดต่อจริง)",type:"number"},
+    /* Costs */
+    {k:"cost",l:"ค่าลงประกาศ / โฆษณา (บาท)",type:"number"},
+    {k:"boostCost",l:"ค่า Boost / Featured (บาท)",type:"number"},
+    {k:"consultFee",l:"ค่าคอนเซาท์",type:"number"},
     {k:"referralFee",l:"ค่าแนะนำ",type:"number"},
-    {k:"shirtCost",l:"ค่าเสื้อ",type:"number"},
-    {k:"fuelCost",l:"ค่าน้ำมันรถ",type:"number"},
     {k:"otherCost",l:"ค่าใช้จ่ายอื่น ๆ",type:"number"},
-    {k:"leads",l:"จำนวน Leads ที่ได้",type:"number"},
     {k:"date",l:"เดือน/วันที่ (YYYY-MM-DD)",type:"text"},
-    {k:"status",l:"สถานะ",type:"select",opts:["กำลังรัน","หยุดชั่วคราว","จบแล้ว"]},
     {k:"note",l:"หมายเหตุ",type:"textarea",full:1}]},
   deals:{title:"ดีล / Pipeline", fields:[
     {k:"customerId",l:"ลูกค้า (Customer ID — ตัวเชื่อมหลัก)",type:"customerselect",full:1},
@@ -1627,8 +1643,8 @@ const needsTemplate=["งบประมาณสูงสุดที่รั�
 
 /* ================= STATE ================= */
 const KEY="shelteros_crm_v2";
-const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue"];
-let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[]};
+const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue","activities"];
+let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[],activities:[]};
 let kb=[]; let todos=[]; let needsState=needsTemplate.map(()=>false);
 DB.kb=kb;
 const uid=()=>"id"+Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36);
@@ -2217,7 +2233,7 @@ async function aocSummary(){ const out=$("#aocSummaryOut"); if(!out)return; cons
   if(!aiKeyReady()){ out.innerHTML=fmtAsst(ruleSummary+"\n\n(โหมดกฎ — ตั้งค่า AI เพื่อสรุปเชิงวิเคราะห์ที่คมขึ้น)"); return; }
   out.innerHTML='<span class="spin"></span> กำลังสรุป…';
   try{ out.innerHTML=fmtAsst(await callAI("สรุปงานที่ต้องทำวันนี้ของที่ปรึกษาอสังหาฯ ให้กระชับ จัดลำดับความสำคัญ แนะนำโฟกัส ใช้เฉพาะข้อมูลนี้ ห้ามแต่งเพิ่ม:\n"+ruleSummary,500,"คุณคือ Chief of Staff ของที่ปรึกษาอสังหาฯ SHELTER สรุปสั้น ชัด actionable ภาษาไทย")); }catch(e){ out.innerHTML=fmtAsst(ruleSummary); } }
-const CHAN_META={dd:["DD","#eb6834","DDproperty"],lv:["LV","#1baf7a","Livinginsider"],ph:["PH","#2a78d6","PropertyHub"],fb:["FB","#4a3aa7","Facebook"],copy:["Doc","#898781","Copywriting"]};
+const CHAN_META={dd:["DD","#eb6834","DDproperty"],lv:["LV","#1baf7a","Livinginsider"],ph:["PH","#2a78d6","PropertyHub"],fb:["FB","#4a3aa7","Facebook"],hip:["HF","#e34948","Hipflat"],tp:["TP","#0ca30c","Thailand Property"],pro:["PP","#eda100","Proppit"],web:["Web","#6A0807","Website"],copy:["Doc","#898781","Copywriting"]};
 function chanLinks(p){ if(!p.channels)return ""; return Object.entries(p.channels).map(([k,u])=>{const m=CHAN_META[k]||[k,"#888",k];return `<a href="${esc(u)}" target="_blank" rel="noopener" class="chan-badge" style="--c:${m[1]}" title="${m[2]}">${m[0]}</a>`;}).join(""); }
 
 /* ===== PROPERTY MARKETING PAGE ===== */
@@ -2333,6 +2349,12 @@ function openOwnerReportFor(propertyId){ const idx=DB.props.findIndex(p=>p.id===
 /* ===== SETTINGS · AUDIT LOG · RENTAL COMMISSION ENGINE (Phase 1) ===== */
 function getSettings(){ if(!DB.settings.length)DB.settings.push({id:uid(),vatPct:0,whtPct:0,createdAt:todayISO()}); return DB.settings[0]; }
 function auditLog(entity,entityId,field,oldV,newV){ if(String(oldV==null?"":oldV)===String(newV==null?"":newV))return; DB.auditLog.unshift({id:uid(),entity,entityId,field,old:(oldV==null?"":String(oldV)),new:(newV==null?"":String(newV)),by:"JJ",at:nowStamp()}); }
+/* Part 4: central Activity Timeline. logActivity() is additive — call from any mutation without breaking existing code paths */
+function logActivity(type,entityKind,entityId,summary,opts){ opts=opts||{}; try{ if(!Array.isArray(DB.activities))DB.activities=[];
+  DB.activities.unshift({id:uid(),ts:nowStamp(),date:todayISO(),type:type||"note",entityKind:entityKind||"",entityId:entityId||"",summary:String(summary||"").slice(0,500),payload:opts.payload||null,actor:opts.actor||"JJ",aiGenerated:!!opts.aiGenerated,confirmed:opts.confirmed!==false}); if(DB.activities.length>2000)DB.activities.length=2000; }catch(e){} }
+/* Part 4: competitor derived metrics per spec §H (no new field — computed from existing salePrice/usableArea/dateFirstSeen) */
+function competitorPricePerSqm(c){ if(!c)return 0; const price=num(c.salePrice||c.rentPrice||0); const area=num(c.usableArea||0); if(!price||!area)return 0; return Math.round(price/area); }
+function competitorDaysOnMarket(c){ if(!c||!c.dateFirstSeen)return null; const d=new Date(c.dateFirstSeen); if(isNaN(d))return null; return Math.floor((Date.now()-d.getTime())/86400000); }
 function addMonths(iso,m){ if(!iso)return ""; const d=new Date(iso+"T00:00:00"); if(isNaN(d))return ""; d.setMonth(d.getMonth()+num(m)); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
 function baseMonthsFromTerm(m){ m=num(m); if(m>=36)return 2; if(m>=24)return 1.5; if(m>=12)return 1; return Math.round(m/12*100)/100; }
 function rentalCommOf(contractId){ return DB.rentalCommissions.find(x=>x.contractId===contractId); }

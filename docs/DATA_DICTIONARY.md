@@ -47,6 +47,7 @@ localStorage["shelteros_crm_v2"] = JSON.stringify({
 | 24 | `settings` | Config user-defined | `id` (single) | — | saveTaxSettings() etc. | ทุก module |
 | 25 | `auditLog` | Change log สำหรับตรวจย้อน | `id` (uid) | field `entity`, `entityId` | auditLog() wrapper | renderAudit() ใน Backup modal |
 | 26 | `ownerMergeQueue` | คิว review สำหรับ owner match (Phase 1 infra) | `id` (uid) | `propertyId`, candidate `ownerId` | (Phase 2+ populate) | (Phase 2+ UI) — ตอนนี้ยัง passive |
+| 27 | `activities` | Central Activity Timeline (Part 4 · DM-4) — 1 event = 1 row · rolling cap 2000 | `id` (uid) | `entityKind` + `entityId` (polymorphic) | `logActivity()` wrapper | (future views · Customer Detail Timeline อ่านจากที่นี่ได้ตอนแก้ Part ถัดไป) |
 
 ## นอก DBKEYS แต่อยู่ใน state root
 
@@ -95,13 +96,24 @@ localStorage["shelteros_crm_v2"] = JSON.stringify({
 
 ## Field ที่ยังไม่มี — แต่คาดว่าจะเพิ่มใน Phase ถัดไป
 
-- `props.marketingScore`, `props.priceHistory[]` (Phase 4)
-- `contracts.letBy` = "us"|"owner"|"other_agent" (Phase 5)
-- `rentalCommissions.vat, .wht, .vatRate, .whtRate` (Phase 5)
-- ตาราง `activities` ใหม่ (Phase 3 — Activity Timeline กลาง)
-- ตาราง `ownerMergeQueue` ใหม่ (Phase 1)
-- `leads.journeys[]` (Phase 2 — multi-journey ต่อ 1 Customer)
-- `leads.needs` ขยาย 20+ fields (Phase 2)
+- `props.marketingScore`, `props.priceHistory[]` (Part 6 — derive from timeline)
+- `contracts.letBy` = "us"|"owner"|"other_agent" (Part 5 — DM-1)
+- `rentalCommissions.vat, .wht, .vatRate, .whtRate` (Part 5 — DM-2)
+
+## Part 4 additions
+
+**mkt schema (SCHEMA.mkt) extended:**
+- Platforms (option list): added Hipflat, Thailand Property, Proppit, Website (now 15 options total)
+- New fields: `propertyId, url, publishedAt, lastUpdatedAt, views, reach, clicks, saves, inquiries, cost, boostCost` — user-input (no API yet · 0 = "no data")
+- Existing fields kept: `name, ch, leads, consultFee, referralFee, otherCost, date, status, note`
+
+**props schema (SCHEMA.props) channels extended:**
+- Added URL fields: `ch_hip, ch_tp, ch_pro, ch_web` (Hipflat, Thailand Property, Proppit, Website)
+- CHAN_META extended with same 4 keys (badge + color + display name) — Property Marketing view auto-recognizes them
+
+**competitors (SCHEMA.competitors):** no field change — added derived helpers `competitorPricePerSqm(c)` = price/usableArea and `competitorDaysOnMarket(c)` = today − dateFirstSeen (spec §H fields via derivation, no schema change needed)
+
+**activities table:** new DB key · writer via `logActivity(type, entityKind, entityId, summary, opts)` · rolling cap 2000 · consumers: Customer Detail Timeline (already reads from ownerLog/auditLog/notes — future Part will consolidate)
 
 ## หมายเหตุความสัมพันธ์
 
