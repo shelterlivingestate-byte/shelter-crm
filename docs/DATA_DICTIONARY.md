@@ -81,7 +81,13 @@ localStorage["shelteros_crm_v2"] = JSON.stringify({
 
 **owners:** `id, name, phone (E.164), line, email, notes, createdAt, updatedAt`
 **props:** `id, code, title, deal ("ขาย"|"เช่า"), price, zone, projectId, ownerId, ownerName (legacy), ownerPhone (legacy), ownerLine (legacy), marketingStart, status, notes, images[]`
-**leads:** `id, n (name), ph (phone), ltype ("ซื้อ"|"เช่า"|"ขาย"|"ปล่อยเช่า"), stage, score, needs {}, source, lastContact, createdAt`
+**leads:** `id, n (name), ph (phone), line, email, src (source), assignedAgent, preferredContact, notes, ltype (legacy), custType, journeys[] (multi), stage, score, grade, lastContact, nextFollowup, createdAt, updatedAt`
+
+**leads.needs (buy grp — Part 3 additions marked *):** `budget, maxBudget, zone, preferredProject, want, bedrooms, bathrooms, parking, landSize*, usableArea*, transit*, commuteTime*, elderlyMember*, haspet*, cashLoan, loanAmount, downPayment, buyingPurpose, targetYield, moveTimeline, mustHave, dealBreaker, lifestyle, painPoint, buyerStage`
+
+**leads.needs (rent grp):** `rentalBudget, r_movein, r_lease, r_occupants, r_nationality, company, workplace, school, r_haspet, furnitureReq, applianceReq, depositCondition, advanceRent, r_purpose, renterStage`
+
+**leads.req (matching engine — set via chip editor in openMatch modal):** `dealType, priceMax, bedMin, areaMin, zones[], cats[], must[], should[], nice[], breaker[]`
 **deals:** `id, customerId (or custId legacy), propertyId, prop (text fallback — Phase 1 จะเลิก), stage (0-5), val, notes`
 **contracts:** `id, propertyId, tenantId, dealId, startDate, endDate, rent, deposit, status, careActive, ownerId (derived)`
 **appointments:** `id, customerId, propertyId, kind, at, place, mapUrl, owner (assignee), status, feedback, nextAction, followupDate`
