@@ -1602,7 +1602,13 @@ async function cloudPull(apply){ const s=$("#sbStatus"); const {url}=sbCfg(); if
     if(apply){ if(!confirm("ดึงข้อมูลจากคลาวด์มาทับข้อมูลในเครื่องนี้?\n(อัปเดตล่าสุด "+(row.updated_at||"")+")"))return row; applyCloudDoc(row); if(s){s.textContent="ดึงข้อมูลจากคลาวด์แล้ว ✓";s.className="ai-status ok";} }
     return row; }
   catch(e){ if(s){s.textContent="ผิดพลาด: "+(e&&e.message||e);s.className="ai-status err";} return null; } }
-function applyCloudDoc(row){ try{ const o=JSON.parse(row.doc); DBKEYS.forEach(k=>{DB[k]=Array.isArray(o.DB&&o.DB[k])?o.DB[k]:[];}); if(Array.isArray(o.kb)){kb.length=0;o.kb.forEach(x=>kb.push(x));} if(Array.isArray(o.todos))todos=o.todos; if(Array.isArray(o.needsState))needsState=o.needsState; localStorage.setItem(KEY,row.doc); setLocalDataTs(row.updated_at||new Date().toISOString()); try{migrateMatchingV2();}catch(e){} renderAll(); }catch(e){} }
+function applyCloudDoc(row){ try{
+    /* Phase 0 guard: skip apply if local is newer than cloud (protects unsaved local changes) */
+    const _lts=localDataTs(); const _cts=(row&&row.updated_at)?row.updated_at:"";
+    if(_lts&&_cts&&_lts>_cts){ const s=$("#sbStatus"); if(s){s.textContent="⚠ ข้ามการดึงจากคลาวด์ — local ใหม่กว่า (กด ⬆ ส่งขึ้นก่อน)";s.className="ai-status err";} return; }
+    /* Phase 0 safety: snapshot current local into rolling backups before overwrite */
+    try{ const _pl=localStorage.getItem(KEY); if(_pl)autoBackup(_pl); }catch(e){}
+    const o=JSON.parse(row.doc); DBKEYS.forEach(k=>{DB[k]=Array.isArray(o.DB&&o.DB[k])?o.DB[k]:[];}); if(Array.isArray(o.kb)){kb.length=0;o.kb.forEach(x=>kb.push(x));} if(Array.isArray(o.todos))todos=o.todos; if(Array.isArray(o.needsState))needsState=o.needsState; localStorage.setItem(KEY,row.doc); setLocalDataTs(row.updated_at||new Date().toISOString()); try{migrateMatchingV2();}catch(e){} renderAll(); }catch(e){} }
 let sbSyncT=null;
 function scheduleCloudPush(){ if(!sbAutoOn()||!sbReady())return; clearTimeout(sbSyncT); sbSyncT=setTimeout(()=>cloudPush(true),3500); }
 async function cloudInitSync(){ if(!sbReady())return; try{ const row=await cloudPull(false); if(!row){ if(sbAutoOn())cloudPush(true); return; }
@@ -1618,8 +1624,10 @@ function saveTaxSettings(){ const st=getSettings(); const v=num($("#setVat").val
 function renderAudit(){ const box=$("#auditView"); if(!box)return; const a=DB.auditLog.slice(0,40); box.innerHTML=a.length?a.map(x=>`<div style="border-bottom:1px solid var(--line);padding:5px 0"><b>${esc(x.entity)}</b> · ${esc(x.field)}: <span style="color:var(--muted)">${esc(x.old||"—")}</span> → <b>${esc(x.new||"—")}</b><br><small style="color:var(--muted)">${esc(x.by)} · ${esc(x.at)}</small></div>`).join(""):'<div class="empty" style="padding:12px">ยังไม่มีประวัติการแก้ไข</div>'; }
 function closeBackup(){ $("#backupScrim").classList.remove("on"); $("#backupModal").classList.remove("on"); }
 function restoreBackup(i){ const arr=listBackups(); const b=arr[i]; if(!b)return;
-  if(!confirm("กู้คืนข้อมูลจากวันที่ "+b.day+"?\nข้อมูลปัจจุบันจะถูกแทนที่ — แนะนำกด Export เก็บชุดปัจจุบันก่อนหากต้องการ"))return;
-  try{ const o=JSON.parse(b.payload); DBKEYS.forEach(k=>{DB[k]=Array.isArray(o.DB?.[k])?o.DB[k]:[];}); kb.length=0;(o.kb||[]).forEach(x=>kb.push(x)); todos=o.todos||[]; if(Array.isArray(o.needsState))needsState=o.needsState; save(); renderAll(); closeBackup(); alert("กู้คืนสำเร็จ ✓"); }catch(e){ alert("ไฟล์สำรองเสียหาย"); } }
+  if(!confirm("กู้คืนข้อมูลจากวันที่ "+b.day+"?\nข้อมูลปัจจุบันจะถูกเก็บสำรองอัตโนมัติก่อนแทนที่ (undo ได้จาก backup list)"))return;
+  /* Phase 0 safety: snapshot current state into rolling backups before restore (allows undo) */
+  try{ const _pl=localStorage.getItem(KEY); if(_pl)autoBackup(_pl); }catch(e){}
+  try{ const o=JSON.parse(b.payload); DBKEYS.forEach(k=>{DB[k]=Array.isArray(o.DB?.[k])?o.DB[k]:[];}); kb.length=0;(o.kb||[]).forEach(x=>kb.push(x)); todos=o.todos||[]; if(Array.isArray(o.needsState))needsState=o.needsState; save(); renderAll(); closeBackup(); alert("กู้คืนสำเร็จ ✓ (สำเนาก่อน restore ถูกเก็บใน backup list แล้ว)"); }catch(e){ alert("ไฟล์สำรองเสียหาย"); } }
 /* ===== LOGIN GATE (single account, hashed password) ===== */
 const AUTHKEY="shelter_auth_v1"; let authMode="login";
 function getAuth(){ try{ return JSON.parse(localStorage.getItem(AUTHKEY)||"null"); }catch(e){ return null; } }
