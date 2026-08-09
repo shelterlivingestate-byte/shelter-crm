@@ -53,8 +53,16 @@ localStorage["shelteros_crm_v2"] = JSON.stringify({
 | Key | บทบาท | Writer | Reader |
 |---|---|---|---|
 | `kb` | Knowledge Base entries | Knowledge form · openForm('kb') | Knowledge view · AI Playbooks |
-| `todos` | Daily focus (Dashboard) | Daily focus + button | Dashboard focus ring |
+| `todos` | Daily focus (Part 2: display removed from Dashboard; data preserved) | (form removed in Part 2) | (no visible reader; state kept for future Action Center integration) |
 | `needsState` | Needs Discovery checklist tick state | Consult UI | Consult UI |
+
+## Part 2 additions (frontend-only, no DB change)
+
+- **Global filter state** (in-memory only, not persisted): `dashScope = {range, type, customFrom, customTo}` · default `range="month"`
+- **View `#v-mindset`**: separate view for Vision + 10 principles (moved from `#v-dashboard`)
+- **Module registry**: `dashboard` renamed to "Executive Dashboard" · new `mindset` module added
+- **Bottom Nav** DOM (mobile only): 5 tabs (dashboard / alerts / customers / propsSale / __menu)
+- Reader-only computed views on Dashboard read from: `DB.income, DB.expense, DB.deals, DB.leads, DB.props, DB.mkt, DB.owners, DB.contracts, DB.rentalCommissions`
 
 ## ตัวย่อและกฎการ normalize
 

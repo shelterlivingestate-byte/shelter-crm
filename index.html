@@ -166,6 +166,53 @@ html[data-theme="dark"] .tag.amber{color:#f0c04a}
 .kb .foot{margin-top:11px;display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:var(--muted)}
 .kb .kcard-actions{position:absolute;top:12px;right:10px;display:flex;gap:2px}
 .mind{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+/* Part 2: Executive Dashboard */
+.dash-filter{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.dash-filter-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.dash-filter-group{display:flex;flex-direction:column;gap:4px}
+.dash-filter-group label{font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.dash-filter-group select,.dash-filter-group input[type=date]{font-family:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface-1);color:var(--ink);min-width:130px}
+.dash-range-label{font-size:12px;color:var(--ink-2);margin-left:auto;padding:6px 10px;background:var(--plane);border-radius:6px;font-variant-numeric:tabular-nums}
+.dash-section{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
+.dash-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.dash-kpi{background:var(--plane);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:default}
+.dash-kpi.click{cursor:pointer;transition:.15s}
+.dash-kpi.click:hover{border-color:var(--brand);background:var(--brand-soft)}
+.dash-kpi b{display:block;font-size:11px;font-weight:600;color:var(--ink-2);letter-spacing:.3px;text-transform:uppercase;margin-bottom:4px}
+.dash-kpi .val{font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.15}
+.dash-kpi .val small{font-size:12px;font-weight:600;color:var(--ink-2)}
+.dash-kpi .sub{font-size:11px;color:var(--muted);margin-top:2px}
+.dash-src{font-size:10.5px;color:var(--muted);margin-top:10px;letter-spacing:.2px}
+.dash-src code{background:transparent;color:var(--brand);font-size:10.5px}
+.dash-empty{display:flex;gap:12px;align-items:center;padding:16px 4px;color:var(--ink-2);font-size:13px}
+.dash-empty-icon{width:38px;height:38px;border-radius:10px;background:var(--plane);display:grid;place-items:center;font-size:18px;flex:0 0 auto}
+.dash-empty a{color:var(--brand);text-decoration:underline;cursor:pointer}
+.dash-footer{display:flex;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);flex-wrap:wrap}
+.dash-bar{height:6px;background:var(--plane);border-radius:4px;overflow:hidden;margin-top:6px}
+.dash-bar-fill{height:100%;background:linear-gradient(90deg,var(--ok),var(--gold));border-radius:4px;transition:width .3s}
+.dash-mini-table{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:12.5px;margin-top:6px}
+.dash-mini-table b{color:var(--ink);font-weight:600}
+.dash-mini-table .v{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.dash-age-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:8px}
+.dash-age-bar .cell{padding:8px 6px;border-radius:6px;text-align:center;font-size:11px;background:var(--plane);color:var(--ink-2)}
+.dash-age-bar .cell.warn{background:var(--gold-soft);color:var(--warn)}
+.dash-age-bar .cell.crit{background:var(--brand-soft);color:var(--brand)}
+.dash-age-bar .cell b{display:block;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* Part 2: Mobile Bottom Navigation */
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--panel);border-top:1px solid var(--border);display:none;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -2px 8px rgba(0,0,0,.05)}
+.bottom-nav-inner{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:600px;margin:0 auto}
+.bottom-nav-item{background:transparent;border:0;color:var(--ink-2);cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;min-height:52px;border-radius:8px;position:relative;line-height:1.1}
+.bottom-nav-item:hover{color:var(--ink)}
+.bottom-nav-item.active{color:var(--brand);background:var(--brand-soft)}
+.bottom-nav-item svg{width:20px;height:20px;flex:0 0 auto}
+.bottom-nav-badge{position:absolute;top:4px;right:calc(50% - 20px);background:var(--brand);color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:10px;line-height:1.3;min-width:16px;text-align:center}
+@media(max-width:720px){
+  .bottom-nav{display:block}
+  .main{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+  .savebadge{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+  .sheet{padding-bottom:calc(26px + env(safe-area-inset-bottom,0px))}
+}
 @media(max-width:720px){.mind{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}.pipe{grid-template-columns:repeat(6,220px)}}
 .principle{display:flex;gap:12px;align-items:flex-start}
 .principle .num{width:28px;height:28px;border-radius:8px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:13px;flex:0 0 auto}
@@ -620,32 +667,91 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
       <button class="btn primary" id="cta">+ เพิ่มรายการ</button>
     </div>
 
-    <!-- OS1 DASHBOARD -->
+    <!-- OS1 EXECUTIVE DASHBOARD (Part 2: 10 sections, global filter, no daily focus) -->
     <section class="view active" id="v-dashboard">
+      <!-- 4.1 Global Filter -->
+      <div class="dash-filter">
+        <div class="dash-filter-row">
+          <div class="dash-filter-group">
+            <label>ช่วงเวลา</label>
+            <select id="dashRange" onchange="setDashRange(this.value)">
+              <option value="today">วันนี้</option>
+              <option value="week">สัปดาห์นี้</option>
+              <option value="month" selected>เดือนนี้</option>
+              <option value="quarter">ไตรมาสนี้</option>
+              <option value="year">ปีนี้</option>
+              <option value="custom">กำหนดเอง</option>
+              <option value="all">ทุกช่วงเวลา</option>
+            </select>
+          </div>
+          <div class="dash-filter-group">
+            <label>ประเภทดีล</label>
+            <select id="dashType" onchange="setDashType(this.value)">
+              <option value="">ทั้งหมด</option>
+              <option value="ขาย">ขาย</option>
+              <option value="เช่า">เช่า</option>
+            </select>
+          </div>
+          <div class="dash-filter-group" id="dashCustomWrap" style="display:none">
+            <label>ระบุช่วง</label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="date" id="dashFrom" onchange="setDashCustom()">
+              <span style="color:var(--muted)">–</span>
+              <input type="date" id="dashTo" onchange="setDashCustom()">
+            </div>
+          </div>
+          <div class="dash-range-label" id="dashRangeLabel"></div>
+        </div>
+      </div>
+
+      <!-- 4.2 Company Performance -->
+      <div class="sec-title"><span class="os-mini">1</span>Company Performance · ผลการดำเนินงาน</div>
+      <div id="dash-company" class="dash-section"></div>
+
+      <!-- 4.3 Revenue & Commission -->
+      <div class="sec-title"><span class="os-mini">2</span>Revenue &amp; Commission · รายได้และคอมมิชชั่น</div>
+      <div id="dash-revenue" class="dash-section"></div>
+
+      <!-- 4.4 Customer & Sales Funnel -->
+      <div class="sec-title"><span class="os-mini">3</span>Customer &amp; Sales Funnel · ลูกค้าและ Funnel</div>
+      <div id="dash-funnel" class="dash-section"></div>
+
+      <!-- 4.5 Deal Pipeline -->
+      <div class="sec-title"><span class="os-mini">4</span>Deal Pipeline · ดีลกำลังดำเนิน</div>
+      <div id="dash-pipeline" class="dash-section"></div>
+
+      <!-- 4.6 Property Portfolio -->
+      <div class="sec-title"><span class="os-mini">5</span>Property Portfolio · พอร์ตทรัพย์</div>
+      <div id="dash-portfolio" class="dash-section"></div>
+
+      <!-- 4.7 Marketing Performance -->
+      <div class="sec-title"><span class="os-mini">6</span>Marketing Performance · ผลการตลาด</div>
+      <div id="dash-marketing" class="dash-section"></div>
+
+      <!-- 4.8 Owner Overview -->
+      <div class="sec-title"><span class="os-mini">7</span>Owner Overview · ภาพรวมเจ้าของ</div>
+      <div id="dash-owner" class="dash-section"></div>
+
+      <!-- 4.9 Rental & Contract -->
+      <div class="sec-title"><span class="os-mini">8</span>Rental &amp; Contract · เช่าและสัญญา</div>
+      <div id="dash-rental" class="dash-section"></div>
+
+      <!-- 4.10 Trends & AI Executive Insight -->
+      <div class="sec-title"><span class="os-mini">9</span>Trends &amp; AI Executive Insight · แนวโน้มและสรุป AI</div>
+      <div id="dash-trends" class="dash-section"></div>
+
+      <!-- Footer: link to Action Center + Mindset (Daily Focus moved out per Part 2 spec) -->
+      <div class="dash-footer">
+        <button class="btn primary" onclick="go('alerts')">📋 เปิด Action Center — งานวันนี้</button>
+        <button class="btn" onclick="go('mindset')">💡 หลักคิดของที่ปรึกษา</button>
+      </div>
+    </section>
+
+    <!-- OS1 MINDSET (Part 2: separate view, moved from Dashboard) -->
+    <section class="view" id="v-mindset">
       <div class="card" style="margin-bottom:14px;background:linear-gradient(120deg,var(--brand-soft),transparent);border-left:3px solid var(--gold)">
         <b style="font-size:13.5px;color:var(--brand);letter-spacing:.3px">Vision</b>
         <p style="color:var(--ink);font-size:13.5px;margin-top:4px;line-height:1.6">เพราะทุกการตัดสินใจซื้อ–ขายบ้าน คือก้าวสำคัญของชีวิต<br>เราจึงดูแลทุกขั้นตอนด้วยความจริงใจ</p>
-      </div>
-      <div class="grid kpis">
-        <div class="card kpi"><div class="lbl"><span class="dot" style="background:var(--s1)"></span>Active Leads</div><div class="val" id="k-leads">0</div></div>
-        <div class="card kpi"><div class="lbl"><span class="dot" style="background:var(--s3)"></span>ดีลกำลังดำเนิน</div><div class="val" id="k-deals">0</div></div>
-        <div class="card kpi"><div class="lbl"><span class="dot" style="background:var(--s4)"></span>นัดหมาย</div><div class="val" id="k-cons">0</div></div>
-        <div class="card kpi"><div class="lbl"><span class="dot" style="background:var(--s6)"></span>ปิดการขาย (Won)</div><div class="val" id="k-won">0</div></div>
-      </div>
-      <div class="two" style="margin-top:14px">
-        <div class="chart-card">
-          <div class="chart-head"><h3>Sales Funnel — เส้นทางลูกค้า</h3><div class="legend"><span><span class="dot" style="background:var(--s1)"></span>จำนวน (จากข้อมูลจริง)</span></div></div>
-          <div id="funnel"></div>
-          <div class="hint">คำนวณอัตโนมัติจากข้อมูลที่คุณกรอกใน OS2 (Leads), OS4 (นัดหมาย) และ OS6 (Pipeline)</div>
-        </div>
-        <div class="card">
-          <div class="chart-head"><h3>โฟกัสวันนี้ · Daily Focus</h3><button class="icon-btn" onclick="openForm('todos')" title="เพิ่มงาน"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div>
-          <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
-            <div class="ring" id="focusRing"><b id="focusRatio">0/0</b></div>
-            <div><b style="font-size:14px">งานสำคัญวันนี้</b><div class="hint" style="margin-top:2px" id="focusHint">ยังไม่มีงาน — กด + เพื่อเพิ่ม</div></div>
-          </div>
-          <div id="todos"></div>
-        </div>
       </div>
       <div class="sec-title"><span class="os-mini">OS 1</span>Advisor Mindset — หลักคิดของที่ปรึกษา</div>
       <div class="mind" id="principles"></div>
@@ -957,6 +1063,33 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
   </main>
 </div>
 
+<!-- Part 2: Mobile Bottom Navigation (visible < 720px only) -->
+<nav class="bottom-nav" id="bottomNav" aria-label="เมนูล่าง">
+  <div class="bottom-nav-inner">
+    <button class="bottom-nav-item" data-nav="dashboard" onclick="bnGo('dashboard')" aria-label="ภาพรวม">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      ภาพรวม
+    </button>
+    <button class="bottom-nav-item" data-nav="alerts" onclick="bnGo('alerts')" aria-label="งานวันนี้">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span id="bnAlertsBadge" class="bottom-nav-badge" style="display:none">0</span>
+      งานวันนี้
+    </button>
+    <button class="bottom-nav-item" data-nav="customers" onclick="bnGo('customers')" aria-label="ลูกค้า">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      ลูกค้า
+    </button>
+    <button class="bottom-nav-item" data-nav="propsSale" onclick="bnGo('propsSale')" aria-label="ทรัพย์">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      ทรัพย์
+    </button>
+    <button class="bottom-nav-item" data-nav="__menu" onclick="bnOpenMenu()" aria-label="เมนูทั้งหมด">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      เมนู
+    </button>
+  </div>
+</nav>
+
 <!-- MODAL -->
 <div class="modal-scrim" id="modalScrim" onclick="closeForm()"></div>
 <div class="modal" id="modal">
@@ -1117,7 +1250,8 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
 <script>
 /* ================= CONFIG ================= */
 const OS = [
-  {id:"dashboard", key:"todos", os:"OS 1", th:"Advisor Mindset", en:"ภาพรวมที่ปรึกษา", sub:"Advisor Dashboard", icon:"grid", cta:"+ เพิ่มงานวันนี้"},
+  {id:"dashboard", key:null, os:"OS 1", th:"Executive Dashboard", en:"ภาพรวมบริษัท", sub:"ผลการดำเนินงาน · ตัวกรอง เดือนนี้", icon:"grid", cta:null},
+  {id:"mindset",   key:null, os:"OS 1", th:"Advisor Mindset", en:"หลักคิดของที่ปรึกษา", sub:"Vision + 10 Principles", icon:"spark", cta:null},
   {id:"alerts",    key:null, os:"⏰", th:"Action Center", en:"แจ้งเตือน & งานต่อ", sub:"Smart Alerts & Next Actions", icon:"bell", cta:null},
   {id:"customers", key:null, os:"OS 2", th:"Customers", en:"ฐานลูกค้า + Journey", sub:"Customer Hub · Buyer / Tenant Journey", icon:"users", cta:"+ เพิ่มลูกค้า"},
   {id:"leadsBuy",  key:"leads", ltype:"ซื้อ", os:"OS 2", th:"ลูกค้าซื้อ", en:"Buyers (View)", sub:"Buyer Journey · กรองจาก Customer Master", icon:"users", cta:"+ เพิ่มลูกค้า"},
@@ -1960,11 +2094,12 @@ function go(id){
   if(id==="owner")refreshOwnerSelect();
   if(window.innerWidth<=640)toggleMenu(true);
   window.scrollTo({top:0,behavior:"smooth"});
+  try{syncBottomNav();}catch(e){}
 }
 $("#cta").onclick=()=>{ const o=OS.find(x=>x.id===activeView); if(activeView==="customers"){openCustomerForm();return;} if(!o.key)return; if(o.key==="props")openPropForm(o.deal); else if(o.key==="leads")openLeadForm(o.ltype); else openForm(o.key); };
 
 /* ================= RENDERERS ================= */
-function renderAll(){ try{migrateOwners();}catch(e){} try{migrateRentalCare();}catch(e){} renderDashboard();renderAlerts();renderLeads();try{renderCustomers();}catch(e){}renderProjects();renderProps();renderPropMkt();renderConsult();renderMkt();renderPipe();renderCare();renderKB(currentKBFilter);try{renderRentCare();}catch(e){}try{renderFinance();}catch(e){}try{renderOwnerCRM();}catch(e){}try{renderAppointments();}catch(e){}try{renderReports();}catch(e){} }
+function renderAll(){ try{migrateOwners();}catch(e){} try{migrateRentalCare();}catch(e){} renderDashboard();try{renderMindset();}catch(e){}renderAlerts();renderLeads();try{renderCustomers();}catch(e){}renderProjects();renderProps();renderPropMkt();renderConsult();renderMkt();renderPipe();renderCare();renderKB(currentKBFilter);try{renderRentCare();}catch(e){}try{renderFinance();}catch(e){}try{renderOwnerCRM();}catch(e){}try{renderAppointments();}catch(e){}try{renderReports();}catch(e){}try{syncBottomNav();}catch(e){} }
 
 /* ===== ACTION CENTER / SMART ALERTS ===== */
 function todayISO(){return new Date().toISOString().slice(0,10);}
@@ -2992,40 +3127,239 @@ function renderProjects(){
   $("#pr-devs").textContent=new Set(DB.projects.map(p=>p.developer).filter(Boolean)).size;
 }
 
-function renderDashboard(){
-  $("#k-leads").textContent=DB.leads.length;
-  $("#k-deals").textContent=DB.deals.filter(d=>d.stage<5).length;
-  $("#k-cons").textContent=DB.cons.length;
-  $("#k-won").textContent=DB.deals.filter(d=>d.stage===5).length;
-  // funnel from real data
-  const f=$("#funnel");f.innerHTML="";
+/* Part 2: Executive Dashboard — global filter + 9 sections + empty states + drill-down */
+let dashScope={range:"month",type:"",customFrom:"",customTo:""};
+function dashRange(){ const now=new Date(); const today=new Date(now.getFullYear(),now.getMonth(),now.getDate()); let from=null,to=null;
+  switch(dashScope.range){
+    case "today": from=today; to=new Date(today.getTime()+86400000-1); break;
+    case "week": { const dow=today.getDay()||7; from=new Date(today.getTime()-(dow-1)*86400000); to=new Date(from.getTime()+7*86400000-1); break; }
+    case "month": from=new Date(now.getFullYear(),now.getMonth(),1); to=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59); break;
+    case "quarter": { const qm=Math.floor(now.getMonth()/3)*3; from=new Date(now.getFullYear(),qm,1); to=new Date(now.getFullYear(),qm+3,0,23,59,59); break; }
+    case "year": from=new Date(now.getFullYear(),0,1); to=new Date(now.getFullYear(),12,0,23,59,59); break;
+    case "custom": from=dashScope.customFrom?new Date(dashScope.customFrom):null; to=dashScope.customTo?new Date(dashScope.customTo+"T23:59:59"):null; break;
+    case "all": default: from=null; to=null;
+  } return {from,to}; }
+function inDashRange(d){ if(!d)return false; const r=dashRange(); if(!r.from&&!r.to)return true; const dt=new Date(d); if(isNaN(dt))return false; if(r.from&&dt<r.from)return false; if(r.to&&dt>r.to)return false; return true; }
+function inDashType(v){ if(!dashScope.type)return true; return (v||"")===dashScope.type; }
+function setDashRange(v){ dashScope.range=v; const cw=$("#dashCustomWrap"); if(cw)cw.style.display=v==="custom"?"":"none"; renderDashboard(); }
+function setDashType(v){ dashScope.type=v; renderDashboard(); }
+function setDashCustom(){ const f=$("#dashFrom"),t=$("#dashTo"); if(f)dashScope.customFrom=f.value; if(t)dashScope.customTo=t.value; renderDashboard(); }
+function updateDashRangeLabel(){ const el=$("#dashRangeLabel"); if(!el)return; const r=dashRange();
+  if(!r.from&&!r.to){ el.textContent="· ทุกช่วงเวลา"; return; }
+  const fmt=d=>d?d.toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric"}):"—";
+  el.textContent="· "+fmt(r.from)+" – "+fmt(r.to); }
+function dashEmpty(msg,goTo){ return `<div class="dash-empty"><div class="dash-empty-icon">📊</div><div><b>ยังไม่มีข้อมูล</b><div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(msg)}${goTo?` — <a onclick="go('${goTo}')">เชื่อมจาก ${esc(goTo)}</a>`:""}</div></div></div>`; }
+function dashSrc(html){ return `<div class="dash-src">${html}</div>`; }
+
+function renderDashCompany(){ const el=$("#dash-company"); if(!el)return;
+  const inc=DB.income.filter(x=>x.date&&inDashRange(x.date));
+  const exp=DB.expense.filter(x=>x.date&&inDashRange(x.date));
+  const deals=DB.deals.filter(d=>inDashType(d.kind||d.deal));
+  if(!inc.length&&!exp.length&&!deals.length){ el.innerHTML=dashEmpty("บันทึกรายรับ/รายจ่าย/ดีลผ่าน Finance และ Pipeline","finance"); return; }
+  const won=deals.filter(d=>d.stage===5), active=deals.filter(d=>d.stage>=0&&d.stage<5);
+  const rev=inc.reduce((s,x)=>s+bn(x.amount||x.value||0),0);
+  const expT=exp.reduce((s,x)=>s+bn(x.amount||x.value||0),0);
+  const pipe=active.reduce((s,d)=>s+bn(d.val||0),0);
+  el.innerHTML=`<div class="dash-kpi-row">
+    <div class="dash-kpi click" onclick="go('finance')"><b>รายได้ที่ได้รับ</b><div class="val">฿${fmtBaht(rev)}</div><div class="sub">${inc.length} รายการ</div></div>
+    <div class="dash-kpi click" onclick="go('finance')"><b>ค่าใช้จ่ายรวม</b><div class="val">฿${fmtBaht(expT)}</div><div class="sub">${exp.length} รายการ</div></div>
+    <div class="dash-kpi"><b>กำไรสุทธิ (ประมาณ)</b><div class="val" style="color:${rev-expT>=0?'var(--ok)':'var(--crit)'}">฿${fmtBaht(rev-expT)}</div></div>
+    <div class="dash-kpi click" onclick="go('pipe')"><b>ดีลปิดสำเร็จ</b><div class="val">${won.length}</div></div>
+    <div class="dash-kpi click" onclick="go('pipe')"><b>มูลค่า Pipeline</b><div class="val">฿${fmtBaht(pipe)}</div><div class="sub">${active.length} ดีล</div></div>
+  </div>`+dashSrc("คำนวณจาก: <code>DB.income</code> · <code>DB.expense</code> · <code>DB.deals</code> · <b>กำไรสุทธิเป็นการประมาณเบื้องต้น</b>"); }
+
+function renderDashRevenue(){ const el=$("#dash-revenue"); if(!el)return;
+  const inc=DB.income.filter(x=>x.date&&inDashRange(x.date));
+  const exp=DB.expense.filter(x=>x.date&&inDashRange(x.date));
+  const rc=DB.rentalCommissions;
+  if(!inc.length&&!exp.length&&!rc.length){ el.innerHTML=dashEmpty("รายได้ค่าคอมจะปรากฏเมื่อมี Deal ปิดหรือสัญญาเช่า","finance"); return; }
+  const sumBy=(arr,pred)=>arr.filter(pred).reduce((s,x)=>s+bn(x.amount||x.value||0),0);
+  const rSale=sumBy(inc,x=>(x.kind||x.type||"")==="ขาย");
+  const rRent=sumBy(inc,x=>(x.kind||x.type||"")==="เช่า");
+  const rAll=sumBy(inc,()=>true);
+  const rOther=Math.max(0,rAll-rSale-rRent);
+  const commRecv=sumBy(inc,x=>(x.category||"")==="คอมมิชชั่น");
+  const mktCost=sumBy(exp,x=>/ตลาด|โฆษณา|boost|market/i.test((x.category||x.note||"")));
+  el.innerHTML=`<div class="dash-kpi-row">
+    <div class="dash-kpi"><b>รายได้ ขาย</b><div class="val">฿${fmtBaht(rSale)}</div></div>
+    <div class="dash-kpi"><b>รายได้ เช่า</b><div class="val">฿${fmtBaht(rRent)}</div></div>
+    <div class="dash-kpi"><b>รายได้อื่น</b><div class="val">฿${fmtBaht(rOther)}</div></div>
+    <div class="dash-kpi"><b>ค่าคอมรับแล้ว</b><div class="val">฿${fmtBaht(commRecv)}</div></div>
+    <div class="dash-kpi"><b>ค่าโฆษณา / Boost</b><div class="val">฿${fmtBaht(mktCost)}</div></div>
+  </div>`+dashSrc("คำนวณจาก: <code>DB.income</code> filter kind/type/category · <code>DB.expense</code> filter category ที่มี 'ตลาด'/'โฆษณา'/'boost'"); }
+
+function renderDashFunnel(){ const el=$("#dash-funnel"); if(!el)return;
+  const leads=DB.leads.filter(l=>{ if(!dashScope.type)return true; if(dashScope.type==="ขาย")return l.ltype==="ซื้อ"; if(dashScope.type==="เช่า")return l.ltype==="เช่า"; return true; });
+  if(!leads.length){ el.innerHTML=dashEmpty("ยังไม่มีลูกค้าเข้าระบบ","customers"); return; }
+  const st=(names)=>leads.filter(l=>names.includes(l.stage||"")).length;
   const rows=[
-    ["Leads เข้าระบบ",DB.leads.length],
-    ["คัดกรองแล้ว",DB.leads.filter(l=>l.stage&&l.stage!=="ใหม่").length],
-    ["นัดปรึกษา (OS4)",DB.cons.length],
-    ["อยู่ใน Pipeline",DB.deals.length],
-    ["ถึงขั้นโอน",DB.deals.filter(d=>d.stage>=4).length],
-    ["ปิดสมบูรณ์",DB.deals.filter(d=>d.stage===5).length],
+    ["1. Lead ใหม่", leads.filter(l=>!l.stage||l.stage==="ใหม่").length],
+    ["2. ติดต่อแล้ว", st(["ติดต่อแล้ว","คัดกรองแล้ว"])],
+    ["3. เก็บ Needs ครบ", leads.filter(l=>l.needs&&Object.keys(l.needs).length>=3).length],
+    ["4. Matching แล้ว", leads.filter(l=>l.matchStatus==="linked").length],
+    ["5. นัดหมายแล้ว", st(["นัดชม","นัดหมายแล้ว"])],
+    ["6. กำลังเจรจา", st(["ต่อรอง","ยื่นข้อเสนอ"])],
+    ["7. จอง/สัญญา", st(["พร้อมซื้อ","พร้อมโอน"])],
+    ["8. ปิดสำเร็จ", DB.deals.filter(d=>d.stage===5&&inDashType(d.kind||d.deal)).length],
+    ["9. พัก/ไม่สำเร็จ", st(["พัก","lost","ไม่สำเร็จ"])],
   ];
   const max=Math.max(1,...rows.map(r=>r[1]));
-  rows.forEach(([lb,v],i)=>{
-    const pct=Math.round(v/max*100);
-    f.appendChild(el("div","funnel-row",`<div class="fl">${lb}</div><div class="ft"><i style="width:${Math.max(v?6:0,pct)}%;background:var(${i===5?'--s6':'--s1'})">${v||""}</i></div><div class="fp">${v}</div>`));
-  });
-  // todos
-  const td=$("#todos");td.innerHTML="";
-  if(!todos.length){ td.innerHTML=`<div style="color:var(--muted);font-size:12.5px;padding:6px 0">ยังไม่มีงาน — กดปุ่ม + ด้านบนเพื่อเพิ่ม</div>`; }
-  todos.forEach((t,i)=>{
-    const d=el("div","check"+(t.done?" done":""),`<input type="checkbox" ${t.done?"checked":""} onchange="toggleTodo(${i},this.checked)"><label>${esc(t.t)}</label><button class="icon-btn del" onclick="delItem('todos',${i})"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`);
-    td.appendChild(d);
-  });
-  const done=todos.filter(t=>t.done).length, tot=todos.length;
-  $("#focusRatio").textContent=done+"/"+tot;
-  $("#focusRing").style.setProperty("--p", tot?Math.round(done/tot*100):0);
-  $("#focusHint").textContent = tot?`ทำเสร็จ ${done} จาก ${tot} งาน`:"ยังไม่มีงาน — กด + เพื่อเพิ่ม";
-  // principles
-  const p=$("#principles");p.innerHTML="";
-  principles.forEach((pr,i)=>p.appendChild(el("div","card principle",`<div class="num">${i+1}</div><div><b>${pr.t}</b><p>${pr.d}</p></div>`)));
+  const active=leads.filter(l=>!["พัก","lost","ไม่สำเร็จ"].includes(l.stage||"")).length;
+  const closed=rows[7][1];
+  const conv=active?Math.round(closed/active*100):0;
+  el.innerHTML=`<div class="dash-kpi-row">
+    <div class="dash-kpi click" onclick="go('customers')"><b>ลูกค้าทั้งหมด</b><div class="val">${leads.length}</div></div>
+    <div class="dash-kpi"><b>กำลังดูแล</b><div class="val">${active}</div></div>
+    <div class="dash-kpi"><b>Conversion Rate</b><div class="val">${conv}<small>%</small></div><div class="sub">ปิด/กำลังดูแล</div></div>
+  </div>
+  <div style="margin-top:10px">${rows.map(([lb,v])=>{ const pct=Math.round(v/max*100); return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0"><div style="flex:0 0 130px;font-size:12px;color:var(--ink-2)">${esc(lb)}</div><div style="flex:1;height:14px;background:var(--plane);border-radius:7px;overflow:hidden"><div style="width:${Math.max(v?6:0,pct)}%;height:100%;background:var(--brand);border-radius:7px"></div></div><div style="flex:0 0 40px;text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:600">${v}</div></div>`; }).join("")}</div>`+dashSrc("คำนวณจาก: <code>DB.leads</code> จัดกลุ่มตาม <code>.stage</code> + <code>DB.deals</code> stage=5"); }
+
+function renderDashPipeline(){ const el=$("#dash-pipeline"); if(!el)return;
+  const deals=DB.deals.filter(d=>inDashType(d.kind||d.deal));
+  if(!deals.length){ el.innerHTML=dashEmpty("ยังไม่มีดีลใน Pipeline","pipe"); return; }
+  const active=deals.filter(d=>d.stage>=0&&d.stage<5);
+  const won=deals.filter(d=>d.stage===5);
+  const pipe=active.reduce((s,d)=>s+bn(d.val||0),0);
+  const noMove=active.filter(d=>{ const t=d.updatedAt||d.createdAt; if(!t)return false; return (Date.now()-new Date(t).getTime())>30*86400000; }).length;
+  el.innerHTML=`<div class="dash-kpi-row">
+    <div class="dash-kpi click" onclick="go('pipe')"><b>ดีลกำลังดำเนิน</b><div class="val">${active.length}</div></div>
+    <div class="dash-kpi"><b>มูลค่า Pipeline</b><div class="val">฿${fmtBaht(pipe)}</div></div>
+    <div class="dash-kpi"><b>ปิดสำเร็จ</b><div class="val">${won.length}</div></div>
+    <div class="dash-kpi"><b>Win Rate</b><div class="val">${deals.length?Math.round(won.length/deals.length*100):0}<small>%</small></div></div>
+    <div class="dash-kpi"><b>ไม่เคลื่อนไหว &gt;30 วัน</b><div class="val" style="color:${noMove?'var(--warn)':'var(--ink)'}">${noMove}</div></div>
+  </div>`+dashSrc("คำนวณจาก: <code>DB.deals</code> · Win Rate = won ÷ total"); }
+
+function renderDashPortfolio(){ const el=$("#dash-portfolio"); if(!el)return;
+  const props=DB.props.filter(p=>!dashScope.type||(p.deal||"")===dashScope.type);
+  if(!props.length){ el.innerHTML=dashEmpty("ยังไม่มีทรัพย์","propsSale"); return; }
+  const sale=props.filter(p=>(p.deal||"")!=="เช่า").length;
+  const rent=props.filter(p=>(p.deal||"")==="เช่า").length;
+  const tot=props.reduce((s,p)=>s+bn(p.price||0),0);
+  const noImg=props.filter(p=>!(p.images||[]).length).length;
+  const now=Date.now();
+  const ageB=d=>{ if(!d)return -1; const days=Math.floor((now-new Date(d).getTime())/86400000); if(days<=30)return 0; if(days<=60)return 1; if(days<=90)return 2; if(days<=180)return 3; return 4; };
+  const b=[0,0,0,0,0]; props.forEach(p=>{ const i=ageB(p.marketingStart||p.createdAt); if(i>=0)b[i]++; });
+  el.innerHTML=`<div class="dash-kpi-row">
+    <div class="dash-kpi click" onclick="go('propsSale')"><b>ทรัพย์ทั้งหมด</b><div class="val">${props.length}</div></div>
+    <div class="dash-kpi click" onclick="go('propsSale')"><b>ขาย</b><div class="val">${sale}</div></div>
+    <div class="dash-kpi click" onclick="go('propsRent')"><b>เช่า</b><div class="val">${rent}</div></div>
+    <div class="dash-kpi"><b>มูลค่ารวม</b><div class="val">฿${fmtBaht(tot)}</div></div>
+    <div class="dash-kpi"><b>ข้อมูลไม่ครบ (ไม่มีรูป)</b><div class="val" style="color:${noImg?'var(--warn)':'var(--ink)'}">${noImg}</div></div>
+  </div>
+  <div style="margin-top:14px"><b style="font-size:12.5px">อายุการตลาด</b>
+    <div class="dash-age-bar">
+      <div class="cell"><b>${b[0]}</b>0–30 วัน</div>
+      <div class="cell"><b>${b[1]}</b>31–60 วัน</div>
+      <div class="cell${b[2]>0?' warn':''}"><b>${b[2]}</b>61–90 วัน</div>
+      <div class="cell${b[3]>0?' warn':''}"><b>${b[3]}</b>91–180 วัน</div>
+      <div class="cell${b[4]>0?' crit':''}"><b>${b[4]}</b>&gt;180 วัน</div>
+    </div>
+  </div>`+dashSrc("คำนวณจาก: <code>DB.props</code> · อายุจาก <code>marketingStart</code> หรือ <code>createdAt</code> · <b>อายุมากไม่แปลว่าต้องลดราคา — ต้องดู price/marketing/inquiries/feedback ประกอบ</b>"); }
+
+function renderDashMarketing(){ const el=$("#dash-marketing"); if(!el)return;
+  if(!DB.mkt.length){ el.innerHTML=dashEmpty("ยังไม่มีการลงประกาศในระบบ · เชื่อมข้อมูล Marketing เพื่อดูสถิติ","propMkt"); return; }
+  const items=DB.mkt.filter(m=>inDashRange(m.publishedAt||m.createdAt));
+  const active=items.filter(m=>["Active","Live"].includes(m.status||"")).length;
+  const views=items.reduce((s,m)=>s+num(m.views||0),0);
+  const inq=items.reduce((s,m)=>s+num(m.inquiries||0),0);
+  const leads=items.reduce((s,m)=>s+num(m.leads||0),0);
+  const cost=items.reduce((s,m)=>s+bn(m.cost||0)+bn(m.boostCost||0),0);
+  const cpl=leads?Math.round(cost/leads):0;
+  el.innerHTML=`<div class="dash-kpi-row">
+    <div class="dash-kpi click" onclick="go('propMkt')"><b>ประกาศ Active</b><div class="val">${active}</div></div>
+    <div class="dash-kpi"><b>Views</b><div class="val">${views.toLocaleString()}</div></div>
+    <div class="dash-kpi"><b>Inquiries</b><div class="val">${inq.toLocaleString()}</div></div>
+    <div class="dash-kpi"><b>Leads จากการตลาด</b><div class="val">${leads.toLocaleString()}</div></div>
+    <div class="dash-kpi"><b>Cost per Lead</b><div class="val">฿${fmtBaht(cpl)}</div></div>
+  </div>`+dashSrc("คำนวณจาก: <code>DB.mkt</code> · <b>ตัวเลข views/inquiries ต้องกรอกด้วยตนเองต่อ platform</b> · Part 4 จะเพิ่ม Manual Sync UI"); }
+
+function renderDashOwner(){ const el=$("#dash-owner"); if(!el)return;
+  const owners=DB.owners;
+  if(!owners.length){ el.innerHTML=dashEmpty("ยังไม่มีเจ้าของในระบบ","ownercrm"); return; }
+  const withActive=owners.filter(o=>DB.props.some(p=>p.ownerId===o.id&&(p.status||"")!=="ปิด")).length;
+  const multi=owners.filter(o=>DB.props.filter(p=>p.ownerId===o.id).length>1).length;
+  const dups=(typeof ownerDuplicates==="function"?ownerDuplicates():[]).length;
+  const complete=owners.filter(o=>o.name&&o.phone&&(o.line||o.email)).length;
+  const cPct=owners.length?Math.round(complete/owners.length*100):0;
+  el.innerHTML=`<div class="dash-kpi-row">
+    <div class="dash-kpi click" onclick="go('ownercrm')"><b>เจ้าของทั้งหมด</b><div class="val">${owners.length}</div></div>
+    <div class="dash-kpi"><b>มีทรัพย์ Active</b><div class="val">${withActive}</div></div>
+    <div class="dash-kpi"><b>มีหลายทรัพย์</b><div class="val">${multi}</div></div>
+    <div class="dash-kpi click" onclick="go('ownercrm')"><b>ซ้ำที่ต้องรีวิว</b><div class="val" style="color:${dups?'var(--warn)':'var(--ink)'}">${dups}</div></div>
+    <div class="dash-kpi"><b>ข้อมูลครบ</b><div class="val">${cPct}<small>%</small></div><div class="sub">${complete}/${owners.length}</div></div>
+  </div>`+dashSrc("คำนวณจาก: <code>DB.owners</code> + <code>DB.props.ownerId</code> · ข้อมูลครบ = ชื่อ + เบอร์ + (LINE หรือ email)"); }
+
+function renderDashRental(){ const el=$("#dash-rental"); if(!el)return;
+  const cs=DB.contracts;
+  if(!cs.length){ el.innerHTML=dashEmpty("ยังไม่มีสัญญาเช่า","rentcare"); return; }
+  const active=cs.filter(c=>!["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status||""));
+  const daysLeft=c=>c.endDate?Math.floor((new Date(c.endDate).getTime()-Date.now())/86400000):null;
+  const soon30=active.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=30; }).length;
+  const soon60=active.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=60; }).length;
+  const byUs=cs.filter(c=>(c.letBy||"us")==="us").length;
+  const byOwner=cs.filter(c=>c.letBy==="owner").length;
+  const byOther=cs.filter(c=>c.letBy==="other_agent").length;
+  const totRent=active.reduce((s,c)=>s+bn(c.rent||0),0);
+  el.innerHTML=`<div class="dash-kpi-row">
+    <div class="dash-kpi click" onclick="go('rentcare')"><b>สัญญา Active</b><div class="val">${active.length}</div></div>
+    <div class="dash-kpi"><b>ค่าเช่าต่อเดือน (รวม)</b><div class="val">฿${fmtBaht(totRent)}</div></div>
+    <div class="dash-kpi"><b>ใกล้หมด &le;30 วัน</b><div class="val" style="color:${soon30?'var(--warn)':'var(--ink)'}">${soon30}</div></div>
+    <div class="dash-kpi"><b>ใกล้หมด &le;60 วัน</b><div class="val">${soon60}</div></div>
+  </div>
+  <div style="margin-top:12px"><b style="font-size:12.5px">แหล่งที่ปล่อย</b>
+    <div class="dash-kpi-row" style="margin-top:6px">
+      <div class="dash-kpi"><b>เราปล่อย</b><div class="val">${byUs}</div></div>
+      <div class="dash-kpi"><b>Owner ปล่อย</b><div class="val">${byOwner}</div><div class="sub">มูลค่าโอกาส</div></div>
+      <div class="dash-kpi"><b>Agent อื่น</b><div class="val">${byOther}</div><div class="sub">มูลค่าโอกาส</div></div>
+    </div>
+  </div>`+dashSrc("คำนวณจาก: <code>DB.contracts</code> · <code>letBy</code> field ยังไม่บังคับกรอก · Part 5 จะเพิ่ม UI เลือก · default = <code>us</code>"); }
+
+function renderDashTrends(){ const el=$("#dash-trends"); if(!el)return;
+  const inc=DB.income;
+  if(!inc.length&&!DB.deals.length){ el.innerHTML=dashEmpty("แนวโน้มจะปรากฏเมื่อมีข้อมูลรายเดือน","finance"); return; }
+  const now=new Date();
+  const ym=off=>{ const dt=new Date(now.getFullYear(),now.getMonth()+off,1); return dt.toISOString().slice(0,7); };
+  const thisM=ym(0), lastM=ym(-1);
+  const monthSum=(arr,mkey)=>arr.filter(x=>String(x.date||x.createdAt||"").slice(0,7)===mkey).reduce((s,x)=>s+bn(x.amount||x.value||0),0);
+  const revT=monthSum(inc,thisM), revL=monthSum(inc,lastM);
+  const chg=revL?Math.round((revT-revL)/revL*100):(revT?100:0);
+  const lT=DB.leads.filter(l=>String(l.createdAt||"").slice(0,7)===thisM).length;
+  const lL=DB.leads.filter(l=>String(l.createdAt||"").slice(0,7)===lastM).length;
+  el.innerHTML=`<div class="dash-kpi-row">
+    <div class="dash-kpi"><b>รายได้เดือนนี้</b><div class="val">฿${fmtBaht(revT)}</div><div class="sub" style="color:${chg>=0?'var(--ok)':'var(--crit)'}">${chg>=0?'▲':'▼'} ${Math.abs(chg)}% vs เดือนก่อน</div></div>
+    <div class="dash-kpi"><b>Lead เดือนนี้</b><div class="val">${lT}</div><div class="sub">เดือนก่อน ${lL}</div></div>
+    <div class="dash-kpi"><b>รายได้เดือนก่อน</b><div class="val">฿${fmtBaht(revL)}</div></div>
+  </div>
+  <div style="margin-top:12px;padding:12px;background:var(--brand-soft);border-radius:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <b style="font-size:13px;color:var(--brand)">🧠 AI Executive Insight</b>
+      <span style="font-size:11px;color:var(--ink-2)">เปิดใช้เต็มรูปแบบใน Part 6</span>
+    </div>
+    <div style="font-size:12.5px;color:var(--ink-2);margin-top:6px">Trends ใช้ตัวเลขจริงจากระบบเท่านั้น · Part 6 จะเพิ่มสรุปเป็นภาษาไทย พร้อมโอกาส/ความเสี่ยง/ข้อเสนอแนะ อ้างอิงตัวเลขจริง</div>
+  </div>`+dashSrc("คำนวณจาก: <code>DB.income</code>, <code>DB.leads</code> · เทียบ this month vs last month"); }
+
+function renderMindset(){ const p=$("#principles"); if(!p)return; p.innerHTML="";
+  principles.forEach((pr,i)=>p.appendChild(el("div","card principle",`<div class="num">${i+1}</div><div><b>${esc(pr.t)}</b><p>${esc(pr.d)}</p></div>`))); }
+
+/* Part 2: Mobile Bottom Nav */
+function bnGo(id){ try{go(id);}catch(e){} setTimeout(syncBottomNav,0); }
+function bnOpenMenu(){ try{ const sb=document.querySelector('.sidebar'); if(sb){ sb.classList.toggle('open'); return; } }catch(e){} try{ toggleMenu(); }catch(e){} }
+function syncBottomNav(){ const nav=$("#bottomNav"); if(!nav)return;
+  nav.querySelectorAll('.bottom-nav-item').forEach(btn=>{ const on=btn.dataset.nav===activeView; btn.classList.toggle('active',on); });
+  const bd=$("#bnAlertsBadge"); if(bd){ const u=parseInt((($("#al-u1")||{}).textContent||"0"),10)||0; if(u>0){ bd.textContent=u>99?"99+":String(u); bd.style.display=""; } else { bd.style.display="none"; } } }
+
+function renderDashboard(){
+  try{ updateDashRangeLabel(); }catch(e){}
+  try{ renderDashCompany(); }catch(e){}
+  try{ renderDashRevenue(); }catch(e){}
+  try{ renderDashFunnel(); }catch(e){}
+  try{ renderDashPipeline(); }catch(e){}
+  try{ renderDashPortfolio(); }catch(e){}
+  try{ renderDashMarketing(); }catch(e){}
+  try{ renderDashOwner(); }catch(e){}
+  try{ renderDashRental(); }catch(e){}
+  try{ renderDashTrends(); }catch(e){}
+  try{ syncBottomNav(); }catch(e){}
 }
 function toggleTodo(i,v){ todos[i].done=v; save(); renderDashboard(); }
 
