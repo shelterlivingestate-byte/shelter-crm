@@ -2230,7 +2230,7 @@ function go(id){
 $("#cta").onclick=()=>{ const o=OS.find(x=>x.id===activeView); if(activeView==="customers"){openCustomerForm();return;} if(!o.key)return; if(o.key==="props")openPropForm(o.deal); else if(o.key==="leads")openLeadForm(o.ltype); else openForm(o.key); };
 
 /* ================= RENDERERS ================= */
-function renderAll(){ try{migrateOwners();}catch(e){} try{migrateRentalCare();}catch(e){} try{migrateMarketingSync();}catch(e){} renderDashboard();try{renderMindset();}catch(e){}renderAlerts();renderLeads();try{renderCustomers();}catch(e){}renderProjects();renderProps();try{renderPropMkt();}catch(e){}renderConsult();try{renderMkt();}catch(e){}try{renderMarketing();}catch(e){}renderPipe();renderCare();renderKB(currentKBFilter);try{renderRentCare();}catch(e){}try{renderFinance();}catch(e){}try{renderOwnerCRM();}catch(e){}try{renderAppointments();}catch(e){}try{renderReports();}catch(e){}try{syncBottomNav();}catch(e){} }
+function renderAll(){ try{migrateRemoveRentalSample();}catch(e){} try{migrateOwners();}catch(e){} try{migrateRentalCare();}catch(e){} try{migrateMarketingSync();}catch(e){} renderDashboard();try{renderMindset();}catch(e){}renderAlerts();renderLeads();try{renderCustomers();}catch(e){}renderProjects();renderProps();try{renderPropMkt();}catch(e){}renderConsult();try{renderMkt();}catch(e){}try{renderMarketing();}catch(e){}renderPipe();renderCare();renderKB(currentKBFilter);try{renderRentCare();}catch(e){}try{renderFinance();}catch(e){}try{renderOwnerCRM();}catch(e){}try{renderAppointments();}catch(e){}try{renderReports();}catch(e){}try{syncBottomNav();}catch(e){} }
 
 /* ===== ACTION CENTER / SMART ALERTS ===== */
 function todayISO(){return new Date().toISOString().slice(0,10);}
@@ -4401,17 +4401,33 @@ function icsFor(text){ const dt=todayISO().replace(/-/g,""); const ics=`BEGIN:VC
   const blob=new Blob([ics],{type:"text/calendar"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="reminder.ics"; a.click(); URL.revokeObjectURL(a.href); }
 /* ---- sample data (1 สัญญา) + id backfill ---- */
 function backfillIds(){ let ch=false; ["leads","props","projects","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks"].forEach(k=>{ (DB[k]||[]).forEach(o=>{ if(o&&!o.id){o.id=uid();ch=true;} }); }); if(ch)save(); }
-function seedRentalSample(){ if(DB.contracts.length)return; if(localStorage.getItem("shelter_seeded_rental"))return;
-  let prop=DB.props.find(p=>p.deal==="เช่า")||DB.props[0]; if(!prop)return;
-  if(!prop.id){prop.id=uid();}
-  let tenant=DB.leads.find(l=>l.type==="เช่า");
-  if(!tenant){ tenant={id:uid(),n:"คุณตัวอย่าง (ผู้เช่า)",ph:"089-000-0000",line:"@tenant",type:"เช่า",stage:"ปิดการขาย",budget:"18,000/เดือน"}; DB.leads.push(tenant); }
-  if(!prop.ownerName){ prop.ownerName="คุณเจ้าของ ตัวอย่าง"; prop.ownerPhone="081-111-2222"; prop.ownerLine="@owner"; }
-  const start=ymNow()+"-01"; const c={id:uid(),propertyId:prop.id,tenantId:tenant.id,rent:18000,dueDay:5,deposit:36000,advance:18000,startDate:start,endDate:addYear(start,1),waterRate:0,elecRate:0,netFee:600,commonFee:0,status:"Active",terms:"สัญญา 1 ปี · แจ้งล่วงหน้า 30 วัน",note:"สัญญาตัวอย่างสำหรับทดสอบระบบ"};
-  DB.contracts.push(c);
-  DB.tenantCare.push({id:uid(),contractId:c.id,date:todayISO(),category:"ติดตาม",detail:"ส่งมอบห้อง + ตรวจรับสภาพเรียบร้อย",status:"เสร็จสิ้น",satisfaction:5,intent:"ยังไม่ตัดสินใจ"});
-  try{localStorage.setItem("shelter_seeded_rental","1");}catch(e){}
-  runRentalAutomation(); save(); }
+/* Neutered per user request — never seed rental sample data automatically anymore. Kept for reference only. */
+function seedRentalSample(){ return; /* disabled: use real data only */ }
+
+/* Cleanup: remove rental sample data (contract + cascaded ledger/care/tasks/repairs/inspections/ownerCare/commissions + orphan tenants). Idempotent · runs once via localStorage flag. Snapshots local state to autoBackup before delete for undo safety. */
+function migrateRemoveRentalSample(){
+  try{ if(localStorage.getItem("shelter_rental_sample_removed")==="1")return; }catch(e){}
+  try{
+    const SAMPLE_NOTE="สัญญาตัวอย่างสำหรับทดสอบระบบ";
+    const sampleContracts=(DB.contracts||[]).filter(c=>c&&c.note===SAMPLE_NOTE);
+    if(!sampleContracts.length){ try{localStorage.setItem("shelter_rental_sample_removed","1");}catch(e){} return; }
+    /* Safety snapshot BEFORE delete (as user requested: ok clean with backup) — undo via Backup modal */
+    try{ const pl=localStorage.getItem(KEY); if(pl)autoBackup(pl); }catch(e){}
+    const sampleContractIds=new Set(sampleContracts.map(c=>c.id));
+    const sampleTenantIds=new Set(sampleContracts.map(c=>c.tenantId).filter(Boolean));
+    /* Cascade delete by contractId */
+    DB.contracts=(DB.contracts||[]).filter(c=>!sampleContractIds.has(c.id));
+    ["tenantCare","rentLedger","rentTasks","repairs","inspections","ownerCare","rentalCommissions"].forEach(k=>{ if(Array.isArray(DB[k])) DB[k]=DB[k].filter(x=>!x||!sampleContractIds.has(x.contractId)); });
+    /* Remove orphan sample tenants (only those not referenced by any surviving contract) */
+    const stillReferenced=new Set((DB.contracts||[]).map(c=>c.tenantId).filter(Boolean));
+    DB.leads=(DB.leads||[]).filter(l=>!sampleTenantIds.has(l.id)||stillReferenced.has(l.id));
+    /* Set both flags: guard the seed function AND record the cleanup happened */
+    try{localStorage.setItem("shelter_seeded_rental","1");}catch(e){}
+    try{localStorage.setItem("shelter_rental_sample_removed","1");}catch(e){}
+    save();
+    try{console.log("[cleanup] removed "+sampleContracts.length+" rental sample contract(s) + cascaded records; local state snapshotted for undo");}catch(e){}
+  }catch(e){ try{console.log("[cleanup] migrateRemoveRentalSample error:",e.message);}catch(e2){} }
+}
 
 function renderCare(){
   const tb=$("#careBody");tb.innerHTML="";
@@ -5398,7 +5414,8 @@ try{ if(DB.projects.length===0 && !localStorage.getItem("shelter_seeded_projects
 try{ if(DB.props.length===0 && !localStorage.getItem("shelter_seeded_listings")) seedListings(false); }catch(e){}
 try{ migrateMatchingV2(); }catch(e){}
 try{ backfillIds(); }catch(e){}
-try{ seedRentalSample(); }catch(e){}
+/* Rental sample seed disabled per user request — function is neutered; cleanup runs via migrateRemoveRentalSample() in renderAll */
+try{ migrateRemoveRentalSample(); }catch(e){}
 try{ runRentalAutomation(); }catch(e){}
 renderAll();
 try{ initAuth(); }catch(e){}
