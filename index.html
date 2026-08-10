@@ -3450,18 +3450,69 @@ function renderDashTrends(){ const el=$("#dash-trends"); if(!el)return;
   const chg=revL?Math.round((revT-revL)/revL*100):(revT?100:0);
   const lT=DB.leads.filter(l=>String(l.createdAt||"").slice(0,7)===thisM).length;
   const lL=DB.leads.filter(l=>String(l.createdAt||"").slice(0,7)===lastM).length;
+  const hasAI=(()=>{try{return typeof AI!=="undefined"&&AI.key;}catch(e){return false;}})();
   el.innerHTML=`<div class="dash-kpi-row">
     <div class="dash-kpi"><b>รายได้เดือนนี้</b><div class="val">฿${fmtBaht(revT)}</div><div class="sub" style="color:${chg>=0?'var(--ok)':'var(--crit)'}">${chg>=0?'▲':'▼'} ${Math.abs(chg)}% vs เดือนก่อน</div></div>
     <div class="dash-kpi"><b>Lead เดือนนี้</b><div class="val">${lT}</div><div class="sub">เดือนก่อน ${lL}</div></div>
     <div class="dash-kpi"><b>รายได้เดือนก่อน</b><div class="val">฿${fmtBaht(revL)}</div></div>
   </div>
   <div style="margin-top:12px;padding:12px;background:var(--brand-soft);border-radius:8px">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
       <b style="font-size:13px;color:var(--brand)">🧠 AI Executive Insight</b>
-      <span style="font-size:11px;color:var(--ink-2)">เปิดใช้เต็มรูปแบบใน Part 6</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:11px;color:var(--ink-2)">${hasAI?"ใช้ AI + rule-based":"rule-based (ไม่มี AI key)"}</span>
+        <button class="btn sm primary" onclick="aiExecInsight()">${hasAI?"✨ สร้าง Insight":"📋 สร้าง Insight (rule-based)"}</button>
+      </div>
     </div>
-    <div style="font-size:12.5px;color:var(--ink-2);margin-top:6px">Trends ใช้ตัวเลขจริงจากระบบเท่านั้น · Part 6 จะเพิ่มสรุปเป็นภาษาไทย พร้อมโอกาส/ความเสี่ยง/ข้อเสนอแนะ อ้างอิงตัวเลขจริง</div>
-  </div>`+dashSrc("คำนวณจาก: <code>DB.income</code>, <code>DB.leads</code> · เทียบ this month vs last month"); }
+    <div id="aiExecOut" class="asst-out" style="font-size:12.5px;color:var(--ink-2);min-height:20px">กดปุ่มด้านบนเพื่อสรุปแนวโน้ม · โอกาส · ความเสี่ยง · ข้อเสนอแนะ (อ้างอิงตัวเลขจริง) · <b>ทุกคำแนะนำเป็นร่าง — ต้องยืนยันก่อนดำเนินการ</b></div>
+  </div>`+dashSrc("คำนวณจาก: <code>DB.income</code>, <code>DB.leads</code> · เทียบ this month vs last month · AI ใช้ข้อมูลจริงจากทุก DB · ไม่สร้างตัวเลข"); }
+
+/* Part 6A: AI Executive Insight — leverages existing callAI, offline rule fallback, no auto-send */
+function _execFacts(){ const now=new Date(); const ym=o=>new Date(now.getFullYear(),now.getMonth()+o,1).toISOString().slice(0,7); const thisM=ym(0),lastM=ym(-1);
+  const monthSum=(arr,mkey)=>arr.filter(x=>String(x.date||x.createdAt||"").slice(0,7)===mkey).reduce((s,x)=>s+bn(x.amount||x.value||0),0);
+  const revT=monthSum(DB.income,thisM),revL=monthSum(DB.income,lastM);
+  const expT=monthSum(DB.expense,thisM);
+  const leadT=DB.leads.filter(l=>String(l.createdAt||"").slice(0,7)===thisM).length;
+  const leadL=DB.leads.filter(l=>String(l.createdAt||"").slice(0,7)===lastM).length;
+  const dealsWonT=DB.deals.filter(d=>d.stage===5&&String(d.updatedAt||d.createdAt||"").slice(0,7)===thisM).length;
+  const dealsActive=DB.deals.filter(d=>d.stage>=0&&d.stage<5).length;
+  const pipeVal=DB.deals.filter(d=>d.stage<5).reduce((s,d)=>s+bn(d.val||0),0);
+  const propsTotal=DB.props.length;
+  const propsListed=DB.props.filter(p=>p.channels&&Object.keys(p.channels).filter(k=>k!=="copy").length).length;
+  const propsUnlisted=propsTotal-propsListed;
+  const contractsActive=DB.contracts.filter(c=>!["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status||"")).length;
+  const contractsSoon30=DB.contracts.filter(c=>{if(!c.endDate)return false;const d=Math.floor((new Date(c.endDate).getTime()-Date.now())/86400000);return d>=0&&d<=30;}).length;
+  const ownerDups=(typeof ownerDuplicates==="function"?ownerDuplicates():[]).length;
+  return {revT,revL,expT,leadT,leadL,dealsWonT,dealsActive,pipeVal,propsTotal,propsListed,propsUnlisted,contractsActive,contractsSoon30,ownerDups,thisM,lastM};
+}
+function _execRules(f){ const bits=[]; const chgRev=f.revL?Math.round((f.revT-f.revL)/f.revL*100):null;
+  if(chgRev!==null){bits.push((chgRev>=0?"▲ ":"▼ ")+"รายได้ "+Math.abs(chgRev)+"% vs เดือนก่อน (฿"+fmtBaht(f.revT)+" vs ฿"+fmtBaht(f.revL)+")");}
+  else if(f.revT){bits.push("▲ รายได้เดือนนี้ ฿"+fmtBaht(f.revT)+" (เดือนก่อนไม่มีข้อมูลเทียบ)");}
+  if(f.expT){bits.push("💸 ค่าใช้จ่ายเดือนนี้ ฿"+fmtBaht(f.expT)+(f.revT?" ("+Math.round(f.expT/f.revT*100)+"% ของรายได้)":""));}
+  if(f.leadT||f.leadL){const chg=f.leadL?Math.round((f.leadT-f.leadL)/f.leadL*100):(f.leadT?100:0);bits.push("👥 Lead ใหม่ "+f.leadT+" ("+(chg>=0?"+":"")+chg+"% vs เดือนก่อน "+f.leadL+")");}
+  const opps=[]; const risks=[]; const actions=[];
+  if(f.dealsActive>0)opps.push("มี "+f.dealsActive+" ดีลกำลังดำเนิน มูลค่ารวม ฿"+fmtBaht(f.pipeVal));
+  if(f.propsUnlisted>10)risks.push("มีทรัพย์ยังไม่ลงประกาศ "+f.propsUnlisted+" หลัง (จาก "+f.propsTotal+")");
+  if(f.contractsSoon30>0)risks.push("สัญญาเช่าใกล้หมด ≤30 วัน: "+f.contractsSoon30+" สัญญา");
+  if(f.ownerDups>0)risks.push("Owner สงสัยว่าซ้ำ: "+f.ownerDups+" กลุ่ม (ต้องรีวิว)");
+  if(f.propsUnlisted>0)actions.push("เปิดหน้า Marketing tab 3 → ลงประกาศทรัพย์ที่ยังไม่ลง ("+f.propsUnlisted+" หลัง)");
+  if(f.contractsSoon30>0)actions.push("เปิด Rental Care → ติดต่อผู้เช่า/เจ้าของ เพื่อต่อสัญญา");
+  if(f.dealsActive>0)actions.push("เปิด Deal Pipeline → ผลักดันดีลกำลังดำเนิน");
+  if(f.leadL&&f.leadT<f.leadL)actions.push("ทบทวนช่องทางการตลาด — Lead ลดลง อาจต้องเพิ่มงบหรือปรับคอนเทนต์");
+  return {bits,opps,risks,actions};
+}
+function _execAsHTML(r){ const sec=(t,arr,color,ic)=>arr.length?`<div style="margin-top:8px"><b style="font-size:12px;color:${color}">${ic} ${esc(t)}</b><ul style="margin:4px 0 0 20px;padding:0;font-size:12.5px">${arr.map(x=>"<li>"+esc(x)+"</li>").join("")}</ul></div>`:"";
+  return (r.bits.length?'<div style="font-size:12.5px">'+r.bits.map(esc).join(" · ")+'</div>':'')+sec("โอกาส",r.opps,"var(--ok)","✅")+sec("ความเสี่ยง",r.risks,"var(--crit)","⚠")+sec("ข้อเสนอแนะ",r.actions,"var(--brand)","🎯")+'<div style="margin-top:10px;padding:6px 8px;background:var(--panel);border-radius:6px;font-size:11px;color:var(--muted)">ทุกคำแนะนำเป็นร่าง อ้างอิงตัวเลขจริง · <b>ต้องยืนยันก่อนดำเนินการ</b>ทุกครั้ง</div>';
+}
+async function aiExecInsight(){ const out=$("#aiExecOut"); if(!out)return; const f=_execFacts(); const rules=_execRules(f); const ruleHTML=_execAsHTML(rules);
+  const hasAI=(()=>{try{return typeof AI!=="undefined"&&AI.key;}catch(e){return false;}})();
+  if(!hasAI){ out.innerHTML=ruleHTML+'<div style="margin-top:6px;padding:5px 8px;background:var(--info-soft);border-radius:5px;font-size:11px;color:var(--ink-2)">📋 สรุปด้วย rule-based (ไม่ได้ตั้งค่า AI key) · เปิด Backup modal → ตั้งค่า AI เพื่อเปิดใช้ AI มุมมองที่คมกว่า</div>'; return; }
+  out.innerHTML='<span class="spin"></span> AI กำลังวิเคราะห์...';
+  const prompt=`สรุป Executive Insight เดือน ${f.thisM} เทียบ ${f.lastM}\nข้อมูลจริงจากระบบ:\n- รายได้เดือนนี้ ฿${fmtBaht(f.revT)} · เดือนก่อน ฿${fmtBaht(f.revL)} · ค่าใช้จ่ายเดือนนี้ ฿${fmtBaht(f.expT)}\n- Lead ใหม่ ${f.leadT} (เดือนก่อน ${f.leadL})\n- ดีลกำลังดำเนิน ${f.dealsActive} · มูลค่า Pipeline ฿${fmtBaht(f.pipeVal)} · ปิดสำเร็จเดือนนี้ ${f.dealsWonT}\n- ทรัพย์ทั้งหมด ${f.propsTotal} · ลงประกาศแล้ว ${f.propsListed} · ยังไม่ลง ${f.propsUnlisted}\n- สัญญาเช่า Active ${f.contractsActive} · ใกล้หมด ≤30 วัน ${f.contractsSoon30}\n- Owner สงสัยว่าซ้ำ ${f.ownerDups} กลุ่ม\n\nสรุปสั้น (ไทย, ทางการแต่อบอุ่น) เป็น 4 หัวข้อ:\n1. สิ่งที่ดีขึ้น (พร้อมตัวเลขจริง)\n2. สิ่งที่ต้องระวัง\n3. โอกาส\n4. ข้อเสนอแนะ (Next Best Action) — ระบุปุ่ม/หน้าใน CRM ให้ชัด\n\nกฎ:\n- ห้ามเดาตัวเลขที่ไม่มีในข้อมูล\n- ถ้าข้อมูลไม่พอให้บอกตรงๆ ว่า "ข้อมูลยังไม่พอ"\n- โทน advisor first · ไม่กดดัน · ไม่ auto-send\n- ทุกข้อเสนอลงท้ายด้วย "(รอผู้ใช้ยืนยันก่อนดำเนินการ)"`;
+  try{ const txt=await callAI(prompt,700,"คุณคือ SHELTER Executive Insight — ที่ปรึกษาผู้บริหาร ให้สรุปสั้น ใช้ตัวเลขจริง โทนอุ่น สุภาพ ห้ามสร้างข้อมูล");
+    out.innerHTML='<div style="font-size:12.5px;line-height:1.7;white-space:pre-wrap">'+esc(txt)+'</div><div style="margin-top:10px;padding:6px 8px;background:var(--gold-soft);border-radius:5px;font-size:11px;color:var(--warn)"><b>⚠ AI-generated · ตัวเลขทุกตัวมาจากระบบจริง แต่การตีความเป็นของ AI</b> · ตรวจก่อนใช้อ้างอิงหรือส่งต่อ</div><details style="margin-top:8px"><summary style="cursor:pointer;font-size:11px;color:var(--muted)">▾ ดูสรุป rule-based (fallback)</summary>'+ruleHTML+'</details>';
+  }catch(e){ out.innerHTML=ruleHTML+'<div style="margin-top:6px;padding:5px 8px;background:var(--crit-soft);border-radius:5px;font-size:11px;color:var(--crit)">⚠ AI ผิดพลาด: '+esc(String(e.message||e).slice(0,120))+' · แสดง rule-based summary แทน</div>'; }
+}
 
 function renderMindset(){ const p=$("#principles"); if(!p)return; p.innerHTML="";
   principles.forEach((pr,i)=>p.appendChild(el("div","card principle",`<div class="num">${i+1}</div><div><b>${esc(pr.t)}</b><p>${esc(pr.d)}</p></div>`))); }
