@@ -3963,7 +3963,7 @@ function renderMktOverview(panel){
       <div class="dash-kpi"><b>ต้นทุนต่อดีล</b><div class="val">${cpd!=null?"฿"+fmtBaht(cpd):"—"}</div></div>
       <div class="dash-kpi"><b>ROI</b><div class="val" style="color:${roi==null?'var(--muted)':roi>=0?'var(--ok)':'var(--crit)'}">${roi!=null?roi+"%":"—"}</div></div>
     </div></details>
-    <div class="mkt-src">คำนวณจาก <code>DB.mkt</code>, <code>DB.props.channels</code>, <code>DB.appointments</code>, <code>DB.deals</code>, <code>DB.income</code>, <code>DB.leads.src</code> · ตัวหาร=0 → แสดง "—" (ไม่มี NaN/Infinity)</div>`;
+    <div class="mkt-src">คำนวณจาก <code>DB.mkt</code>, <code>DB.props.channels</code>, <code>DB.appointments</code>, <code>DB.deals</code>, <code>DB.income</code>, <code>DB.leads.src</code> · ตัวหาร=0 → คืน null → แสดง "—"</div>`;
 }
 
 /* Tab 2: งานที่ต้องทำ */
