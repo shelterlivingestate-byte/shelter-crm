@@ -242,6 +242,14 @@ html[data-theme="dark"] .tag.amber{color:#f0c04a}
   .mkt-tab{padding:7px 10px;font-size:12px}
 }
 
+/* Customer v2: stage chips (Buyer/Renter status filter · horizontal scroll on mobile) */
+.stage-chips::-webkit-scrollbar{display:none}
+.stage-chip{flex:0 0 auto;background:var(--panel);border:1px solid var(--border);color:var(--ink-2);padding:6px 11px;border-radius:20px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;min-height:32px;letter-spacing:.2px;transition:.15s}
+.stage-chip:hover{color:var(--ink);border-color:var(--ink-2)}
+.stage-chip.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.stage-chip .n{background:var(--plane);color:var(--muted);font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:9px;font-variant-numeric:tabular-nums;line-height:1.4}
+.stage-chip.on .n{background:rgba(255,255,255,.22);color:#fff}
+
 /* Part 2: Mobile Bottom Navigation */
 .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--panel);border-top:1px solid var(--border);display:none;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -2px 8px rgba(0,0,0,.05)}
 .bottom-nav-inner{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:600px;margin:0 auto}
@@ -877,9 +885,11 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
       <div class="tablewrap">
         <div class="toolbar">
           <input class="search" id="buySearch" placeholder="ค้นหาชื่อ / เบอร์ / ทำเลที่สนใจ…" oninput="renderLeadsBuy()">
-          <select id="buyStage" onchange="renderLeadsBuy()"><option value="">ทุกสถานะ</option><option>ใหม่</option><option>คัดกรองแล้ว</option><option>นัดชม</option><option>ยื่นข้อเสนอ</option><option>ต่อรอง</option><option>พร้อมซื้อ</option><option>พร้อมโอน</option></select>
+          <select id="buyStage" onchange="renderLeadsBuy()"><option value="">ทุกสถานะ</option><option>ลูกค้าใหม่</option><option>กำลัง Matching</option><option>นัดชม</option><option>Follow-up</option><option>เจรจา/จอง</option><option>รอโอน</option><option>ซื้อสำเร็จ</option><option>ปิดเคส</option></select>
           <button class="btn primary sm" onclick="openLeadForm('ซื้อ')">+ เพิ่มลูกค้าซื้อ</button>
         </div>
+        <!-- Customer v2: stage chip filter (auto-populated via renderLeadStageChips) -->
+        <div class="stage-chips" id="buyChips" style="display:flex;gap:6px;overflow-x:auto;padding:6px 4px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch"></div>
         <div style="overflow-x:auto"><table>
           <thead><tr><th>ลูกค้า</th><th>ความต้องการ</th><th>สนใจ / งบ</th><th>แหล่งที่มา</th><th>Score</th><th>สถานะ</th><th></th></tr></thead>
           <tbody id="buyBody"></tbody>
@@ -899,9 +909,11 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
       <div class="tablewrap">
         <div class="toolbar">
           <input class="search" id="rentlSearch" placeholder="ค้นหาชื่อ / เบอร์ / ทำเลที่สนใจ…" oninput="renderLeadsRent()">
-          <select id="rentlStage" onchange="renderLeadsRent()"><option value="">ทุกสถานะ</option><option>ใหม่</option><option>คัดกรองแล้ว</option><option>นัดชม</option><option>ยื่นข้อเสนอ</option><option>ต่อรอง</option><option>พร้อมซื้อ</option></select>
+          <select id="rentlStage" onchange="renderLeadsRent()"><option value="">ทุกสถานะ</option><option>ลูกค้าใหม่</option><option>กำลัง Matching</option><option>นัดชม/Follow-up</option><option>เจรจา/จอง</option><option>ทำสัญญา</option><option>ปล่อยเช่าแล้ว</option><option>ปิดเคส</option></select>
           <button class="btn primary sm" onclick="openLeadForm('เช่า')">+ เพิ่มลูกค้าเช่า</button>
         </div>
+        <!-- Customer v2: stage chip filter (auto-populated via renderLeadStageChips) -->
+        <div class="stage-chips" id="rentlChips" style="display:flex;gap:6px;overflow-x:auto;padding:6px 4px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch"></div>
         <div style="overflow-x:auto"><table>
           <thead><tr><th>ลูกค้า</th><th>ความต้องการ</th><th>สนใจ / งบ/ด</th><th>แหล่งที่มา</th><th>Score</th><th>สถานะ</th><th></th></tr></thead>
           <tbody id="rentlBody"></tbody>
@@ -1438,7 +1450,7 @@ const SCHEMA={
     {k:"moveTimeline",l:"Timeline ย้าย/ตัดสินใจ (Move Timeline)",type:"text",grp:"buy"},
     {k:"mustHave",l:"ต้องมี (Must-have)",type:"text",grp:"buy"},{k:"dealBreaker",l:"รับไม่ได้ (Deal Breaker)",type:"text",grp:"buy"},
     {k:"lifestyle",l:"Lifestyle / ครอบครัว / ที่ทำงาน",type:"text",full:1,grp:"buy"},{k:"painPoint",l:"Pain Point",type:"text",full:1,grp:"buy"},
-    {k:"buyerStage",l:"Buyer Stage",type:"select",opts:["Lead","Needs Discovery","Property Matching","Viewing","Offer","Negotiation","Booking","Loan","Transfer","Closed"],grp:"buy"},
+    {k:"buyerStage",l:"สถานะลูกค้าซื้อ (Buyer Stage)",type:"select",opts:["ลูกค้าใหม่","กำลัง Matching","นัดชม","Follow-up","เจรจา/จอง","รอโอน","ซื้อสำเร็จ","ปิดเคส"],grp:"buy"},
     {type:"heading",k:"_hr",l:"🏠 ความต้องการเช่า (Renter Requirement)",grp:"rent"},
     {k:"rentalBudget",l:"งบเช่า/เดือน (Rental Budget)",type:"text",grp:"rent"},
     {k:"r_movein",l:"วันย้ายเข้า (Move-in Date)",type:"text",grp:"rent"},{k:"r_lease",l:"ระยะสัญญา (Contract Duration)",type:"text",grp:"rent"},
@@ -1449,11 +1461,14 @@ const SCHEMA={
     {k:"applianceReq",l:"เครื่องใช้ไฟฟ้า (Appliance)",type:"text",grp:"rent"},
     {k:"depositCondition",l:"เงื่อนไขเงินประกัน (Deposit)",type:"text",grp:"rent"},{k:"advanceRent",l:"ค่าเช่าล่วงหน้า (Advance Rent)",type:"text",grp:"rent"},
     {k:"r_purpose",l:"วัตถุประสงค์เช่า (อยู่เอง/บริษัท/Airbnb)",type:"text",grp:"rent"},
-    {k:"renterStage",l:"Renter Stage",type:"select",opts:["Lead","Needs Discovery","Property Matching","Viewing","Negotiation","Booking","Lease Contract","Move In","Rental Care","Renewal/Move Out"],grp:"rent"},
+    {k:"renterStage",l:"สถานะลูกค้าเช่า (Renter Stage)",type:"select",opts:["ลูกค้าใหม่","กำลัง Matching","นัดชม/Follow-up","เจรจา/จอง","ทำสัญญา","ปล่อยเช่าแล้ว","ปิดเคส"],grp:"rent"},
     {type:"heading",k:"_c3",l:"⭐ คะแนน & ติดตาม"},
     {k:"score",l:"Lead Score (0–100)",type:"number"},
     {k:"grade",l:"เกรดลูกค้า (ว่าง = ให้ระบบจัดอัตโนมัติ)",type:"select",opts:["","A","B","C"]},
-    {k:"lastContact",l:"ติดตามล่าสุด (YYYY-MM-DD)",type:"text"},{k:"nextFollowup",l:"นัดติดตามครั้งถัดไป (YYYY-MM-DD)",type:"text"}]},
+    {k:"lastContact",l:"ติดตามล่าสุด (YYYY-MM-DD)",type:"text"},{k:"nextFollowup",l:"นัดติดตามครั้งถัดไป (YYYY-MM-DD)",type:"text"},
+    /* Customer v2: closeReason — required when buyerStage หรือ renterStage = "ปิดเคส" (saveForm บังคับก่อนบันทึก) */
+    {k:"closeReason",l:"เหตุผลปิดเคส (บังคับเมื่อสถานะ = ปิดเคส)",type:"select",opts:["","ซื้อ/เช่ากับ Agent อื่น","เจ้าของปล่อยเอง","ลูกค้าหาได้เอง","หยุดค้นหา","งบประมาณไม่ตรง","ติดต่อไม่ได้","อื่น ๆ"],full:1},
+    {k:"closeNote",l:"บันทึกเพิ่มเติมเหตุผลปิดเคส (ว่างได้)",type:"textarea",full:1}]},
   projects:{title:"โครงการ / Project", fields:[
     {k:"name",l:"ชื่อโครงการ",type:"text",req:1,full:1},
     {k:"developer",l:"นักพัฒนา / เจ้าของโครงการ",type:"text"},{k:"cat",l:"ประเภท",type:"select",opts:["คอนโด","บ้านเดี่ยว","ทาวน์โฮม","ที่ดิน","มิกซ์ยูส"]},
@@ -1738,8 +1753,8 @@ const needsTemplate=["งบประมาณสูงสุดที่รั�
 
 /* ================= STATE ================= */
 const KEY="shelteros_crm_v2";
-const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue","activities"];
-let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[],activities:[]};
+const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue","activities","propertyImages"];
+let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[],activities:[],propertyImages:[]};
 let kb=[]; let todos=[]; let needsState=needsTemplate.map(()=>false);
 DB.kb=kb;
 const uid=()=>"id"+Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36);
@@ -2162,8 +2177,24 @@ function saveForm(ev){
     obj.journeys=js;
     obj.custType=isRent&&!isBuy?"Tenant":(isBuy?"Buyer":(prev.custType||"Buyer"));
     obj.type=isBuy?"ซื้อ":(isRent?"เช่า":(prev.type||"ซื้อ"));
-    if(isBuy&&!(obj.buyerStage||"").trim())obj.buyerStage=prev.buyerStage||"Lead";
-    if(isRent&&!(obj.renterStage||"").trim())obj.renterStage=prev.renterStage||"Lead";
+    if(isBuy&&!(obj.buyerStage||"").trim())obj.buyerStage=prev.buyerStage||"ลูกค้าใหม่";
+    if(isRent&&!(obj.renterStage||"").trim())obj.renterStage=prev.renterStage||"ลูกค้าใหม่";
+    /* Customer v2: require closeReason when stage="ปิดเคส" (blocking · user must pick before save) */
+    const bClosed=(obj.buyerStage||"")==="ปิดเคส", rClosed=(obj.renterStage||"")==="ปิดเคส";
+    if((bClosed||rClosed)&&!(obj.closeReason||"").trim()){
+      const which=bClosed&&rClosed?"ทั้งซื้อและเช่า":(bClosed?"ซื้อ":"เช่า");
+      const pick=prompt("สถานะ '"+which+"' = ปิดเคส · เลือกเหตุผลก่อนบันทึก:\n\n1. ซื้อ/เช่ากับ Agent อื่น\n2. เจ้าของปล่อยเอง\n3. ลูกค้าหาได้เอง\n4. หยุดค้นหา\n5. งบประมาณไม่ตรง\n6. ติดต่อไม่ได้\n7. อื่น ๆ\n\nพิมพ์เลข 1-7 หรือข้อความ:","1");
+      if(pick===null){ /* user cancelled — reset stage to previous so we don't lose data */
+        if(bClosed)obj.buyerStage=prev.buyerStage||"ลูกค้าใหม่";
+        if(rClosed)obj.renterStage=prev.renterStage||"ลูกค้าใหม่";
+      } else {
+        const map={"1":"ซื้อ/เช่ากับ Agent อื่น","2":"เจ้าของปล่อยเอง","3":"ลูกค้าหาได้เอง","4":"หยุดค้นหา","5":"งบประมาณไม่ตรง","6":"ติดต่อไม่ได้","7":"อื่น ๆ"};
+        obj.closeReason=map[pick.trim()]||pick.trim();
+      }
+    }
+    /* Customer v2: audit trail for stage change */
+    if(prev.buyerStage!==obj.buyerStage){ try{auditLog("lead",obj.id||(prev&&prev.id)||"","buyerStage",prev.buyerStage||"",obj.buyerStage||"");}catch(e){} }
+    if(prev.renterStage!==obj.renterStage){ try{auditLog("lead",obj.id||(prev&&prev.id)||"","renterStage",prev.renterStage||"",obj.renterStage||"");}catch(e){} }
     obj.createdAt=prev.createdAt||todayISO(); obj.updatedAt=todayISO();
   }
   if(entity==="props"){
@@ -2230,7 +2261,7 @@ function go(id){
 $("#cta").onclick=()=>{ const o=OS.find(x=>x.id===activeView); if(activeView==="customers"){openCustomerForm();return;} if(!o.key)return; if(o.key==="props")openPropForm(o.deal); else if(o.key==="leads")openLeadForm(o.ltype); else openForm(o.key); };
 
 /* ================= RENDERERS ================= */
-function renderAll(){ try{migrateRemoveRentalSample();}catch(e){} try{migrateOwners();}catch(e){} try{migrateRentalCare();}catch(e){} try{migrateMarketingSync();}catch(e){} renderDashboard();try{renderMindset();}catch(e){}renderAlerts();renderLeads();try{renderCustomers();}catch(e){}renderProjects();renderProps();try{renderPropMkt();}catch(e){}renderConsult();try{renderMkt();}catch(e){}try{renderMarketing();}catch(e){}renderPipe();renderCare();renderKB(currentKBFilter);try{renderRentCare();}catch(e){}try{renderFinance();}catch(e){}try{renderOwnerCRM();}catch(e){}try{renderAppointments();}catch(e){}try{renderReports();}catch(e){}try{syncBottomNav();}catch(e){} }
+function renderAll(){ try{migrateRemoveRentalSample();}catch(e){} try{migrateLeadStagesV2();}catch(e){} try{migrateOwners();}catch(e){} try{migrateRentalCare();}catch(e){} try{migrateMarketingSync();}catch(e){} renderDashboard();try{renderMindset();}catch(e){}renderAlerts();renderLeads();try{renderCustomers();}catch(e){}renderProjects();renderProps();try{renderPropMkt();}catch(e){}renderConsult();try{renderMkt();}catch(e){}try{renderMarketing();}catch(e){}renderPipe();renderCare();renderKB(currentKBFilter);try{renderRentCare();}catch(e){}try{renderFinance();}catch(e){}try{renderOwnerCRM();}catch(e){}try{renderAppointments();}catch(e){}try{renderReports();}catch(e){}try{syncBottomNav();}catch(e){} }
 
 /* ===== ACTION CENTER / SMART ALERTS ===== */
 function todayISO(){return new Date().toISOString().slice(0,10);}
@@ -2973,8 +3004,14 @@ function loadDemoData(){
 const CUST_TYPES=["Buyer","Tenant","Seller","Landlord"];
 const CUST_TH={Buyer:"ผู้ซื้อ",Tenant:"ผู้เช่า",Seller:"ผู้ขาย/เจ้าของขาย",Landlord:"เจ้าของปล่อยเช่า"};
 const CUST_COLOR={Buyer:"#2a6fd6",Tenant:"#0a7a2f",Seller:"#8a5a16",Landlord:"#6A0807"};
-const BUYER_JOURNEY=["Lead","Needs Discovery","Property Matching","Viewing","Offer","Negotiation","Booking","Loan","Transfer","Closed"];
-const TENANT_JOURNEY=["Lead","Needs Discovery","Property Matching","Viewing","Negotiation","Booking","Lease Contract","Move In","Rental Care","Renewal/Move Out"];
+/* Customer Stages v2 (Thai · concise) — replaces English legacy list · migration maps old → new · closeReason required when stage="ปิดเคส" */
+const BUYER_JOURNEY=["ลูกค้าใหม่","กำลัง Matching","นัดชม","Follow-up","เจรจา/จอง","รอโอน","ซื้อสำเร็จ","ปิดเคส"];
+const BUYER_STAGE_MAP={"Lead":"ลูกค้าใหม่","ใหม่":"ลูกค้าใหม่","Needs Discovery":"กำลัง Matching","Property Matching":"กำลัง Matching","คัดกรองแล้ว":"กำลัง Matching","Matching":"กำลัง Matching","Viewing":"นัดชม","นัดชม":"นัดชม","Follow-up":"Follow-up","Offer":"เจรจา/จอง","ยื่นข้อเสนอ":"เจรจา/จอง","Negotiation":"เจรจา/จอง","ต่อรอง":"เจรจา/จอง","Booking":"เจรจา/จอง","พร้อมซื้อ":"เจรจา/จอง","Loan":"รอโอน","Transfer":"รอโอน","พร้อมโอน":"รอโอน","Closed":"ซื้อสำเร็จ","ซื้อสำเร็จ":"ซื้อสำเร็จ","ปิดเคส":"ปิดเคส","พัก":"ปิดเคส","lost":"ปิดเคส","ไม่สำเร็จ":"ปิดเคส"};
+const RENTER_STAGE_MAP={"Lead":"ลูกค้าใหม่","ใหม่":"ลูกค้าใหม่","Needs Discovery":"กำลัง Matching","Property Matching":"กำลัง Matching","คัดกรองแล้ว":"กำลัง Matching","Matching":"กำลัง Matching","Viewing":"นัดชม/Follow-up","นัดชม":"นัดชม/Follow-up","Follow-up":"นัดชม/Follow-up","นัดชม/Follow-up":"นัดชม/Follow-up","Negotiation":"เจรจา/จอง","ต่อรอง":"เจรจา/จอง","ยื่นข้อเสนอ":"เจรจา/จอง","Booking":"เจรจา/จอง","พร้อมซื้อ":"เจรจา/จอง","Lease Contract":"ทำสัญญา","ทำสัญญา":"ทำสัญญา","Move In":"ปล่อยเช่าแล้ว","Rental Care":"ปล่อยเช่าแล้ว","ปล่อยเช่าแล้ว":"ปล่อยเช่าแล้ว","Renewal/Move Out":"ปิดเคส","ปิดเคส":"ปิดเคส","พัก":"ปิดเคส","lost":"ปิดเคส","ไม่สำเร็จ":"ปิดเคส"};
+const CLOSE_REASONS=["ซื้อ/เช่ากับ Agent อื่น","เจ้าของปล่อยเอง","ลูกค้าหาได้เอง","หยุดค้นหา","งบประมาณไม่ตรง","ติดต่อไม่ได้","อื่น ๆ"];
+const BUYER_JOURNEY_LEGACY=["Lead","Needs Discovery","Property Matching","Viewing","Offer","Negotiation","Booking","Loan","Transfer","Closed"]; /* kept for reference · not used in UI */
+const TENANT_JOURNEY=["ลูกค้าใหม่","กำลัง Matching","นัดชม/Follow-up","เจรจา/จอง","ทำสัญญา","ปล่อยเช่าแล้ว","ปิดเคส"];
+const TENANT_JOURNEY_LEGACY=["Lead","Needs Discovery","Property Matching","Viewing","Negotiation","Booking","Lease Contract","Move In","Rental Care","Renewal/Move Out"]; /* kept for reference · not used in UI */
 const JOURNEY_TH={"Lead":"ลูกค้าใหม่","Needs Discovery":"ค้นหาความต้องการ","Property Matching":"จับคู่ทรัพย์","Viewing":"นัดชม","Offer":"ยื่นข้อเสนอ","Negotiation":"ต่อรอง","Booking":"จอง","Loan":"ยื่นกู้","Transfer":"โอน","Closed":"ปิดการขาย","Lease Contract":"ทำสัญญาเช่า","Move In":"เข้าอยู่","Rental Care":"ดูแลระหว่างเช่า","Renewal/Move Out":"ต่อสัญญา/ย้ายออก"};
 const RENTER_JOURNEY=TENANT_JOURNEY;
 function custTypeOf(l){ if(l.custType&&CUST_TYPES.includes(l.custType))return l.custType; return l.type==="เช่า"?"Tenant":l.type==="ขาย"?"Seller":"Buyer"; }
@@ -3595,34 +3632,86 @@ function renderDashboard(){
 function toggleTodo(i,v){ todos[i].done=v; save(); renderDashboard(); }
 
 function renderLeads(){ renderLeadsBuy(); renderLeadsRent(); }
-function renderLeadsBuy(){ renderLeadsType({rent:false,label:"ลูกค้าซื้อ",searchId:"buySearch",stageId:"buyStage",bodyId:"buyBody",kTotal:"buy-total",kHot:"buy-hot",kReady:"buy-ready",kAvg:"buy-avg",readyRe:/พร้อมซื้อ|พร้อมโอน|ต่อรอง/}); }
-function renderLeadsRent(){ renderLeadsType({rent:true,label:"ลูกค้าเช่า",searchId:"rentlSearch",stageId:"rentlStage",bodyId:"rentlBody",kTotal:"rentl-total",kHot:"rentl-hot",kReady:"rentl-ready",kAvg:"rentl-avg",readyRe:/พร้อมซื้อ|ต่อรอง/}); }
+/* Customer v2: migration — map legacy English/Thai stages → new Thai stages · idempotent · runs once from renderAll */
+function migrateLeadStagesV2(){ try{ if(localStorage.getItem("shelter_lead_stages_v2")==="1")return; }catch(e){}
+  try{ let ch=0;
+    (DB.leads||[]).forEach(l=>{ if(!l)return;
+      /* Save history before mutate */
+      const before={bs:l.buyerStage||"",rs:l.renterStage||"",stage:l.stage||""};
+      if(l.buyerStage&&BUYER_STAGE_MAP[l.buyerStage]&&l.buyerStage!==BUYER_STAGE_MAP[l.buyerStage]){ l.buyerStage=BUYER_STAGE_MAP[l.buyerStage]; ch++; }
+      if(l.renterStage&&RENTER_STAGE_MAP[l.renterStage]&&l.renterStage!==RENTER_STAGE_MAP[l.renterStage]){ l.renterStage=RENTER_STAGE_MAP[l.renterStage]; ch++; }
+      if(l.stage){ /* legacy .stage may be like "ใหม่/นัดชม/พร้อมซื้อ" — map into buy/rent as applicable */
+        if(hasJourney(l,"Buyer")&&!l.buyerStage&&BUYER_STAGE_MAP[l.stage]){ l.buyerStage=BUYER_STAGE_MAP[l.stage]; ch++; }
+        if(hasJourney(l,"Renter")&&!l.renterStage&&RENTER_STAGE_MAP[l.stage]){ l.renterStage=RENTER_STAGE_MAP[l.stage]; ch++; }
+      }
+      /* Log to auditLog if mutated (audit ID = lead id) */
+      if(before.bs!==(l.buyerStage||"")){ try{auditLog("lead",l.id,"buyerStage",before.bs,l.buyerStage);}catch(e){} }
+      if(before.rs!==(l.renterStage||"")){ try{auditLog("lead",l.id,"renterStage",before.rs,l.renterStage);}catch(e){} }
+    });
+    try{localStorage.setItem("shelter_lead_stages_v2","1");}catch(e){}
+    if(ch){ try{console.log("[cleanup] migrated "+ch+" lead stage(s) to v2");}catch(e){} save(); }
+  }catch(e){}
+}
+
+/* Customer v2: active chip filter state (per view · not persisted · defaults to "all") */
+const _leadChipFilter={buy:"",rent:""};
+function setLeadChip(kind,stage){ _leadChipFilter[kind]=stage||""; if(kind==="buy")renderLeadsBuy(); else renderLeadsRent(); }
+function _closedRentersWithContract(){ /* renter with active/completed contract via customerId → tenantId link */
+  const rentersWithContract=new Set(); (DB.contracts||[]).forEach(c=>{ if(!c||!c.tenantId)return; if(["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status||""))return; rentersWithContract.add(c.tenantId); }); return rentersWithContract;
+}
+function renderLeadStageChips(kind, cfg, poolLen, counts){
+  const el=$("#"+(kind==="buy"?"buyChips":"rentlChips")); if(!el)return;
+  const stages=kind==="buy"?BUYER_JOURNEY:TENANT_JOURNEY;
+  const active=_leadChipFilter[kind]||"";
+  const chipHTML=`<button type="button" class="stage-chip${!active?' on':''}" onclick="setLeadChip('${kind}','')">ทั้งหมด <span class="n">${poolLen}</span></button>`+
+    stages.map(s=>{ const n=counts[s]||0; return `<button type="button" class="stage-chip${active===s?' on':''}" onclick="setLeadChip('${kind}','${s.replace(/'/g,"\\'")}')">${esc(s)} <span class="n">${n}</span></button>`; }).join("");
+  el.innerHTML=chipHTML;
+}
+
+function renderLeadsBuy(){ renderLeadsType({rent:false,kind:"buy",label:"ลูกค้าซื้อ",searchId:"buySearch",stageId:"buyStage",bodyId:"buyBody",kTotal:"buy-total",kHot:"buy-hot",kReady:"buy-ready",kAvg:"buy-avg",readyRe:/เจรจา\/จอง|รอโอน|ซื้อสำเร็จ/}); }
+function renderLeadsRent(){ renderLeadsType({rent:true,kind:"rent",label:"ลูกค้าเช่า",searchId:"rentlSearch",stageId:"rentlStage",bodyId:"rentlBody",kTotal:"rentl-total",kHot:"rentl-hot",kReady:"rentl-ready",kAvg:"rentl-avg",readyRe:/เจรจา\/จอง|ทำสัญญา|ปล่อยเช่าแล้ว/}); }
 function renderLeadsType(cfg){
   const q=($("#"+cfg.searchId)?.value||"").toLowerCase();
-  const fs=$("#"+cfg.stageId)?.value||"";
+  const fsDropdown=$("#"+cfg.stageId)?.value||"";
+  const fsChip=_leadChipFilter[cfg.kind]||"";
+  const fs=fsChip||fsDropdown; /* chip overrides dropdown if set */
   const tb=$("#"+cfg.bodyId); if(!tb)return; tb.innerHTML="";
+  const stageField=cfg.rent?"renterStage":"buyerStage";
   const pool=DB.leads.map((l,i)=>({l,i})).filter(({l})=>cfg.rent?hasJourney(l,"Renter"):hasJourney(l,"Buyer"));
-  const rows=pool.filter(({l})=>((l.n||"")+(l.ph||"")+(l.want||"")+(l.zone||"")).toLowerCase().includes(q)&&(!fs||l.stage===fs));
+  /* Compute stage counts for chips */
+  const counts={}; pool.forEach(({l})=>{ const s=(l[stageField]||"ลูกค้าใหม่"); counts[s]=(counts[s]||0)+1; });
+  /* Special case: "ปล่อยเช่าแล้ว" requires an active contract link (rent only) */
+  const closedSet=cfg.rent?_closedRentersWithContract():null;
+  let rows=pool.filter(({l})=>{
+    if(q && !((l.n||"")+(l.ph||"")+(l.want||"")+(l.zone||"")).toLowerCase().includes(q))return false;
+    if(!fs)return true;
+    const s=l[stageField]||"ลูกค้าใหม่";
+    if(cfg.rent&&fs==="ปล่อยเช่าแล้ว")return s==="ปล่อยเช่าแล้ว" && closedSet.has(l.id);
+    return s===fs;
+  });
+  try{ renderLeadStageChips(cfg.kind,cfg,pool.length,counts); }catch(e){}
   if(!pool.length){ tb.innerHTML=`<tr><td colspan="7"><div class="empty"><b>ยังไม่มี${cfg.label}</b>เริ่มเพิ่ม${cfg.label}ของคุณได้เลย<br><button class="btn primary sm" onclick="openLeadForm('${cfg.rent?"เช่า":"ซื้อ"}')">+ เพิ่ม${cfg.label}</button></div></td></tr>`; }
-  else if(!rows.length){ tb.innerHTML=`<tr><td colspan="7" class="empty">ไม่พบ${cfg.label}ที่ตรงกับเงื่อนไข</td></tr>`; }
+  else if(!rows.length){ tb.innerHTML=`<tr><td colspan="7" class="empty">ไม่พบ${cfg.label}${fs?' ในสถานะ "'+esc(fs)+'"':''}${q?' ตามคำค้น':''}</td></tr>`; }
   else rows.forEach(({l,i})=>{
     const sc=leadScoreOf(l); const scAuto=!(num(l.score)>0);
     let contact=esc(l.ph); if(l.line)contact+=(l.ph?" · ":"")+"💬 "+esc(l.line);
     const zone=l.zone?`<small style="color:var(--s1);display:block">🎯 ${esc(l.zone)}</small>`:"";
     const g=leadGradeOf(l); const gAuto=!(l.grade==="A"||l.grade==="B"||l.grade==="C");
     const gradeBadge=`<span title="${gAuto?'จัดอัตโนมัติ':'กำหนดเอง'} · SLA ติดตามทุก ${LEAD_SLA[g]} วัน" style="display:inline-block;font-size:11px;font-weight:800;color:#fff;background:${gradeColor(g)};border-radius:6px;padding:1px 7px;margin-left:2px">${g}</span>`;
+    const stageDisplay=l[stageField]||"ลูกค้าใหม่"; /* Customer v2: use journey-specific stage */
     tb.appendChild(el("tr",null,`<td><div style="display:flex;align-items:center;gap:9px">${av(l.n,30)}<div class="who-cell">${esc(l.n)} ${gradeBadge}<small>${contact}</small></div></div></td>
       <td>${typeTag(l.type)}</td>
       <td>${esc(l.want)}<small style="color:var(--muted);display:block">${esc(l.budget)}</small>${zone}</td>
       <td><span class="tag gray">${esc(l.src)}</span></td>
       <td><div class="score" style="color:${scoreColor(sc)}" title="${scAuto?'คะแนนอัตโนมัติ':'กำหนดเอง'}">${sc}${scAuto?'<span style="font-size:9px;color:var(--muted)"> auto</span>':''}<span class="bar"><i style="width:${sc}%;background:${scoreColor(sc)}"></i></span></div></td>
-      <td>${stageTag(l.stage)}</td>
+      <td>${stageTag(stageDisplay)}</td>
       <td><div class="actions"><button class="icon-btn" style="color:var(--s3)" onclick="openMatch(${i})" title="จับคู่ทรัพย์/โครงการ"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button><button class="icon-btn" onclick="openForm('leads',${i})" title="แก้ไข"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button><button class="icon-btn del" onclick="delItem('leads',${i})" title="ลบ"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button></div></td>`));
   });
   const arr2=pool.map(o=>o.l);
   $("#"+cfg.kTotal).textContent=arr2.length;
   $("#"+cfg.kHot).textContent=arr2.filter(l=>leadScoreOf(l)>=75).length;
-  $("#"+cfg.kReady).textContent=arr2.filter(l=>cfg.readyRe.test(l.stage||"")).length;
+  /* Customer v2: readyRe now matches new stage names in journey-specific field */
+  $("#"+cfg.kReady).textContent=arr2.filter(l=>cfg.readyRe.test(l[stageField]||"")).length;
   $("#"+cfg.kAvg).textContent=arr2.length?Math.round(arr2.reduce((a,l)=>a+leadScoreOf(l),0)/arr2.length):0;
 }
 
@@ -4777,16 +4866,32 @@ async function smartFill(entity){
       obj=extractJSON(await callAI(prompt,700)); mode="AI"; if(!obj)throw new Error("อ่านผลลัพธ์ไม่ได้");
     }catch(e){ obj=offlineParse(entity,raw); mode=String(e.message).includes("no-key")?"ออฟไลน์":"ออฟไลน์ (AI ผิดพลาด)"; }
   }else{ obj=offlineParse(entity,raw); mode="ออฟไลน์ (ยังไม่ตั้งค่า AI)"; }
-  if(obj)applyToForm(entity,obj);
-  st.textContent="แยกข้อมูลแล้ว ("+mode+") — ตรวจสอบก่อนบันทึก";st.className="ai-status ok";
+  const changed=(obj?applyToForm(entity,obj):[])||[];
+  if(!changed.length){ st.textContent="ไม่พบข้อมูลที่แยกได้ ("+mode+") — โปรดกรอกช่องเอง";st.className="ai-status err"; }
+  else { st.textContent="✓ แยกข้อมูล "+changed.length+" ช่อง ("+mode+") — ตรวจสอบก่อนบันทึก"; st.className="ai-status ok"; }
 }
 function applyToForm(entity,obj){
+  const changed=[];
   SCHEMA[entity].fields.forEach(f=>{
     let v=obj[f.k]; if(v==null||v==="")return;
     const inp=document.querySelector('#modalForm [name="'+f.k+'"]'); if(!inp)return;
-    if(f.type==="select"){const o=f.opts.find(x=>String(x).toLowerCase()===String(v).toLowerCase())||f.opts.find(x=>String(v).includes(x)||x.includes(String(v)));if(o)inp.value=o;}
-    else inp.value=v;
+    if(f.type==="select"){const o=f.opts.find(x=>String(x).toLowerCase()===String(v).toLowerCase())||f.opts.find(x=>String(v).includes(x)||x.includes(String(v)));if(o){inp.value=o;changed.push(f.k);}}
+    else{ inp.value=v; changed.push(f.k); }
+    /* Customer v2 fix: dispatch input+change so any onchange handlers (group toggles, validators) fire */
+    try{ inp.dispatchEvent(new Event("input",{bubbles:true})); inp.dispatchEvent(new Event("change",{bubbles:true})); }catch(e){}
   });
+  /* Customer v2: for leads · auto-check Buyer/Renter journey based on parsed type — supports both "ซื้อ"/"เช่า" and Journey names */
+  if(entity==="leads"){
+    const t=String(obj.type||"").toLowerCase();
+    const wantBuy=/ซื้อ|buyer|buy/.test(t)||(obj.buyerStage&&!obj.renterStage);
+    const wantRent=/เช่า|renter|rent|tenant/.test(t)||(obj.renterStage&&!obj.buyerStage);
+    const jb=document.querySelector('#jcBuyer'), jr=document.querySelector('#jcRenter');
+    if(wantBuy&&jb&&!jb.checked){ jb.checked=true; try{jb.dispatchEvent(new Event("change",{bubbles:true}));}catch(e){} changed.push("journey.Buyer"); }
+    if(wantRent&&jr&&!jr.checked){ jr.checked=true; try{jr.dispatchEvent(new Event("change",{bubbles:true}));}catch(e){} changed.push("journey.Renter"); }
+    /* Refresh conditional field groups so buy/rent sections show/hide */
+    try{ if(typeof applyFormGroups==="function")applyFormGroups("leads"); }catch(e){}
+  }
+  return changed;
 }
 function offlineParse(entity,raw){
   const o={}; const t=raw.replace(/\r/g,"");
@@ -4810,6 +4915,17 @@ function offlineParse(entity,raw){
     if(pk>=0){let w=t.slice(pk).split(/งบ|ราคา|ประมาณ|มาจาก|มา\s*จาก|แหล่ง/i)[0]; if(priceM)w=w.split(priceM[0])[0]; o.want=w.trim().replace(/[,·|]+$/,"").trim();}
     else{const w=lines.find(l=>/BTS|MRT|ซอย|ถนน|เขต|ใกล้/i.test(l)); if(w)o.want=w;}
     const src=SRC.find(x=>t.toLowerCase().includes(x.toLowerCase())); if(src)o.src=src;
+    /* Customer v2: extract more fields from paste — line, email, bed/bath, zone, timeline, preferred contact, notes */
+    const lineM=t.match(/(?:line|ไลน์|ไลน)\s*(?:id)?\s*[:：]?\s*(@?[a-z0-9._-]{2,})/i); if(lineM)o.line=lineM[1].trim();
+    else{ const atM=t.match(/@[a-z0-9._-]{2,}/i); if(atM)o.line=atM[0]; }
+    const emM=t.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i); if(emM)o.email=emM[0];
+    if(bed)o.bedrooms=bed;
+    const bath=(t.match(/(\d+)\s*(น้ำ|ห้องน้ำ|bath)/i)||[])[1]; if(bath)o.bathrooms=bath;
+    const zoneM=t.match(/(?:ทำเล|โซน|บริเวณ|แถว|ย่าน|ใกล้)\s*[:：]?\s*([ก-๙A-Za-z0-9. ]{2,40})/); if(zoneM)o.zone=zoneM[1].trim().replace(/[,·|]+$/,"").trim();
+    const tlM=t.match(/(?:ย้าย|พร้อมอยู่|Timeline|เข้าอยู่|ตัดสินใจ)\s*[:：]?\s*([ก-๙A-Za-z0-9./ -]{2,40})/i); if(tlM)o.moveTimeline=tlM[1].trim().replace(/[,·|]+$/,"").trim();
+    if(/โทร|call|โทรศัพท์/i.test(t))o.preferredContact="โทร"; else if(/line|ไลน์/i.test(t))o.preferredContact="LINE"; else if(/email|อีเมล/i.test(t))o.preferredContact="Email";
+    /* notes = full paste (user can trim before save) — preserves context without overwriting other fields */
+    o.notes=raw;
   }else if(entity==="props"){
     o.deal=rent?"เช่า":"ขาย";
     // title = text before category/deal keyword
