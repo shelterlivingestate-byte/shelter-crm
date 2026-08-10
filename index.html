@@ -257,6 +257,17 @@ html[data-theme="dark"] .tag.amber{color:#f0c04a}
   .savebadge{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
   .sheet{padding-bottom:calc(26px + env(safe-area-inset-bottom,0px))}
 }
+/* Data-loss fix: persistent sync status badge (bottom-right · always visible) */
+.sync-badge{position:fixed;bottom:16px;right:16px;z-index:75;background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:11.5px;font-weight:650;box-shadow:var(--shadow);cursor:pointer;color:var(--ink-2);letter-spacing:.2px;transition:.2s;user-select:none;line-height:1.3;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis}
+.sync-badge:hover{transform:translateY(-1px)}
+.sync-badge.on{color:var(--ok);border-color:var(--ok)}
+.sync-badge.busy{color:var(--warn);border-color:var(--warn);animation:sb-pulse 1.2s ease-in-out infinite}
+.sync-badge.pending{color:var(--warn);border-color:var(--warn)}
+.sync-badge.err{color:var(--crit);border-color:var(--crit)}
+.sync-badge.warn{color:var(--warn);border-color:var(--warn)}
+@keyframes sb-pulse{0%,100%{opacity:1}50%{opacity:.6}}
+@media(prefers-reduced-motion:reduce){.sync-badge.busy{animation:none}}
+@media(max-width:720px){.sync-badge{bottom:calc(92px + env(safe-area-inset-bottom,0px));right:12px;padding:5px 10px;font-size:11px}}
 @media(max-width:720px){.mind{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}.pipe{grid-template-columns:repeat(6,220px)}}
 .principle{display:flex;gap:12px;align-items:flex-start}
 .principle .num{width:28px;height:28px;border-radius:8px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:13px;flex:0 0 auto}
@@ -1808,13 +1819,18 @@ function sbAutoOn(){ try{ const v=localStorage.getItem(SB_AUTO_KEY); return v==n
 function toggleSBAuto(cb){ try{localStorage.setItem(SB_AUTO_KEY,cb.checked?"1":"0");}catch(e){} const s=$("#sbStatus"); if(s){s.textContent=cb.checked?"เปิดซิงค์อัตโนมัติทุกอุปกรณ์ ✓":"ปิดซิงค์อัตโนมัติ";s.className="ai-status ok";} if(cb.checked&&sbReady())cloudPush(true); }
 function saveSB(){ try{ localStorage.setItem(SB_URL_KEY,($("#sbUrl").value||"").trim()); localStorage.setItem(SB_KEY_KEY,($("#sbKey").value||"").trim()); }catch(e){}
   const s=$("#sbStatus"); if(!sbReady()){ s.textContent="ตรวจ URL/Key อีกครั้ง (URL ต้องมี supabase.co)"; s.className="ai-status err"; return; } s.textContent="บันทึกการตั้งค่าแล้ว ✓ ลองกด ⬆ ส่งขึ้นคลาวด์"; s.className="ai-status ok"; }
-async function cloudPush(silent){ const s=$("#sbStatus"); const {url}=sbCfg(); if(!sbReady()){ if(s){s.textContent="ตั้งค่า Supabase ก่อน (URL + anon key)";s.className="ai-status err";} return; }
+async function cloudPush(silent){ const s=$("#sbStatus"); const {url}=sbCfg(); if(!sbReady()){ if(s){s.textContent="ตั้งค่า Supabase ก่อน (URL + anon key)";s.className="ai-status err";} try{updateSyncBadge("nocfg");}catch(e){} return; }
   const ts=new Date().toISOString(); const doc=JSON.stringify({DB:snapshot(),kb,todos,needsState});
   if(s&&!silent){s.textContent="กำลังส่งขึ้นคลาวด์…";s.className="ai-status";}
+  try{updateSyncBadge("busy");}catch(e){}
   try{ const res=await fetch(url+"/rest/v1/crm_state",{method:"POST",headers:{...sbHeaders(),Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({id:1,doc,updated_at:ts})});
-    if(res.ok){ setLocalDataTs(ts); if(s){s.textContent="ส่งขึ้นคลาวด์แล้ว ✓ "+new Date().toLocaleTimeString("th-TH");s.className="ai-status ok";} }
-    else { const t=await res.text(); if(s){s.textContent="ส่งไม่สำเร็จ: "+t.slice(0,120);s.className="ai-status err";} } }
-  catch(e){ if(s){s.textContent="ผิดพลาด: "+(e&&e.message||e);s.className="ai-status err";} } }
+    if(res.ok){ setLocalDataTs(ts); if(s){s.textContent="ส่งขึ้นคลาวด์แล้ว ✓ "+new Date().toLocaleTimeString("th-TH");s.className="ai-status ok";} try{updateSyncBadge("ok");}catch(e){} }
+    else { const t=await res.text(); if(s){s.textContent="ส่งไม่สำเร็จ: "+t.slice(0,120);s.className="ai-status err";} try{updateSyncBadge("err",t.slice(0,60));}catch(e){} } }
+  catch(e){ if(s){s.textContent="ผิดพลาด: "+(e&&e.message||e);s.className="ai-status err";} try{updateSyncBadge("err",String(e.message||e).slice(0,60));}catch(e2){} } }
+/* Data-loss fix: emergency push on tab hide/close using fetch keepalive so browser completes it after unload */
+function emergencyPush(){ try{ if(!sbReady||!sbReady())return; const {url}=sbCfg(); const ts=new Date().toISOString(); const doc=JSON.stringify({DB:snapshot(),kb,todos,needsState});
+    fetch(url+"/rest/v1/crm_state",{method:"POST",headers:{...sbHeaders(),Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({id:1,doc,updated_at:ts}),keepalive:true}).then(()=>{try{setLocalDataTs(ts);}catch(e){}}).catch(()=>{});
+    try{updateSyncBadge("busy","emergency");}catch(e){} }catch(e){} }
 async function cloudPull(apply){ const s=$("#sbStatus"); const {url}=sbCfg(); if(!sbReady()){ if(s){s.textContent="ตั้งค่า Supabase ก่อน";s.className="ai-status err";} return null; }
   if(s&&apply){s.textContent="กำลังดึงจากคลาวด์…";s.className="ai-status";}
   try{ const res=await fetch(url+"/rest/v1/crm_state?id=eq.1&select=doc,updated_at",{headers:sbHeaders()});
@@ -1832,7 +1848,10 @@ function applyCloudDoc(row){ try{
     try{ const _pl=localStorage.getItem(KEY); if(_pl)autoBackup(_pl); }catch(e){}
     const o=JSON.parse(row.doc); DBKEYS.forEach(k=>{DB[k]=Array.isArray(o.DB&&o.DB[k])?o.DB[k]:[];}); if(Array.isArray(o.kb)){kb.length=0;o.kb.forEach(x=>kb.push(x));} if(Array.isArray(o.todos))todos=o.todos; if(Array.isArray(o.needsState))needsState=o.needsState; localStorage.setItem(KEY,row.doc); setLocalDataTs(row.updated_at||new Date().toISOString()); try{migrateMatchingV2();}catch(e){} renderAll(); }catch(e){} }
 let sbSyncT=null;
-function scheduleCloudPush(){ if(!sbAutoOn()||!sbReady())return; clearTimeout(sbSyncT); sbSyncT=setTimeout(()=>cloudPush(true),3500); }
+/* Data-loss fix: shorten push debounce from 3500ms → 800ms so brief tab closes rarely miss the push */
+function scheduleCloudPush(){ if(!sbAutoOn()||!sbReady()){ try{updateSyncBadge(sbReady&&sbReady()?"local":"nocfg");}catch(e){} return; }
+  clearTimeout(sbSyncT); try{updateSyncBadge("pending");}catch(e){}
+  sbSyncT=setTimeout(()=>cloudPush(true),800); }
 async function cloudInitSync(){ if(!sbReady())return; try{ const row=await cloudPull(false); if(!row){ if(sbAutoOn())cloudPush(true); return; }
     if((row.updated_at||"")>(localDataTs()||"")){ applyCloudDoc(row); flashSaved("ดึงข้อมูลล่าสุดจากคลาวด์ ✓"); }
     else if(sbAutoOn()){ cloudPush(true); } }catch(e){} }
@@ -5352,6 +5371,23 @@ try{ cloudInitSync(); }catch(e){}
 try{ resolveOwnerLinks(true); }catch(e){}
 try{ startCloudPolling(); }catch(e){}
 try{ installPWA(); }catch(e){}
+/* Data-loss fix: sync badge + emergency push listeners */
+function _syncBadgeEl(){ let el=document.getElementById("syncBadge"); if(el)return el;
+  el=document.createElement("div"); el.id="syncBadge"; el.className="sync-badge"; el.title="สถานะซิงก์คลาวด์ · แตะเพื่อส่งเดี๋ยวนี้"; el.onclick=function(){try{cloudPush(false);}catch(e){}};
+  document.body.appendChild(el); return el; }
+function updateSyncBadge(state,msg){ try{ const el=_syncBadgeEl(); el.className="sync-badge"; let txt=""; let cls="";
+  if(state==="ok"){cls="on";txt="✓ ซิงก์แล้ว";}
+  else if(state==="busy"){cls="busy";txt="⋯ กำลังส่ง"+(msg?" · "+msg:"");}
+  else if(state==="pending"){cls="pending";txt="⋯ ค้างส่ง (~1 วิ)";}
+  else if(state==="err"){cls="err";txt="⚠ ผิดพลาด · แตะลองใหม่";}
+  else if(state==="nocfg"){cls="warn";txt="⚙ ตั้งค่า cloud";el.onclick=function(){try{openBackup();}catch(e){}};}
+  else if(state==="local"){cls="warn";txt="⚠ ปิด auto-sync";}
+  else{cls="";txt="•";}
+  el.classList.add(cls); el.textContent=txt; }catch(e){} }
+/* Initial state + emergency handlers */
+window.addEventListener("load",function(){ setTimeout(function(){ try{ if(typeof sbReady!=="function"||!sbReady()){updateSyncBadge("nocfg");} else if(sbAutoOn&&!sbAutoOn()){updateSyncBadge("local");} else {updateSyncBadge("ok");} }catch(e){} },500); });
+window.addEventListener("pagehide",function(){ try{emergencyPush();}catch(e){} });
+document.addEventListener("visibilitychange",function(){ if(document.visibilityState==="hidden"){ try{emergencyPush();}catch(e){} } });
 </script>
 </body>
 </html>
