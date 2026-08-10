@@ -97,8 +97,24 @@ localStorage["shelteros_crm_v2"] = JSON.stringify({
 ## Field ที่ยังไม่มี — แต่คาดว่าจะเพิ่มใน Phase ถัดไป
 
 - `props.marketingScore`, `props.priceHistory[]` (Part 6 — derive from timeline)
-- `contracts.letBy` = "us"|"owner"|"other_agent" (Part 5 — DM-1)
-- `rentalCommissions.vat, .wht, .vatRate, .whtRate` (Part 5 — DM-2)
+
+## Part 5 (DM-1 + DM-2) — ใช้ infra เดิมที่มีอยู่แล้ว
+
+**DM-1 (contracts.letBy 3-option) — MAPPED ไปที่ field เดิม:**
+- `contracts.leaseClosedByType` (SCHEMA.contracts) มีอยู่แล้ว · 5 options: `Our Agency (เราปล่อยเอง) / Co-Agent (ปิดร่วม) / Other Agent (Agent อื่น) / Owner Direct (เจ้าของปล่อยเอง) / Unknown`
+- Helper `leaseBy3Of(v)` แปลง 5 options → 3 groups (`shelter / owner / other`)
+- Dashboard §4.9 (Part 5 rewrite) ใช้ mapping นี้ · ไม่ต้องเพิ่ม field ใหม่
+
+**DM-2 (Tax fields VAT/WHT) — ใช้ infra เดิม:**
+- `settings.vatPct` + `settings.whtPct` — global rates ตั้งโดย `saveTaxSettings()`
+- `finance.vatPct` + `finance.whtPct` — per-deal override (SCHEMA.finance)
+- `computeRentalCommission(c, rc)` คืน `{vat, wht, net, ourActual, ourGross, lost, lostSource, ...}` โดยใช้ rate จาก settings
+- ไม่ต้องเพิ่ม field ใหม่ · DM-2 ถือว่าสำเร็จผ่านโครงเดิม
+
+**Dashboard §4.9 rewrite (Part 5):**
+- แสดง `commReceived`, `commPending`, `lostOwner`, `lostOther` — ทั้งหมด derive จาก `computeRentalCommission()`
+- Buckets ≤30/≤60/≤90 วัน ทำงานพร้อมกันทั้ง 3
+- แยก แหล่งที่ปล่อย 3 กลุ่ม พร้อม lost opportunity $
 
 ## Part 4 additions
 

@@ -3324,23 +3324,32 @@ function renderDashRental(){ const el=$("#dash-rental"); if(!el)return;
   const daysLeft=c=>c.endDate?Math.floor((new Date(c.endDate).getTime()-Date.now())/86400000):null;
   const soon30=active.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=30; }).length;
   const soon60=active.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=60; }).length;
-  const byUs=cs.filter(c=>(c.letBy||"us")==="us").length;
-  const byOwner=cs.filter(c=>c.letBy==="owner").length;
-  const byOther=cs.filter(c=>c.letBy==="other_agent").length;
+  const soon90=active.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=90; }).length;
+  /* Part 5: use existing leaseClosedByType (5 options) via leaseBy3Of() helper (existing) → 3 groups */
+  const grp=c=>{ try{return typeof leaseBy3Of==="function"?leaseBy3Of(c.leaseClosedByType||""):"shelter";}catch(e){return "shelter";} };
+  const byUs=cs.filter(c=>grp(c)==="shelter").length;
+  const byOwner=cs.filter(c=>grp(c)==="owner").length;
+  const byOther=cs.filter(c=>grp(c)==="other").length;
+  /* Part 5: lost opportunity $ via existing computeRentalCommission (uses settings.vatPct/whtPct) */
+  let commReceived=0,commPending=0,lostOwner=0,lostOther=0;
+  try{ cs.forEach(c=>{ if(typeof computeRentalCommission!=="function")return; const rc=(typeof rentalCommOf==="function"?rentalCommOf(c.id):null); const r=computeRentalCommission(c,rc); commReceived+=num(rc&&rc.actualReceived); if(r.gross>0)commPending+=Math.max(0,r.net-num(rc&&rc.actualReceived)); if(r.lostSource==="owner")lostOwner+=r.lost; else if(r.lostSource==="other")lostOther+=r.lost; }); }catch(e){}
+  const renewed=cs.filter(c=>(c.status||"")==="ต่อสัญญาแล้ว").length;
   const totRent=active.reduce((s,c)=>s+bn(c.rent||0),0);
   el.innerHTML=`<div class="dash-kpi-row">
-    <div class="dash-kpi click" onclick="go('rentcare')"><b>สัญญา Active</b><div class="val">${active.length}</div></div>
-    <div class="dash-kpi"><b>ค่าเช่าต่อเดือน (รวม)</b><div class="val">฿${fmtBaht(totRent)}</div></div>
+    <div class="dash-kpi click" onclick="go('rentcare')"><b>สัญญา Active</b><div class="val">${active.length}</div><div class="sub">ต่อสัญญาแล้ว ${renewed}</div></div>
+    <div class="dash-kpi"><b>ค่าเช่ารวม/เดือน</b><div class="val">฿${fmtBaht(totRent)}</div></div>
+    <div class="dash-kpi"><b>ค่าคอมรับแล้ว</b><div class="val">฿${fmtBaht(commReceived)}</div><div class="sub">รอรับ ฿${fmtBaht(commPending)}</div></div>
     <div class="dash-kpi"><b>ใกล้หมด &le;30 วัน</b><div class="val" style="color:${soon30?'var(--warn)':'var(--ink)'}">${soon30}</div></div>
-    <div class="dash-kpi"><b>ใกล้หมด &le;60 วัน</b><div class="val">${soon60}</div></div>
+    <div class="dash-kpi"><b>&le;60 วัน</b><div class="val">${soon60}</div></div>
+    <div class="dash-kpi"><b>&le;90 วัน</b><div class="val">${soon90}</div></div>
   </div>
-  <div style="margin-top:12px"><b style="font-size:12.5px">แหล่งที่ปล่อย</b>
+  <div style="margin-top:12px"><b style="font-size:12.5px">แหล่งที่ปล่อย · มูลค่าโอกาส</b>
     <div class="dash-kpi-row" style="margin-top:6px">
-      <div class="dash-kpi"><b>เราปล่อย</b><div class="val">${byUs}</div></div>
-      <div class="dash-kpi"><b>Owner ปล่อย</b><div class="val">${byOwner}</div><div class="sub">มูลค่าโอกาส</div></div>
-      <div class="dash-kpi"><b>Agent อื่น</b><div class="val">${byOther}</div><div class="sub">มูลค่าโอกาส</div></div>
+      <div class="dash-kpi"><b>เราปล่อย (Our Agency + Co-Agent)</b><div class="val">${byUs}</div><div class="sub">รับคอมแล้ว ฿${fmtBaht(commReceived)}</div></div>
+      <div class="dash-kpi"><b>Owner Direct</b><div class="val">${byOwner}</div><div class="sub" style="color:${lostOwner?'var(--warn)':'var(--muted)'}">โอกาส ฿${fmtBaht(lostOwner)}</div></div>
+      <div class="dash-kpi"><b>Other Agent</b><div class="val">${byOther}</div><div class="sub" style="color:${lostOther?'var(--warn)':'var(--muted)'}">โอกาส ฿${fmtBaht(lostOther)}</div></div>
     </div>
-  </div>`+dashSrc("คำนวณจาก: <code>DB.contracts</code> · <code>letBy</code> field ยังไม่บังคับกรอก · Part 5 จะเพิ่ม UI เลือก · default = <code>us</code>"); }
+  </div>`+dashSrc("คำนวณจาก: <code>DB.contracts</code> + <code>DB.rentalCommissions</code> · <code>leaseClosedByType</code> (5 options) → 3 groups ผ่าน <code>leaseBy3Of()</code> · lost opportunity จาก <code>computeRentalCommission().lost</code> · VAT/WHT จาก <code>settings.vatPct/whtPct</code>"); }
 
 function renderDashTrends(){ const el=$("#dash-trends"); if(!el)return;
   const inc=DB.income;
