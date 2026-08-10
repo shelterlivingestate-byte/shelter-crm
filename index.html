@@ -4921,8 +4921,10 @@ function offlineParse(entity,raw){
     const emM=t.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i); if(emM)o.email=emM[0];
     if(bed)o.bedrooms=bed;
     const bath=(t.match(/(\d+)\s*(น้ำ|ห้องน้ำ|bath)/i)||[])[1]; if(bath)o.bathrooms=bath;
-    const zoneM=t.match(/(?:ทำเล|โซน|บริเวณ|แถว|ย่าน|ใกล้)\s*[:：]?\s*([ก-๙A-Za-z0-9. ]{2,40})/); if(zoneM)o.zone=zoneM[1].trim().replace(/[,·|]+$/,"").trim();
-    const tlM=t.match(/(?:ย้าย|พร้อมอยู่|Timeline|เข้าอยู่|ตัดสินใจ)\s*[:：]?\s*([ก-๙A-Za-z0-9./ -]{2,40})/i); if(tlM)o.moveTimeline=tlM[1].trim().replace(/[,·|]+$/,"").trim();
+    /* Zone stops at common delimiters/keywords so we don't gobble "อโศก งบ 4.5 ล้าน พร้อมย้าย..." */
+    const _STOP="(?=\\s*(?:งบ|ราคา|ประมาณ|ต้องการ|มา\\s*จาก|มาจาก|source|line|ไลน์|โทร|tel|เบอร์|email|อีเมล|@|เข้าอยู่|ย้าย|พร้อม|timeline|ติดต่อ|,|·|\\||\\n|$))";
+    const zoneM=t.match(new RegExp("(?:ทำเล|โซน|บริเวณ|แถว|ย่าน|ใกล้)\\s*[:：]?\\s*([ก-๙A-Za-z0-9. ]{2,60}?)"+_STOP)); if(zoneM)o.zone=zoneM[1].trim().replace(/[,·|]+$/,"").trim();
+    const tlM=t.match(new RegExp("(?:ย้าย|พร้อมอยู่|Timeline|เข้าอยู่|ตัดสินใจ)\\s*[:：]?\\s*([ก-๙A-Za-z0-9./ -]{2,60}?)"+_STOP,"i")); if(tlM)o.moveTimeline=tlM[1].trim().replace(/[,·|]+$/,"").trim();
     if(/โทร|call|โทรศัพท์/i.test(t))o.preferredContact="โทร"; else if(/line|ไลน์/i.test(t))o.preferredContact="LINE"; else if(/email|อีเมล/i.test(t))o.preferredContact="Email";
     /* notes = full paste (user can trim before save) — preserves context without overwriting other fields */
     o.notes=raw;
