@@ -3441,7 +3441,6 @@ function renderDashRental(){ const el=$("#dash-rental"); if(!el)return;
 
 function renderDashTrends(){ const el=$("#dash-trends"); if(!el)return;
   const inc=DB.income;
-  if(!inc.length&&!DB.deals.length){ el.innerHTML=dashEmpty("แนวโน้มจะปรากฏเมื่อมีข้อมูลรายเดือน","finance"); return; }
   const now=new Date();
   const ym=off=>{ const dt=new Date(now.getFullYear(),now.getMonth()+off,1); return dt.toISOString().slice(0,7); };
   const thisM=ym(0), lastM=ym(-1);
@@ -3451,11 +3450,13 @@ function renderDashTrends(){ const el=$("#dash-trends"); if(!el)return;
   const lT=DB.leads.filter(l=>String(l.createdAt||"").slice(0,7)===thisM).length;
   const lL=DB.leads.filter(l=>String(l.createdAt||"").slice(0,7)===lastM).length;
   const hasAI=(()=>{try{return typeof AI!=="undefined"&&AI.key;}catch(e){return false;}})();
-  el.innerHTML=`<div class="dash-kpi-row">
+  /* Part 6A: always render AI Insight UI (usable from broader data even when monthly trend is empty) */
+  const trendCards=(inc.length||DB.leads.length||DB.deals.length)?`<div class="dash-kpi-row">
     <div class="dash-kpi"><b>รายได้เดือนนี้</b><div class="val">฿${fmtBaht(revT)}</div><div class="sub" style="color:${chg>=0?'var(--ok)':'var(--crit)'}">${chg>=0?'▲':'▼'} ${Math.abs(chg)}% vs เดือนก่อน</div></div>
     <div class="dash-kpi"><b>Lead เดือนนี้</b><div class="val">${lT}</div><div class="sub">เดือนก่อน ${lL}</div></div>
     <div class="dash-kpi"><b>รายได้เดือนก่อน</b><div class="val">฿${fmtBaht(revL)}</div></div>
-  </div>
+  </div>`:`<div class="dash-empty" style="margin-bottom:8px"><div class="dash-empty-icon">📈</div><div><b>แนวโน้มรายเดือนยังไม่พร้อม</b><div style="color:var(--muted);font-size:12px;margin-top:2px">เริ่มบันทึกรายรับ/ดีล/ลีดในเดือนนี้ · <a onclick="go('finance')">เปิด Finance</a> · <a onclick="go('customers')">เปิด Customer</a></div></div></div>`;
+  el.innerHTML=trendCards+`
   <div style="margin-top:12px;padding:12px;background:var(--brand-soft);border-radius:8px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
       <b style="font-size:13px;color:var(--brand)">🧠 AI Executive Insight</b>
