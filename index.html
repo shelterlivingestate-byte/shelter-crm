@@ -199,6 +199,49 @@ html[data-theme="dark"] .tag.amber{color:#f0c04a}
 .dash-age-bar .cell.crit{background:var(--brand-soft);color:var(--brand)}
 .dash-age-bar .cell b{display:block;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
 
+/* Marketing Merge: unified page tabs */
+.mkt-tabs{display:flex;gap:4px;overflow-x:auto;padding:4px 2px 10px;margin-bottom:12px;border-bottom:1px solid var(--border);-webkit-overflow-scrolling:touch;scrollbar-width:none;position:sticky;top:0;background:var(--plane);z-index:5}
+.mkt-tabs::-webkit-scrollbar{display:none}
+.mkt-tab{background:var(--panel);border:1px solid var(--border);color:var(--ink-2);padding:8px 12px;border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;min-height:38px;flex:0 0 auto}
+.mkt-tab b{background:var(--plane);color:var(--muted);width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800}
+.mkt-tab:hover{color:var(--ink);border-color:var(--ink-2)}
+.mkt-tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.mkt-tab.on b{background:rgba(255,255,255,.22);color:#fff}
+.mkt-badge{background:var(--brand);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center;line-height:1.3}
+.mkt-tab.on .mkt-badge{background:#fff;color:var(--brand)}
+.mkt-panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px}
+.mkt-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--plane);border-radius:8px;margin-bottom:10px;position:sticky;top:56px;z-index:4}
+.mkt-toolbar select,.mkt-toolbar input{font-family:inherit;font-size:12.5px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface-1);color:var(--ink)}
+.mkt-toolbar .mkt-scope{margin-left:auto;font-size:11.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.mkt-card-list{display:flex;flex-direction:column;gap:8px}
+.mkt-card{background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:10px 12px;transition:.15s}
+.mkt-card:hover{border-color:var(--ink-2)}
+.mkt-card .mc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
+.mkt-card .mc-title{font-weight:650;font-size:13px;color:var(--ink)}
+.mkt-card .mc-sub{font-size:11.5px;color:var(--ink-2);margin-top:2px}
+.mkt-card .mc-meta{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+.mkt-card .mc-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.mkt-card .mc-actions button{font-size:11px;padding:4px 9px;border-radius:6px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink);font-family:inherit;cursor:pointer;min-height:32px}
+.mkt-card .mc-actions button:hover{border-color:var(--brand);color:var(--brand)}
+.mkt-card .mc-actions button.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+.mkt-empty{text-align:center;padding:22px 12px;color:var(--muted);font-size:12.5px}
+.mkt-empty .ico{font-size:26px;margin-bottom:6px}
+.mkt-src{font-size:10.5px;color:var(--muted);margin-top:12px;padding-top:8px;border-top:1px dashed var(--border);letter-spacing:.2px}
+.mkt-src code{background:transparent;color:var(--brand);font-size:10.5px}
+.mkt-chip{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10.5px;font-weight:600;letter-spacing:.2px;margin-right:2px}
+.mkt-chip.live{background:var(--ok-soft);color:var(--ok)}
+.mkt-chip.warn{background:var(--gold-soft);color:var(--warn)}
+.mkt-chip.crit{background:var(--crit-soft);color:var(--crit)}
+.mkt-chip.gray{background:var(--info-soft);color:var(--ink-2)}
+.mkt-chip.brand{background:var(--brand-soft);color:var(--brand)}
+.mkt-see-more{display:block;text-align:center;background:transparent;border:1px dashed var(--border);color:var(--ink-2);padding:8px;border-radius:8px;font-family:inherit;font-size:12px;margin-top:8px;cursor:pointer;width:100%}
+.mkt-see-more:hover{border-color:var(--brand);color:var(--brand)}
+@media(max-width:720px){
+  .mkt-panel{padding:10px}
+  .mkt-toolbar{position:sticky;top:52px;padding:6px 8px}
+  .mkt-tab{padding:7px 10px;font-size:12px}
+}
+
 /* Part 2: Mobile Bottom Navigation */
 .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--panel);border-top:1px solid var(--border);display:none;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -2px 8px rgba(0,0,0,.05)}
 .bottom-nav-inner{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;max-width:600px;margin:0 auto}
@@ -981,6 +1024,18 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
       </div>
     </section>
 
+    <!-- OS5 MARKETING & LISTINGS (Merged: replaces v-mkt + v-propMkt) -->
+    <section class="view" id="v-marketing">
+      <div class="mkt-tabs" id="mktTabs">
+        <button class="mkt-tab on" data-tab="1" onclick="setMktTab(1)"><b>1</b> ภาพรวม</button>
+        <button class="mkt-tab" data-tab="2" onclick="setMktTab(2)"><b>2</b> งานที่ต้องทำ <span class="mkt-badge" id="mktTasksBadge" style="display:none">0</span></button>
+        <button class="mkt-tab" data-tab="3" onclick="setMktTab(3)"><b>3</b> ทรัพย์และช่องทาง</button>
+        <button class="mkt-tab" data-tab="4" onclick="setMktTab(4)"><b>4</b> ผลงานช่องทาง</button>
+        <button class="mkt-tab" data-tab="5" onclick="setMktTab(5)"><b>5</b> แคมเปญและค่าใช้จ่าย</button>
+      </div>
+      <div id="mktPanel" class="mkt-panel"></div>
+    </section>
+
     <!-- OS6 PIPELINE -->
     <section class="view" id="v-pipe">
       <div class="chart-head" style="margin-bottom:14px">
@@ -1259,12 +1314,14 @@ const OS = [
   {id:"leadsRent", key:"leads", ltype:"เช่า", os:"OS 2", th:"ลูกค้าเช่า", en:"Renters (View)", sub:"Renter Journey · กรองจาก Customer Master", icon:"key", cta:"+ เพิ่มลูกค้า"},
   {id:"propsSale", key:"props", deal:"ขาย", os:"OS 3", th:"ทรัพย์ขาย", en:"For Sale", sub:"Sale Listings", icon:"home", cta:"+ เพิ่มทรัพย์ขาย"},
   {id:"propsRent", key:"props", deal:"เช่า", os:"OS 3", th:"ทรัพย์เช่า", en:"For Rent", sub:"Rental Listings", icon:"key", cta:"+ เพิ่มทรัพย์เช่า"},
-  {id:"propMkt",   key:null, os:"OS 5", th:"ข้อมูลการตลาด", en:"Property Marketing", sub:"Marketing Channels", icon:"mega", cta:null},
+  /* Marketing Merge: unified single entry — legacy propMkt + mkt retired below (hidden:true, kept for redirect) */
+  {id:"marketing", key:null, os:"OS 5", th:"การตลาดและการลงประกาศ", en:"Marketing & Listings", sub:"ภาพรวม · งาน · ทรัพย์ × ช่องทาง · ผลงาน · แคมเปญ", icon:"mega", cta:null},
+  {id:"propMkt",   key:null, os:"OS 5", th:"ข้อมูลการตลาด", en:"Property Marketing", sub:"(legacy — redirects)", icon:"mega", cta:null, hidden:true},
   {id:"owner",     key:null, os:"OS 3", th:"Owner Report", en:"รายงานเจ้าของ", sub:"Owner Report Analyst", icon:"doc", cta:null},
   {id:"ownercrm",  key:null, os:"OS 3", th:"Owner CRM", en:"ฐานเจ้าของ + ประวัติ", sub:"Owner CRM & Activity Log", icon:"users", cta:null},
   {id:"appts",     key:null, os:"OS 4", th:"Appointments", en:"นัดชมบ้าน", sub:"Appointments & Viewings", icon:"chat", cta:null, hidden:true},
   {id:"projects",  key:"projects", os:"DB", th:"Projects", en:"ฐานข้อมูลโครงการ", sub:"Projects Database", icon:"building", cta:"+ เพิ่มโครงการ"},
-  {id:"mkt",       key:"mkt",   os:"OS 5", th:"Marketing Engine", en:"เครื่องยนต์การตลาด", sub:"Campaigns & Channels", icon:"mega", cta:"+ แคมเปญ"},
+  {id:"mkt",       key:"mkt",   os:"OS 5", th:"Marketing Engine", en:"เครื่องยนต์การตลาด", sub:"(legacy — redirects)", icon:"mega", cta:null, hidden:true},
   {id:"pipe",      key:"deals", os:"OS 6", th:"Closing System", en:"ระบบปิดการขาย", sub:"Deal Pipeline", icon:"flow", cta:"+ เพิ่มดีล", hidden:true},
   {id:"finance",   key:null,    os:"OS 6+", th:"Commission & Finance", en:"คอมมิชชั่น & การเงิน", sub:"Deal Finance & Commission", icon:"flow", cta:null},
   {id:"rentcare",  key:null,    os:"OS 7", th:"Rental Care", en:"ดูแลผู้เช่า–เจ้าของ", sub:"Rental After-Sales Care", icon:"key", cta:null},
@@ -1413,11 +1470,18 @@ const SCHEMA={
     {k:"ch_ph",l:"PropertyHub (ลิงก์)",type:"text",full:1},
     {k:"ch_fb",l:"Facebook (ลิงก์)",type:"text",full:1},
     {k:"ch_dd",l:"DDproperty / DotProperty (ลิงก์)",type:"text",full:1},
-    /* Part 4: additional platforms per spec §F */
+    /* Marketing Merge: 15 platforms total per spec §4 (Part 4 added 4 · Merge adds 7 more) */
     {k:"ch_hip",l:"Hipflat (ลิงก์)",type:"text",full:1},
     {k:"ch_tp",l:"Thailand Property (ลิงก์)",type:"text",full:1},
+    {k:"ch_dot",l:"DotProperty (ลิงก์)",type:"text",full:1},
+    {k:"ch_fw",l:"FazWaz (ลิงก์)",type:"text",full:1},
+    {k:"ch_ba",l:"Baania (ลิงก์)",type:"text",full:1},
+    {k:"ch_tb",l:"TerraBKK (ลิงก์)",type:"text",full:1},
+    {k:"ch_bf",l:"Baan Finder (ลิงก์)",type:"text",full:1},
     {k:"ch_pro",l:"Proppit / PP+ (ลิงก์)",type:"text",full:1},
-    {k:"ch_web",l:"Website (ของเรา — ลิงก์)",type:"text",full:1},
+    {k:"ch_ig",l:"Instagram (ลิงก์)",type:"text",full:1},
+    {k:"ch_lvoom",l:"LINE VOOM (ลิงก์)",type:"text",full:1},
+    {k:"ch_web",l:"Website ของเรา (ลิงก์)",type:"text",full:1},
     {k:"ch_copy",l:"Copywriting / เอกสาร (ลิงก์)",type:"text",full:1},
     {k:"driveFolder",l:"โฟลเดอร์รูปใน Drive (ลิงก์)",type:"text",full:1},
     {type:"heading",k:"_hpub",l:"🌐 หน้าแชร์สาธารณะ (Public Share)"},
@@ -1596,7 +1660,9 @@ const SCHEMA={
   expense:{title:"รายจ่าย (Expense)", fields:[
     {k:"dealId",l:"ดีล",type:"dealselect",full:1},
     {k:"propertyId",l:"ทรัพย์ (ถ้าเป็นค่าการตลาดของทรัพย์)",type:"propertyselect",full:1},
-    {k:"category",l:"หมวดรายจ่าย",type:"select",opts:["ถ่ายภาพ","วิดีโอ","โดรน","ออกแบบกราฟิก","Facebook Ads","ค่าลงประกาศแพลตฟอร์ม","ป้าย","เดินทาง","ทางด่วน/น้ำมัน","จัดบ้าน (Staging)","คอมมิชชั่น Co-agent","ส่วนแบ่งบริษัท","ภาษี","ค่าธรรมเนียมธนาคาร","ค่าเอกสาร","ค่าใช้จ่ายหลังการขาย","อื่น ๆ"]},
+    /* Marketing Merge (DM-5 approved): optional soft link to DB.mkt row · เก็บเป็น text ID ไม่ใช่ FK ตรง */
+    {k:"mktId",l:"เชื่อมรายการ Marketing (Campaign ID — ว่างได้)",type:"text",full:1},
+    {k:"category",l:"หมวดรายจ่าย",type:"select",opts:["ถ่ายภาพ","วิดีโอ","โดรน","ออกแบบกราฟิก","Facebook Ads","ค่าลงประกาศแพลตฟอร์ม","ค่า Boost / Featured","ค่าจ้างทำคอนเทนต์","ป้าย","เดินทาง","ทางด่วน/น้ำมัน","จัดบ้าน (Staging)","คอมมิชชั่น Co-agent","ส่วนแบ่งบริษัท","ภาษี","ค่าธรรมเนียมธนาคาร","ค่าเอกสาร","ค่าใช้จ่ายหลังการขาย","อื่น ๆ"]},
     {k:"amount",l:"จำนวนเงิน (บาท)",type:"number",req:1},
     {k:"responsible",l:"ผู้รับผิดชอบค่าใช้จ่าย",type:"select",opts:["เอเจนต์","บริษัท","เจ้าของ","Co-agent","ผู้ซื้อ","ผู้เช่า"]},
     {k:"date",l:"วันที่ (YYYY-MM-DD)",type:"text"},
@@ -2107,6 +2173,8 @@ function buildNav(){
   });
 }
 function go(id){
+  /* Marketing Merge: redirect legacy routes to unified page */
+  if(id==="mkt"||id==="propMkt"){ try{console.log("[deprecated] view '"+id+"' → redirect to 'marketing'");}catch(e){} id="marketing"; }
   const o=OS.find(x=>x.id===id); activeView=id;
   document.querySelectorAll(".nav a").forEach(a=>a.classList.toggle("active",a.dataset.id===id));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
@@ -2121,7 +2189,7 @@ function go(id){
 $("#cta").onclick=()=>{ const o=OS.find(x=>x.id===activeView); if(activeView==="customers"){openCustomerForm();return;} if(!o.key)return; if(o.key==="props")openPropForm(o.deal); else if(o.key==="leads")openLeadForm(o.ltype); else openForm(o.key); };
 
 /* ================= RENDERERS ================= */
-function renderAll(){ try{migrateOwners();}catch(e){} try{migrateRentalCare();}catch(e){} renderDashboard();try{renderMindset();}catch(e){}renderAlerts();renderLeads();try{renderCustomers();}catch(e){}renderProjects();renderProps();renderPropMkt();renderConsult();renderMkt();renderPipe();renderCare();renderKB(currentKBFilter);try{renderRentCare();}catch(e){}try{renderFinance();}catch(e){}try{renderOwnerCRM();}catch(e){}try{renderAppointments();}catch(e){}try{renderReports();}catch(e){}try{syncBottomNav();}catch(e){} }
+function renderAll(){ try{migrateOwners();}catch(e){} try{migrateRentalCare();}catch(e){} try{migrateMarketingSync();}catch(e){} renderDashboard();try{renderMindset();}catch(e){}renderAlerts();renderLeads();try{renderCustomers();}catch(e){}renderProjects();renderProps();try{renderPropMkt();}catch(e){}renderConsult();try{renderMkt();}catch(e){}try{renderMarketing();}catch(e){}renderPipe();renderCare();renderKB(currentKBFilter);try{renderRentCare();}catch(e){}try{renderFinance();}catch(e){}try{renderOwnerCRM();}catch(e){}try{renderAppointments();}catch(e){}try{renderReports();}catch(e){}try{syncBottomNav();}catch(e){} }
 
 /* ===== ACTION CENTER / SMART ALERTS ===== */
 function todayISO(){return new Date().toISOString().slice(0,10);}
@@ -2233,7 +2301,27 @@ async function aocSummary(){ const out=$("#aocSummaryOut"); if(!out)return; cons
   if(!aiKeyReady()){ out.innerHTML=fmtAsst(ruleSummary+"\n\n(โหมดกฎ — ตั้งค่า AI เพื่อสรุปเชิงวิเคราะห์ที่คมขึ้น)"); return; }
   out.innerHTML='<span class="spin"></span> กำลังสรุป…';
   try{ out.innerHTML=fmtAsst(await callAI("สรุปงานที่ต้องทำวันนี้ของที่ปรึกษาอสังหาฯ ให้กระชับ จัดลำดับความสำคัญ แนะนำโฟกัส ใช้เฉพาะข้อมูลนี้ ห้ามแต่งเพิ่ม:\n"+ruleSummary,500,"คุณคือ Chief of Staff ของที่ปรึกษาอสังหาฯ SHELTER สรุปสั้น ชัด actionable ภาษาไทย")); }catch(e){ out.innerHTML=fmtAsst(ruleSummary); } }
-const CHAN_META={dd:["DD","#eb6834","DDproperty"],lv:["LV","#1baf7a","Livinginsider"],ph:["PH","#2a78d6","PropertyHub"],fb:["FB","#4a3aa7","Facebook"],hip:["HF","#e34948","Hipflat"],tp:["TP","#0ca30c","Thailand Property"],pro:["PP","#eda100","Proppit"],web:["Web","#6A0807","Website"],copy:["Doc","#898781","Copywriting"]};
+/* Marketing Merge: single source of truth for 15 platforms per spec §4 */
+const CHANNELS=[
+  {key:"lv",   name:"LivingInsider",     badge:"LV",  color:"#1baf7a"},
+  {key:"ph",   name:"PropertyHub",       badge:"PH",  color:"#2a78d6"},
+  {key:"dd",   name:"DDproperty",        badge:"DD",  color:"#eb6834"},
+  {key:"dot",  name:"DotProperty",       badge:"DOT", color:"#c62828"},
+  {key:"hip",  name:"Hipflat",           badge:"HF",  color:"#e34948"},
+  {key:"tp",   name:"Thailand Property", badge:"TP",  color:"#0ca30c"},
+  {key:"fw",   name:"FazWaz",            badge:"FW",  color:"#5b3ea8"},
+  {key:"ba",   name:"Baania",            badge:"BA",  color:"#1a89b8"},
+  {key:"tb",   name:"TerraBKK",          badge:"TB",  color:"#8a1a17"},
+  {key:"bf",   name:"Baan Finder",       badge:"BF",  color:"#3d5a80"},
+  {key:"pro",  name:"Proppit / PP+",     badge:"PP",  color:"#eda100"},
+  {key:"fb",   name:"Facebook",          badge:"FB",  color:"#4a3aa7"},
+  {key:"ig",   name:"Instagram",         badge:"IG",  color:"#dd2a7b"},
+  {key:"lvoom",name:"LINE VOOM",         badge:"LV+", color:"#06c755"},
+  {key:"web",  name:"Website (ของเรา)",  badge:"Web", color:"#6A0807"},
+];
+/* Derive CHAN_META for backward-compat with chanLinks() etc. */
+const CHAN_META=Object.fromEntries(CHANNELS.map(c=>[c.key,[c.badge,c.color,c.name]]));
+CHAN_META.copy=["Doc","#898781","Copywriting"]; /* legacy — not a listing platform */
 function chanLinks(p){ if(!p.channels)return ""; return Object.entries(p.channels).map(([k,u])=>{const m=CHAN_META[k]||[k,"#888",k];return `<a href="${esc(u)}" target="_blank" rel="noopener" class="chan-badge" style="--c:${m[1]}" title="${m[2]}">${m[0]}</a>`;}).join(""); }
 
 /* ===== PROPERTY MARKETING PAGE ===== */
@@ -3294,7 +3382,7 @@ function renderDashMarketing(){ const el=$("#dash-marketing"); if(!el)return;
   const cost=items.reduce((s,m)=>s+bn(m.cost||0)+bn(m.boostCost||0),0);
   const cpl=leads?Math.round(cost/leads):0;
   el.innerHTML=`<div class="dash-kpi-row">
-    <div class="dash-kpi click" onclick="go('propMkt')"><b>ประกาศ Active</b><div class="val">${active}</div></div>
+    <div class="dash-kpi click" onclick="go('marketing')"><b>ประกาศ Active</b><div class="val">${active}</div></div>
     <div class="dash-kpi"><b>Views</b><div class="val">${views.toLocaleString()}</div></div>
     <div class="dash-kpi"><b>Inquiries</b><div class="val">${inq.toLocaleString()}</div></div>
     <div class="dash-kpi"><b>Leads จากการตลาด</b><div class="val">${leads.toLocaleString()}</div></div>
@@ -3749,6 +3837,209 @@ function renderMkt(){
   $("#m-best").textContent=best?best.ch:"—";
   const bd=$("#mktBreakdown"); if(bd){ const item=(l,v,c)=>`<div style="flex:1;min-width:96px;text-align:center;padding:6px"><div style="font-size:11.5px;color:var(--ink-2)">${l}</div><div style="font-weight:800;font-size:15px;color:${c||'var(--ink)'}">฿${fmtMoney(v)}</div></div>`;
     bd.innerHTML=`<div style="font-weight:700;font-size:13px;margin-bottom:6px">💸 สรุปค่าใช้จ่ายการตลาด (รวม ฿${fmtMoney(ts)})</div><div style="display:flex;flex-wrap:wrap;gap:4px">${item("ค่าโฆษณา/เว็บ",sum.budget)}${item("ค่าคอนเซาท์ (พี่เบน)",sum.consult,"#8a5a16")}${item("ค่าแนะนำ",sum.referral,"#8a5a16")}${item("ค่าเสื้อ",sum.shirt,"#8a5a16")}${item("ค่าน้ำมันรถ",sum.fuel,"#8a5a16")}${item("อื่น ๆ",sum.other)}</div>`; }
+}
+
+/* ================= MARKETING MERGE (unified Marketing & Listings page) ================= */
+/* Marketing Merge: single source, 5 tabs, 15 platforms, derived KPIs, no duplicate storage */
+let mktTabActive=1;
+let mktScope={range:"month",type:"",channelKey:""};
+
+/* -- Adapters: sync per-property URL map ↔ DB.mkt rows (idempotent) -- */
+function propChannelSync(propId,chKey,url){
+  const p=DB.props.find(x=>x.id===propId); if(!p)return;
+  p.channels=p.channels||{};
+  if(url){ p.channels[chKey]=url; p["ch_"+chKey]=url; }
+  else{ delete p.channels[chKey]; delete p["ch_"+chKey]; }
+  const chDef=CHANNELS.find(c=>c.key===chKey); if(!chDef)return;
+  let row=DB.mkt.find(m=>m.propertyId===p.id&&m.ch===chDef.name);
+  if(url){ if(!row){ row={id:uid(),propertyId:p.id,name:(p.code||p.title||"ทรัพย์")+" · "+chDef.name,ch:chDef.name,url,status:"Live",publishedAt:todayISO(),date:todayISO(),source:"manual"}; DB.mkt.push(row); }
+    else{ row.url=url; row.lastUpdatedAt=todayISO(); } }
+  else if(row){ row.status="Removed"; row.lastUpdatedAt=todayISO(); }
+}
+function mktLinkExpense(mktRow,expenseData){ /* create expense row + link both ways via mktId */
+  if(!mktRow||!expenseData)return null;
+  const e=Object.assign({id:uid(),mktId:mktRow.id,propertyId:mktRow.propertyId||"",date:todayISO()},expenseData);
+  DB.expense.push(e);
+  try{logActivity("expense-created","expense",e.id,"ค่าใช้จ่ายการตลาด: "+(e.category||"")+" ฿"+fmtMoney(e.amount||0),{payload:{mktId:mktRow.id,amount:e.amount}});}catch(err){}
+  save(); return e;
+}
+
+/* -- Migration: sync p.channels → DB.mkt on load (create missing rows, no delete) -- */
+function migrateMarketingSync(){
+  let ch=false;
+  DB.props.forEach(p=>{
+    if(!p.channels)return;
+    Object.entries(p.channels).forEach(([chKey,url])=>{
+      if(chKey==="copy"||!url)return;
+      const chDef=CHANNELS.find(c=>c.key===chKey); if(!chDef)return;
+      const exists=DB.mkt.some(m=>m.propertyId===p.id&&m.ch===chDef.name);
+      if(!exists){ DB.mkt.push({id:uid(),propertyId:p.id,name:(p.code||p.title||"ทรัพย์")+" · "+chDef.name,ch:chDef.name,url,status:"Live",publishedAt:p.marketingStart||todayISO(),date:p.marketingStart||todayISO(),source:"migration"}); ch=true; }
+    });
+  });
+  /* Reverse sync: DB.mkt.url → p.channels[chKey] if not present */
+  DB.mkt.forEach(m=>{
+    if(!m.propertyId||!m.url||!m.ch)return;
+    const chDef=CHANNELS.find(c=>c.name===m.ch); if(!chDef)return;
+    const p=DB.props.find(x=>x.id===m.propertyId); if(!p)return;
+    p.channels=p.channels||{};
+    if(!p.channels[chDef.key]){ p.channels[chDef.key]=m.url; p["ch_"+chDef.key]=m.url; ch=true; }
+  });
+  if(ch)save();
+}
+
+/* -- Scope filter + derived metrics (real-time · no stored duplicates) -- */
+function mktScopeRange(){ /* reuse dashRange semantics when possible */
+  try{ const saved=dashScope; const backup={...dashScope}; dashScope={range:mktScope.range,type:mktScope.type,customFrom:"",customTo:""}; const r=dashRange(); dashScope=backup; return r; }catch(e){ return {from:null,to:null}; }
+}
+function mktInRange(dstr){ if(!dstr)return true; const r=mktScopeRange(); if(!r.from&&!r.to)return true; const dt=new Date(dstr); if(isNaN(dt))return true; if(r.from&&dt<r.from)return false; if(r.to&&dt>r.to)return false; return true; }
+function mktScopeFilter(){ return DB.mkt.filter(m=>{
+  if(mktScope.channelKey){ const cd=CHANNELS.find(c=>c.key===mktScope.channelKey); if(!cd||m.ch!==cd.name)return false; }
+  if(mktScope.type){ const p=m.propertyId?DB.props.find(x=>x.id===m.propertyId):null; if(p&&(p.deal||"")!==mktScope.type)return false; }
+  return mktInRange(m.date||m.publishedAt||m.lastUpdatedAt);
+}); }
+function mktCostOf(items){ return items.reduce((s,m)=>s+bn(m.cost||0)+bn(m.boostCost||0)+bn(m.otherCost||0),0); }
+function mktLeadsOf(items){ /* sum manual leads field OR count DB.leads with src matching mkt channel */
+  const manual=items.reduce((s,m)=>s+num(m.leads||0),0); if(manual)return manual;
+  const chNames=new Set(items.map(m=>m.ch).filter(Boolean));
+  return DB.leads.filter(l=>l.src&&chNames.has(l.src)).length;
+}
+function mktApptsOf(items){ const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean)); if(!propIds.size)return 0; return DB.appointments.filter(a=>a.propertyId&&propIds.has(a.propertyId)).length; }
+function mktDealsOf(items){ const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean)); if(!propIds.size)return 0; return DB.deals.filter(d=>d.stage===5&&d.propertyId&&propIds.has(d.propertyId)).length; }
+function mktRevenueOf(items){ const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean)); if(!propIds.size)return 0; return DB.income.filter(i=>i.propertyId&&propIds.has(i.propertyId)).reduce((s,i)=>s+bn(i.amount||0),0); }
+function cplOf(items){ const c=mktCostOf(items),l=mktLeadsOf(items); return l?Math.round(c/l):null; }
+function cpaOf(items){ const c=mktCostOf(items),a=mktApptsOf(items); return a?Math.round(c/a):null; }
+function cpdOf(items){ const c=mktCostOf(items),d=mktDealsOf(items); return d?Math.round(c/d):null; }
+function roiOf(items){ const c=mktCostOf(items); if(!c)return null; const rev=mktRevenueOf(items); return Math.round((rev-c)/c*100); }
+function fmtOrDash(v){ return (v==null||!isFinite(v))?"—":v; }
+
+/* -- Task derivation for tab 2 (no duplicate storage with Action Center) -- */
+function mktTasks(){ const tasks=[];
+  DB.props.forEach(p=>{ const chs=p.channels?Object.keys(p.channels).filter(k=>k!=="copy"):[]; if(!chs.length&&(p.status||"").indexOf("ปิด")<0)tasks.push({kind:"no-listing",propId:p.id,label:"ยังไม่ได้ลงประกาศ",msg:(p.code||p.title||"ทรัพย์")}); });
+  DB.mkt.forEach(m=>{ const d=m.lastUpdatedAt||m.publishedAt||m.date; if(!d)return; const days=Math.floor((Date.now()-new Date(d).getTime())/86400000); if(days>=30&&(m.status||"").indexOf("Removed")<0)tasks.push({kind:"stale",mktId:m.id,label:"ไม่ได้อัปเดต "+days+" วัน",msg:m.name||""}); });
+  DB.mkt.forEach(m=>{ const cost=bn(m.cost||0)+bn(m.boostCost||0); const leads=num(m.leads||0); if(cost>0&&leads===0)tasks.push({kind:"spend-no-lead",mktId:m.id,label:"ใช้งบแต่ยังไม่มี Lead",msg:m.name+" ฿"+fmtBaht(cost)}); });
+  return tasks;
+}
+
+/* -- Orchestrator -- */
+function setMktTab(n){ mktTabActive=n; renderMarketing(); if(window.innerWidth<=720)window.scrollTo({top:0,behavior:"smooth"}); }
+function setMktScope(key,val){ mktScope[key]=val; renderMarketing(); }
+function renderMarketing(){ const view=$("#v-marketing"); if(!view)return;
+  view.querySelectorAll('.mkt-tab').forEach(el=>el.classList.toggle('on',+el.dataset.tab===mktTabActive));
+  const badge=$("#mktTasksBadge"); if(badge){ try{const n=mktTasks().length; if(n){badge.textContent=n>99?"99+":String(n);badge.style.display="";}else badge.style.display="none";}catch(e){} }
+  const panel=$("#mktPanel"); if(!panel)return;
+  try{ switch(mktTabActive){ case 1:renderMktOverview(panel);break; case 2:renderMktTasksTab(panel);break; case 3:renderMktPropChannels(panel);break; case 4:renderMktChannelPerf(panel);break; case 5:renderMktCampaigns(panel);break; } }
+  catch(e){ panel.innerHTML=`<div class="mkt-empty"><div class="ico">⚠</div>ผิดพลาด: ${esc(e.message||"unknown")}</div>`; }
+}
+
+function mktToolbar(){ const r=mktScopeRange(); const fmt=d=>d?d.toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric"}):"—"; const lbl=(!r.from&&!r.to)?"ทุกช่วงเวลา":fmt(r.from)+" – "+fmt(r.to);
+  return `<div class="mkt-toolbar"><label style="font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">ช่วง</label><select onchange="setMktScope('range',this.value)">${["today","week","month","quarter","year","all"].map(v=>`<option value="${v}"${mktScope.range===v?" selected":""}>${{today:"วันนี้",week:"สัปดาห์นี้",month:"เดือนนี้",quarter:"ไตรมาสนี้",year:"ปีนี้",all:"ทั้งหมด"}[v]}</option>`).join("")}</select><label style="font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-left:6px">ประเภท</label><select onchange="setMktScope('type',this.value)"><option value="">ทั้งหมด</option><option value="ขาย"${mktScope.type==="ขาย"?" selected":""}>ขาย</option><option value="เช่า"${mktScope.type==="เช่า"?" selected":""}>เช่า</option></select><span class="mkt-scope">· ${esc(lbl)}</span></div>`;
+}
+
+/* Tab 1: ภาพรวม */
+function renderMktOverview(panel){
+  const items=mktScopeFilter();
+  const propsAll=DB.props.filter(p=>!mktScope.type||(p.deal||"")===mktScope.type);
+  const propsListed=propsAll.filter(p=>p.channels&&Object.keys(p.channels).filter(k=>k!=="copy").length);
+  const propsUnlisted=propsAll.filter(p=>!p.channels||!Object.keys(p.channels).filter(k=>k!=="copy").length);
+  const cost=mktCostOf(items),leads=mktLeadsOf(items),appts=mktApptsOf(items),deals=mktDealsOf(items),rev=mktRevenueOf(items);
+  const cpl=cplOf(items),cpa=cpaOf(items),cpd=cpdOf(items),roi=roiOf(items);
+  const bestCh=(()=>{ const by={}; items.forEach(m=>{by[m.ch]=(by[m.ch]||0)+bn(m.cost||0)+bn(m.boostCost||0);}); const arr=Object.entries(by).sort((a,b)=>b[1]-a[1]); return arr[0]?arr[0][0]:"—"; })();
+  panel.innerHTML=mktToolbar()+`
+    <div class="dash-kpi-row" style="margin-bottom:8px">
+      <div class="dash-kpi click" onclick="setMktTab(3)"><b>พร้อมทำตลาด</b><div class="val">${propsAll.length}</div><div class="sub">ทรัพย์ทั้งหมด</div></div>
+      <div class="dash-kpi click" onclick="setMktTab(3)"><b>ลงประกาศแล้ว</b><div class="val" style="color:var(--ok)">${propsListed.length}</div></div>
+      <div class="dash-kpi click" onclick="setMktTab(2)"><b>ยังไม่ได้ลง</b><div class="val" style="color:${propsUnlisted.length?'var(--warn)':'var(--ink)'}">${propsUnlisted.length}</div></div>
+      <div class="dash-kpi"><b>ค่าใช้จ่ายการตลาด</b><div class="val">฿${fmtBaht(cost)}</div></div>
+      <div class="dash-kpi click" onclick="go('customers')"><b>Leads</b><div class="val">${leads}</div></div>
+      <div class="dash-kpi"><b>ช่องทางดีสุด</b><div class="val" style="font-size:14px">${esc(bestCh)}</div></div>
+    </div>
+    <details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:var(--ink-2);padding:6px 8px;background:var(--plane);border-radius:6px;border:1px solid var(--border)">▾ ดูเพิ่มเติม · นัดชม/ดีล/รายได้/CpL/CpA/CpD/ROI</summary>
+    <div class="dash-kpi-row" style="margin-top:8px">
+      <div class="dash-kpi"><b>นัดชมจากการตลาด</b><div class="val">${appts}</div></div>
+      <div class="dash-kpi"><b>ดีลจากการตลาด</b><div class="val">${deals}</div></div>
+      <div class="dash-kpi"><b>รายได้จากการตลาด</b><div class="val">฿${fmtBaht(rev)}</div></div>
+      <div class="dash-kpi"><b>ต้นทุนต่อ Lead</b><div class="val">${cpl!=null?"฿"+fmtBaht(cpl):"—"}</div></div>
+      <div class="dash-kpi"><b>ต้นทุนต่อนัดชม</b><div class="val">${cpa!=null?"฿"+fmtBaht(cpa):"—"}</div></div>
+      <div class="dash-kpi"><b>ต้นทุนต่อดีล</b><div class="val">${cpd!=null?"฿"+fmtBaht(cpd):"—"}</div></div>
+      <div class="dash-kpi"><b>ROI</b><div class="val" style="color:${roi==null?'var(--muted)':roi>=0?'var(--ok)':'var(--crit)'}">${roi!=null?roi+"%":"—"}</div></div>
+    </div></details>
+    <div class="mkt-src">คำนวณจาก <code>DB.mkt</code>, <code>DB.props.channels</code>, <code>DB.appointments</code>, <code>DB.deals</code>, <code>DB.income</code>, <code>DB.leads.src</code> · ตัวหาร=0 → แสดง "—" (ไม่มี NaN/Infinity)</div>`;
+}
+
+/* Tab 2: งานที่ต้องทำ */
+function renderMktTasksTab(panel){
+  const tasks=mktTasks();
+  if(!tasks.length){ panel.innerHTML=mktToolbar()+`<div class="mkt-empty"><div class="ico">✅</div>ไม่มีงานค้าง — การตลาดของคุณอัปเดตครบแล้ว</div>`; return; }
+  const groups={"no-listing":[],"stale":[],"spend-no-lead":[]};
+  tasks.forEach(t=>{ (groups[t.kind]=groups[t.kind]||[]).push(t); });
+  const sec=(key,title,color)=>{ const arr=groups[key]||[]; if(!arr.length)return ""; return `<div style="margin-bottom:14px"><b style="font-size:13px;color:${color}">${esc(title)} (${arr.length})</b><div class="mkt-card-list" style="margin-top:6px">${arr.slice(0,20).map(t=>`<div class="mkt-card"><div class="mc-head"><div><div class="mc-title">${esc(t.msg)}</div><div class="mc-sub">${esc(t.label)}</div></div></div><div class="mc-actions">${t.propId?`<button onclick="openDetail(DB.props.findIndex(p=>p.id==='${esc(t.propId)}'))">🏠 เปิดทรัพย์</button><button class="primary" onclick="setMktTab(3);setTimeout(()=>{const f=$('#mktSearch');if(f){f.value='${esc(t.propId)}';f.dispatchEvent(new Event('input'));}},100)">➕ ลงประกาศ</button>`:""}${t.mktId?`<button onclick="openForm('mkt',DB.mkt.findIndex(m=>m.id==='${esc(t.mktId)}'))">✏ แก้ไข</button>`:""}</div></div>`).join("")}${arr.length>20?`<div class="mkt-empty">· และอีก ${arr.length-20} รายการ</div>`:""}</div>`; };
+  panel.innerHTML=mktToolbar()+sec("no-listing","🏠 ยังไม่ได้ลงประกาศ","var(--warn)")+sec("stale","🕒 ไม่ได้อัปเดตเกิน 30 วัน","var(--warn)")+sec("spend-no-lead","💸 ใช้งบแต่ยังไม่มี Lead","var(--crit)")+`<div class="mkt-src">งานทั้งหมด derive จากข้อมูลจริง · ไม่ซ้ำกับ Action Center · <a onclick="go('alerts')" style="cursor:pointer">เปิด Action Center รวม →</a></div>`;
+}
+
+/* Tab 3: ทรัพย์และช่องทาง */
+let mktT3Search="";
+function setMktT3Search(v){ mktT3Search=v.toLowerCase(); renderMarketing(); }
+function renderMktPropChannels(panel){
+  const type=mktScope.type;
+  let rows=DB.props.filter(p=>{ if(type&&(p.deal||"")!==type)return false; if(!mktT3Search)return true; return ((p.code||"")+(p.title||"")+(p.loc||"")+(p.id||"")).toLowerCase().includes(mktT3Search); });
+  const tools=mktToolbar()+`<div class="mkt-toolbar" style="top:96px"><input id="mktSearch" placeholder="🔍 Property ID · ชื่อ · ทำเล" value="${esc(mktT3Search)}" oninput="setMktT3Search(this.value)" style="flex:1;min-width:150px"></div>`;
+  if(!rows.length){ panel.innerHTML=tools+`<div class="mkt-empty"><div class="ico">🏠</div>ไม่พบทรัพย์ตามตัวกรอง</div>`; return; }
+  const items=mktScopeFilter();
+  const perProp=id=>items.filter(m=>m.propertyId===id);
+  panel.innerHTML=tools+`<div class="mkt-card-list">${rows.slice(0,50).map(p=>{
+    const chs=p.channels?Object.keys(p.channels).filter(k=>k!=="copy"):[];
+    const chipsOn=chs.map(k=>{const m=CHAN_META[k]||[k,"#888",k];return `<a class="mkt-chip live" href="${esc(p.channels[k])}" target="_blank" rel="noopener" title="${esc(m[2])}" style="text-decoration:none">${esc(m[0])}</a>`;}).join("");
+    const missingChs=CHANNELS.filter(c=>!chs.includes(c.key)).slice(0,3).map(c=>`<span class="mkt-chip gray" title="${esc(c.name)} — ยังไม่ลง">+${esc(c.badge)}</span>`).join("");
+    const mktRows=perProp(p.id);
+    const views=mktRows.reduce((s,m)=>s+num(m.views||0),0);
+    const inq=mktRows.reduce((s,m)=>s+num(m.inquiries||0),0);
+    const cost=mktRows.reduce((s,m)=>s+bn(m.cost||0)+bn(m.boostCost||0),0);
+    const status=chs.length?'<span class="mkt-chip live">'+chs.length+' ช่องทาง</span>':'<span class="mkt-chip warn">ยังไม่ลง</span>';
+    return `<div class="mkt-card"><div class="mc-head"><div style="flex:1;min-width:0"><div class="mc-title">${esc(p.code||"")} ${esc(p.title||"")}</div><div class="mc-sub">${status} · ${esc(p.deal||"")} · <b style="color:var(--brand)">${esc(p.price||"—")}</b> · ${esc(p.loc||"")}</div></div><div style="text-align:right;font-size:11px;line-height:1.6">${chipsOn||'<span class="mkt-chip gray">ยังไม่มี</span>'} ${missingChs}</div></div><div class="mc-meta">${views?"👁 "+views.toLocaleString()+" views · ":""}${inq?"💬 "+inq+" inq · ":""}${cost?"💸 ฿"+fmtBaht(cost)+" · ":""}<code>${esc(p.id)}</code></div><div class="mc-actions">${chs.length?`<button onclick="Object.entries(DB.props.find(x=>x.id==='${esc(p.id)}').channels).filter(([k])=>k!=='copy').forEach(([k,u])=>window.open(u,'_blank'))">↗ เปิดประกาศทั้งหมด</button>`:""}<button class="primary" onclick="openForm('props',DB.props.findIndex(x=>x.id==='${esc(p.id)}'))">➕ เพิ่ม/แก้ช่องทาง</button><button onclick="openForm('mkt',null,{propertyId:'${esc(p.id)}'})">💸 เพิ่มค่าใช้จ่าย</button><button onclick="openDetail(DB.props.findIndex(x=>x.id==='${esc(p.id)}'))">📄 ดูทรัพย์</button></div></div>`;
+  }).join("")}${rows.length>50?`<div class="mkt-empty">แสดง 50 จาก ${rows.length} · ใช้ค้นหาเพื่อกรอง</div>`:""}</div><div class="mkt-src">ราคา/สถานะ/รายละเอียด <b>ดึงจาก Property Master ผ่าน Property ID</b> · ห้ามกรอกซ้ำที่นี่</div>`;
+}
+
+/* Tab 4: ผลงานช่องทาง */
+function renderMktChannelPerf(panel){
+  const items=mktScopeFilter();
+  const list=CHANNELS.map(ch=>{
+    const rows=items.filter(m=>m.ch===ch.name);
+    const propIds=new Set(rows.map(r=>r.propertyId).filter(Boolean));
+    const active=rows.filter(r=>["Live","Active"].includes(r.status||"")).length;
+    const expired=rows.filter(r=>["Expired","Removed"].includes(r.status||"")).length;
+    const cost=mktCostOf(rows);
+    const leads=(()=>{const manual=rows.reduce((s,m)=>s+num(m.leads||0),0);return manual||DB.leads.filter(l=>l.src===ch.name).length;})();
+    const appts=DB.appointments.filter(a=>a.propertyId&&propIds.has(a.propertyId)).length;
+    const deals=DB.deals.filter(d=>d.stage===5&&d.propertyId&&propIds.has(d.propertyId)).length;
+    const rev=DB.income.filter(i=>i.propertyId&&propIds.has(i.propertyId)).reduce((s,i)=>s+bn(i.amount||0),0);
+    const cpl=leads?Math.round(cost/leads):null;
+    const roi=cost?Math.round((rev-cost)/cost*100):null;
+    const conv=leads?Math.round(deals/leads*100):null;
+    const updated=rows.map(r=>r.lastUpdatedAt||r.publishedAt||r.date).filter(Boolean).sort().pop();
+    return {ch,rows,propCount:propIds.size,active,expired,cost,leads,appts,deals,rev,cpl,roi,conv,updated};
+  });
+  panel.innerHTML=mktToolbar()+`<div class="mkt-card-list">${list.map(x=>`<div class="mkt-card" style="border-left:3px solid ${x.ch.color}"><div class="mc-head"><div><div class="mc-title" style="display:flex;align-items:center;gap:8px"><span class="mkt-chip" style="background:${x.ch.color};color:#fff">${esc(x.ch.badge)}</span> ${esc(x.ch.name)}</div><div class="mc-sub">${x.propCount?`${x.propCount} ทรัพย์`:'ยังไม่ลง'} · Active ${x.active} · หมดอายุ ${x.expired}${x.updated?" · อัปเดต "+esc(x.updated):""}</div></div><button onclick="setMktScope('channelKey','${esc(x.ch.key)}');setMktTab(3)" style="font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface-1);cursor:pointer">กรองทรัพย์ →</button></div><div class="mc-meta">💸 ฿${fmtBaht(x.cost)} · 👤 ${x.leads} leads · 📅 ${x.appts} นัด · ✅ ${x.deals} ดีล · 💰 ฿${fmtBaht(x.rev)}<br>CpL: ${x.cpl!=null?"฿"+fmtBaht(x.cpl):"—"} · Conv: ${x.conv!=null?x.conv+"%":"—"} · ROI: <b style="color:${x.roi==null?'var(--muted)':x.roi>=0?'var(--ok)':'var(--crit)'}">${x.roi!=null?x.roi+"%":"—"}</b></div></div>`).join("")}</div><div class="mkt-src">15 platforms แยกกันทุกช่อง · Facebook ≠ DDproperty ≠ DotProperty · derived KPIs · Leads คำนวณจาก manual field หรือ <code>DB.leads.src</code> matching</div>`;
+}
+
+/* Tab 5: แคมเปญและค่าใช้จ่าย */
+function renderMktCampaigns(panel){
+  const items=mktScopeFilter().filter(m=>bn(m.cost||0)+bn(m.boostCost||0)+bn(m.otherCost||0)>0);
+  const expenses=DB.expense.filter(e=>{ const cat=e.category||""; if(!/ตลาด|โฆษณา|boost|ถ่ายภาพ|วิดีโอ|โดรน|กราฟิก|คอนเทนต์|ป้าย|จัดบ้าน|Staging|Facebook Ads|Google Ads|market|listing|feature/i.test(cat))return false; return mktInRange(e.date); });
+  const totalMkt=items.reduce((s,m)=>s+bn(m.cost||0)+bn(m.boostCost||0)+bn(m.otherCost||0),0);
+  const totalExp=expenses.reduce((s,e)=>s+bn(e.amount||0),0);
+  const combined=[...items.map(m=>({id:m.id,type:"mkt",name:m.name||"แคมเปญ",cat:m.ch||"—",amount:bn(m.cost||0)+bn(m.boostCost||0)+bn(m.otherCost||0),date:m.date||m.publishedAt,status:m.status||"—",linkedExpense:DB.expense.find(e=>e.mktId===m.id)})),...expenses.map(e=>({id:e.id,type:"expense",name:e.category||"ค่าใช้จ่าย",cat:e.category||"—",amount:bn(e.amount||0),date:e.date,status:e.responsible||"—",linkedMkt:e.mktId?DB.mkt.find(m=>m.id===e.mktId):null}))].sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+  panel.innerHTML=mktToolbar()+`
+    <div class="dash-kpi-row" style="margin-bottom:10px">
+      <div class="dash-kpi"><b>รวมค่าการตลาด</b><div class="val">฿${fmtBaht(totalMkt+totalExp)}</div><div class="sub">${combined.length} รายการ</div></div>
+      <div class="dash-kpi"><b>จาก mkt records</b><div class="val" style="font-size:15px">฿${fmtBaht(totalMkt)}</div></div>
+      <div class="dash-kpi"><b>จาก Expense (หมวดการตลาด)</b><div class="val" style="font-size:15px">฿${fmtBaht(totalExp)}</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="btn primary sm" onclick="openForm('mkt')">+ แคมเปญ + ค่าใช้จ่าย</button>
+      <button class="btn sm" onclick="openForm('expense')">+ ค่าใช้จ่ายอย่างเดียว (Expense)</button>
+    </div>
+    ${combined.length?`<div class="mkt-card-list">${combined.slice(0,80).map(x=>`<div class="mkt-card"><div class="mc-head"><div><div class="mc-title">${esc(x.name)} <span class="mkt-chip ${x.type==='mkt'?'brand':'gray'}">${x.type==='mkt'?'MKT':'EXP'}</span></div><div class="mc-sub">${esc(x.cat)} · ${esc(x.date||"—")} · ${esc(x.status)}</div></div><b style="color:var(--brand);font-size:14px">฿${fmtBaht(x.amount)}</b></div>${x.linkedExpense?`<div class="mc-meta">🔗 เชื่อม Expense · <code>${esc(x.linkedExpense.id)}</code></div>`:""}${x.linkedMkt?`<div class="mc-meta">🔗 เชื่อม MKT · <code>${esc(x.linkedMkt.id)}</code></div>`:""}<div class="mc-actions">${x.type==='mkt'?`<button onclick="openForm('mkt',DB.mkt.findIndex(m=>m.id==='${esc(x.id)}'))">✏ แก้ไข</button>`:`<button onclick="openForm('expense',DB.expense.findIndex(e=>e.id==='${esc(x.id)}'))">✏ แก้ไข</button>`}<button onclick="go('finance')">📊 เปิด Finance</button></div></div>`).join("")}</div>`:'<div class="mkt-empty"><div class="ico">💸</div>ยังไม่มีค่าใช้จ่ายการตลาดในช่วงที่เลือก</div>'}
+    <div class="mkt-src">รวมข้อมูลจาก <code>DB.mkt.cost/boostCost</code> + <code>DB.expense</code> (category ที่เข้าข่ายการตลาด) · เชื่อมด้วย <code>expense.mktId</code> (DM-5) · ค่าเสื้อ/น้ำมัน/คอนเซาท์/แนะนำ ย้ายไปหมวด Commission/Finance แล้ว</div>`;
 }
 
 function renderPipe(){
