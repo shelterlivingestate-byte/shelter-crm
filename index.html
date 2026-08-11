@@ -818,6 +818,11 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
         </div>
       </div>
 
+      <!-- Monthly Goals + Property Priority · spec §2–§7 -->
+      <div class="sec-title"><span class="os-mini">🎯</span>เป้าหมายเดือนนี้ · Monthly Goals</div>
+      <div id="dash-goals" class="dash-section"></div>
+      <div id="dash-priority" class="dash-section" style="margin-top:12px"></div>
+
       <!-- 4.2 Company Performance -->
       <div class="sec-title"><span class="os-mini">1</span>Company Performance · ผลการดำเนินงาน</div>
       <div id="dash-company" class="dash-section"></div>
@@ -1755,6 +1760,14 @@ const SCHEMA={
     {k:"notes",l:"หมายเหตุ (บันทึกกลางของเจ้าของ)",type:"textarea",full:1}]},
   /* Marketing↔Finance SSOT · Phase 3 · spec §9 · LivingInsider credit usage records
    * ผู้ใช้อัปเดตแบบสรุปงวด · rate ณ เวลานั้น frozen ใน record · แก้ไขได้ (in-place · ห้ามสร้างซ้ำ) */
+  /* Monthly Goals · spec §2 · เป้าหมายรายเดือน · แยกตามเดือน/ปี · แก้ Record เดิมได้ (in-place) */
+  goals:{title:"เป้าหมายรายเดือน (Monthly Goal)", fields:[
+    {k:"year",l:"ปี ค.ศ. (เช่น 2026)",type:"number",req:1},
+    {k:"month",l:"เดือน (1–12)",type:"number",req:1},
+    {k:"advisorId",l:"Advisor / User ID (ว่างได้ = All Advisors)",type:"text"},
+    {k:"rentalCommTarget",l:"เป้ารายได้ค่าคอมเช่า (บาท) · ค่าเริ่มต้น 100,000",type:"number"},
+    {k:"saleClosedTarget",l:"เป้าจำนวนบ้านที่ต้องปิดขาย (หลัง) · ค่าเริ่มต้น 1",type:"number"},
+    {k:"note",l:"หมายเหตุ",type:"textarea",full:1}]},
   liCredits:{title:"LivingInsider Credits (สรุปงวด)", fields:[
     {k:"periodLabel",l:"งวด (YYYY-MM หรือช่วงเวลา)",type:"text",req:1},
     {k:"listingsCount",l:"จำนวนครั้งลงประกาศใหม่ (× "+50+" เครดิต หรือตามอัตราปัจจุบัน)",type:"number"},
@@ -1798,8 +1811,8 @@ const needsTemplate=["งบประมาณสูงสุดที่รั�
 
 /* ================= STATE ================= */
 const KEY="shelteros_crm_v2";
-const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue","activities","propertyImages","liCredits"];
-let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[],activities:[],propertyImages:[],liCredits:[]};
+const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue","activities","propertyImages","liCredits","goals"];
+let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[],activities:[],propertyImages:[],liCredits:[],goals:[]};
 let kb=[]; let todos=[]; let needsState=needsTemplate.map(()=>false);
 DB.kb=kb;
 const uid=()=>"id"+Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36);
@@ -2316,6 +2329,22 @@ function saveForm(ev){
     obj.channels=ch;
     if(obj.driveFolder!=null)obj.driveFolder=(obj.driveFolder||"").trim();
     obj.updatedAt=todayISO();
+  }
+  /* Monthly Goals · spec §2, §9 · ห้ามซ้ำ (year+month+advisorId) · แก้ Record เดิม · Created/Updated timestamps */
+  if(entity==="goals"){
+    const y=num(obj.year), m=num(obj.month);
+    if(!y||!m||m<1||m>12){ alert("ระบุปีและเดือน (1–12) ให้ถูกต้อง"); return; }
+    const advId=(obj.advisorId||"").trim();
+    /* Prevent duplicate for same (year, month, advisorId) on CREATE only */
+    if(index==null){
+      const dup=(DB.goals||[]).find(g=>g&&num(g.year)===y&&num(g.month)===m&&((g.advisorId||"").trim())===advId);
+      if(dup){ alert("⚠ มีเป้าหมายเดือน "+m+"/"+y+(advId?" · advisor="+advId:"")+" อยู่แล้ว\n\nระบบจะเปิดฟอร์มแก้ไข Record เดิมแทน"); const idx=DB.goals.indexOf(dup); closeForm(); setTimeout(()=>openForm("goals",idx),50); return; }
+    }
+    const prevRec=index==null?{}:(arr(entity)[index]||{});
+    obj.createdAt=prevRec.createdAt||todayISO();
+    obj.updatedAt=todayISO();
+    /* Best-effort updatedBy from settings if available (single-user for now) */
+    try{ const s=getSettings(); obj.updatedBy=s&&s.currentUser||prevRec.updatedBy||"self"; }catch(e){}
   }
   /* Marketing↔Finance SSOT · Phase 3 · spec §9 · LivingInsider credit · freeze rate + negative balance guard + no duplicate period */
   if(entity==="liCredits"){
@@ -3576,6 +3605,397 @@ function updateDashRangeLabel(){ const el=$("#dashRangeLabel"); if(!el)return; c
 function dashEmpty(msg,goTo){ return `<div class="dash-empty"><div class="dash-empty-icon">📊</div><div><b>ยังไม่มีข้อมูล</b><div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(msg)}${goTo?` — <a onclick="go('${goTo}')">เชื่อมจาก ${esc(goTo)}</a>`:""}</div></div></div>`; }
 function dashSrc(html){ return `<div class="dash-src">${html}</div>`; }
 
+/* ================================================================
+ * Monthly Goals + Property Priority · spec §2–§7, §10, §11
+ * SSOT sources · no financial creation · no auto-write to Property/Deal
+ * ================================================================ */
+const GOAL_DEFAULTS={rentalCommTarget:100000, saleClosedTarget:1};
+
+function goalGetFor(year, month, advisorId){
+  const advId=(advisorId||"").trim();
+  return (DB.goals||[]).find(g=>g&&num(g.year)===year&&num(g.month)===month&&((g.advisorId||"").trim())===advId)||null;
+}
+function goalEffective(year, month, advisorId){
+  const g=goalGetFor(year, month, advisorId);
+  return {
+    rentalCommTarget:num((g&&g.rentalCommTarget)||GOAL_DEFAULTS.rentalCommTarget),
+    saleClosedTarget:num((g&&g.saleClosedTarget)||GOAL_DEFAULTS.saleClosedTarget),
+    exists:!!g, id:g?g.id:null
+  };
+}
+function _inMonth(dateStr, year, month){
+  if(!dateStr)return false;
+  const d=new Date(dateStr); if(isNaN(d))return false;
+  return d.getFullYear()===year && (d.getMonth()+1)===month;
+}
+function _daysLeftInMonth(year, month){
+  const now=new Date();
+  if(now.getFullYear()!==year || (now.getMonth()+1)!==month){
+    /* คนละเดือน · ถ้าเดือนอนาคต = จำนวนวันเต็มเดือน, เดือนอดีต = 0 */
+    const lastDay=new Date(year, month, 0).getDate();
+    const monthStart=new Date(year, month-1, 1);
+    if(monthStart>now) return lastDay;
+    return 0;
+  }
+  const lastDay=new Date(year, month, 0).getDate();
+  return Math.max(0, lastDay - now.getDate() + 1);
+}
+
+/* --- Rental commission actual received (spec §3, §7) ---
+ * SSOT: DB.rentalCommissions · status ∈ {รับครบแล้ว, รับบางส่วน} · actualDate ∈ selected month
+ * ใช้ actualReceived (จริงหลังหักส่วนแบ่ง) · ห้ามใช้ค่าเช่ารวม */
+function rentalCommReceivedInMonth(year, month, advisorId){
+  let total=0, missing=0;
+  (DB.rentalCommissions||[]).forEach(rc=>{
+    if(!rc)return;
+    if(!["รับครบแล้ว","รับบางส่วน"].includes(rc.status||""))return;
+    if(!_inMonth(rc.actualDate, year, month))return;
+    if(rc.actualReceived==null || +rc.actualReceived<=0){ missing++; return; }
+    /* Optional advisor filter · เก็บ rc.assignedAgent หรือ c.internalOwner */
+    if(advisorId){
+      const c=(DB.contracts||[]).find(x=>x.id===rc.contractId);
+      const owner=(c&&(c.internalOwner||c.closingAgentName))||"";
+      if(owner && owner!==advisorId) return;
+    }
+    total += bn(rc.actualReceived);
+  });
+  return {total, missingRecords:missing};
+}
+
+/* --- Rental pipeline in month (spec §3) ---
+ * คาดว่าจะปิดใน month = rentalCommissions ที่มี expectedDate ∈ month AND ยังไม่ได้รับครบ
+ * ค่าที่คาดว่าจะได้ = (net expected − actualReceived) จาก computeRentalCommission ถ้ามี */
+function rentalCommPipelineInMonth(year, month, advisorId){
+  let total=0;
+  (DB.rentalCommissions||[]).forEach(rc=>{
+    if(!rc)return;
+    if(rc.status==="รับครบแล้ว"||rc.status==="ไม่ได้รับ")return;
+    if(!_inMonth(rc.expectedDate, year, month))return;
+    let expected=0;
+    try{
+      const c=(DB.contracts||[]).find(x=>x.id===rc.contractId);
+      if(c && typeof computeRentalCommission==="function"){
+        const r=computeRentalCommission(c, rc);
+        expected=Math.max(0, num(r.net) - num(rc.actualReceived||0));
+      }
+    }catch(e){}
+    if(!expected && rc.grossOverride) expected=Math.max(0, num(rc.grossOverride)-num(rc.actualReceived||0));
+    if(advisorId){
+      const c=(DB.contracts||[]).find(x=>x.id===rc.contractId);
+      const owner=(c&&(c.internalOwner||c.closingAgentName))||"";
+      if(owner && owner!==advisorId) return;
+    }
+    total += expected;
+  });
+  return total;
+}
+
+/* --- Sale closed count in month (spec §3) · เฉพาะดีล stage=5 kind=ขาย ---
+ * ห้ามนับ จอง/ยกเลิก/เจรจา */
+function saleClosedInMonth(year, month, advisorId){
+  return (DB.deals||[]).filter(d=>{
+    if(!d)return false;
+    if(d.stage!==5)return false;
+    if((d.kind||"")!=="ขาย")return false;
+    const dt=d.closeDate||d.updatedAt||d.createdAt;
+    if(!_inMonth(dt, year, month))return false;
+    if(advisorId){
+      const l=d.customerId?(DB.leads||[]).find(x=>x.id===d.customerId):null;
+      const owner=(l&&l.assignedAgent)||"";
+      if(owner && owner!==advisorId) return false;
+    }
+    return true;
+  }).length;
+}
+function salePipelineInMonth(year, month, advisorId){
+  return (DB.deals||[]).filter(d=>{
+    if(!d)return false;
+    if((d.kind||"")!=="ขาย")return false;
+    if(d.stage>=5)return false; if(d.stage<=0)return false;
+    if(advisorId){
+      const l=d.customerId?(DB.leads||[]).find(x=>x.id===d.customerId):null;
+      const owner=(l&&l.assignedAgent)||"";
+      if(owner && owner!==advisorId) return false;
+    }
+    return true;
+  }).length;
+}
+
+/* --- Property Priority Scoring (spec §4, §5, §11) ---
+ * รับ property + type ("เช่า"/"ขาย") · คืน {level, score, reasons[], expectedComm, blockers[], nextAction}
+ * ห้ามเดา · ถ้าค่าคอมไม่ครบ → ระบุใน blockers */
+const _ACTIVE_LISTING_STATUSES=new Set(["กำลังลงประกาศ","Live","Active","กำลังรัน"]);
+function scoreProperty(p, kind){
+  const reasons=[], blockers=[];
+  let score=0;
+  if(!p||!p.id) return {level:"Insufficient Data", score:0, reasons, blockers:["Property ID ว่าง"], expectedComm:null, nextAction:"เติมข้อมูลทรัพย์"};
+  const closed=String(p.status||"").indexOf("ปิด")>=0 || String(p.status||"").indexOf("ยกเลิก")>=0;
+  if(closed) return {level:"Insufficient Data", score:0, reasons, blockers:["ทรัพย์ปิด/ยกเลิกทำตลาดแล้ว"], expectedComm:null, nextAction:null};
+  /* Marketing status (spec §4) */
+  const mkt=(DB.mkt||[]).filter(m=>m&&m.propertyId===p.id);
+  const activeMkt=mkt.filter(m=>_ACTIVE_LISTING_STATUSES.has(m.status||""));
+  if(activeMkt.length){ score+=1; reasons.push("มีประกาศ Active · "+activeMkt.length+" ช่อง"); }
+  else blockers.push("ไม่มีประกาศ Active");
+  /* Photos */
+  const photoCount=(p.photos||[]).length;
+  if(photoCount>=3){ score+=1; reasons.push("รูป "+photoCount+" ภาพ · ครบ"); }
+  else if(photoCount) reasons.push("รูป "+photoCount+" ภาพ · ควรเพิ่ม");
+  else blockers.push("ยังไม่มีรูป");
+  /* Grade */
+  const grade=(p.grade||"").toUpperCase();
+  if(["A+","A"].includes(grade)){ score+=1; reasons.push("เกรด "+grade); }
+  else if(grade==="B") score+=0.5;
+  /* Matching customers */
+  const wantField=kind==="เช่า"?"Renter":"Buyer";
+  const matches=(DB.leads||[]).filter(l=>{
+    if(!l)return false;
+    if(!hasJourney||typeof hasJourney!=="function")return false;
+    if(!hasJourney(l,wantField))return false;
+    /* very simple match — same locality keyword หรือ preferred project */
+    const need=(l.zone||"")+" "+(l.want||"")+" "+(l.preferredProject||"");
+    const has=(p.loc||"")+" "+(p.title||"")+" "+(p.projectName||"");
+    return need.trim() && has.toLowerCase().indexOf(String(l.preferredProject||"").toLowerCase().slice(0,10))>=0
+        || has.toLowerCase().split(" ").some(w=>w.length>2 && need.toLowerCase().includes(w));
+  });
+  if(matches.length){ score+=1; reasons.push(matches.length+" ลูกค้า Matching"); }
+  else blockers.push("ยังไม่มี Customer Matching");
+  /* Appointments */
+  const appts=(DB.appointments||[]).filter(a=>a&&a.propertyId===p.id && a.status!=="ยกเลิก");
+  if(appts.length){ score+=1; reasons.push(appts.length+" นัดหมาย"); }
+  /* Deal in pipeline */
+  const deals=(DB.deals||[]).filter(d=>d&&d.propertyId===p.id && (d.kind||"")===kind && d.stage>0 && d.stage<5);
+  if(deals.length){ score+=1.5; reasons.push("อยู่ใน Pipeline · "+deals.length+" ดีล"); }
+  /* Price info */
+  const priceStr=kind==="เช่า"?(p.rentPrice||p.price||""):(p.salePrice||p.price||"");
+  if(!priceStr) blockers.push("ยังไม่มีราคา"+kind);
+  else score+=0.5;
+  /* Expected commission · rental: use computeRentalCommission if any contract linked; else null (never guess) */
+  let expectedComm=null;
+  if(kind==="เช่า"){
+    /* Look for existing contract or rental commission for this property */
+    const contract=(DB.contracts||[]).find(c=>c&&c.propertyId===p.id);
+    if(contract){
+      const rc=(typeof rentalCommOf==="function")?rentalCommOf(contract.id):null;
+      try{
+        if(rc && typeof computeRentalCommission==="function"){
+          const r=computeRentalCommission(contract, rc);
+          expectedComm=Math.max(0, num(r.net)-num(rc.actualReceived||0));
+          if(expectedComm>0){ score+=1; reasons.push("ค่าคอมสุทธิคาดการณ์ ฿"+fmtBaht(expectedComm)); }
+        }
+      }catch(e){}
+    }
+    if(expectedComm==null) blockers.push("ยังไม่มีค่าคอมสุทธิ (ต้องมีสัญญา+กฎค่าคอม)");
+  } else {
+    /* Sale: look at finance record for the deal */
+    const deal=deals[0]||(DB.deals||[]).find(d=>d&&d.propertyId===p.id && (d.kind||"")==="ขาย");
+    if(deal){
+      const fin=(DB.finance||[]).find(f=>f&&f.dealId===deal.id);
+      const val=num(String(deal.val||"").replace(/[^0-9.]/g,""));
+      if(fin && val>0 && fin.commissionPct){
+        const gross=val*num(fin.commissionPct)/100;
+        const our=gross*(100-num(fin.coAgentPct||0)-num(fin.companyPct||0))/100;
+        expectedComm=Math.max(0, our);
+        if(expectedComm>0){ score+=1; reasons.push("ค่าคอมสุทธิคาดการณ์ ฿"+fmtBaht(expectedComm)); }
+      } else {
+        blockers.push("ยังไม่มี % ค่าคอมใน Deal Finance");
+      }
+    }
+  }
+  /* Level */
+  let level="Insufficient Data";
+  if(blockers.includes("Property ID ว่าง")||blockers.includes("ยังไม่มีค่าคอมสุทธิ (ต้องมีสัญญา+กฎค่าคอม)")||blockers.includes("ยังไม่มี % ค่าคอมใน Deal Finance")){
+    if(score>=4) level="Medium"; else level="Insufficient Data";
+  } else if(score>=6) level="High";
+  else if(score>=3.5) level="Medium";
+  else level="Low";
+  /* Next action recommendation (ข้อเสนอเท่านั้น · ไม่สร้าง Task อัตโนมัติ) */
+  let nextAction=null;
+  if(!activeMkt.length) nextAction="เปิดประกาศการตลาด";
+  else if(!matches.length) nextAction="ส่งทรัพย์ให้ลูกค้าที่ Matching";
+  else if(!appts.length) nextAction="ขอนัดชม";
+  else if(!deals.length) nextAction="เปิดดีลจากนัดชม";
+  else if(deals[0]) nextAction="ติดตามดีล Stage "+(deals[0].stage||"?");
+  else if(photoCount<3) nextAction="เพิ่มรูปทรัพย์";
+  return {level, score:+score.toFixed(1), reasons, blockers, expectedComm, nextAction, activeMkt:activeMkt.length, matches:matches.length, appts:appts.length, deals:deals.length};
+}
+
+/* Toggle state for showing priority list (spec §4 · "ดูทรัพย์ที่ควรเร่งทำเป้า" button) */
+let _priorityShown=false;
+function togglePriority(){ _priorityShown=!_priorityShown; renderDashPriority(); }
+
+function renderDashGoals(){
+  const el=$("#dash-goals"); if(!el)return;
+  const y=_goalScope.year, m=_goalScope.month, advId=_goalScope.advisorId;
+  const goal=goalEffective(y,m,advId);
+  const rc=rentalCommReceivedInMonth(y,m,advId);
+  const rentPipe=rentalCommPipelineInMonth(y,m,advId);
+  const rentGap=Math.max(0, goal.rentalCommTarget - rc.total);
+  const rentGapAfterPipe=Math.max(0, goal.rentalCommTarget - rc.total - rentPipe);
+  const rentPct=goal.rentalCommTarget?Math.min(100, Math.round(rc.total/goal.rentalCommTarget*100)):0;
+  const rentPctInclPipe=goal.rentalCommTarget?Math.min(100, Math.round((rc.total+rentPipe)/goal.rentalCommTarget*100)):0;
+  const saleDone=saleClosedInMonth(y,m,advId);
+  const salePipe=salePipelineInMonth(y,m,advId);
+  const saleGap=Math.max(0, goal.saleClosedTarget - saleDone);
+  const salePct=goal.saleClosedTarget?Math.min(100, Math.round(saleDone/goal.saleClosedTarget*100)):0;
+  const daysLeft=_daysLeftInMonth(y,m);
+  const goalRec=goalGetFor(y,m,advId);
+  const goalIdx=goalRec?DB.goals.indexOf(goalRec):-1;
+  const monthNames=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  const yearOpts=[y-1,y,y+1].map(v=>`<option value="${v}"${v===y?" selected":""}>${v}</option>`).join("");
+  const monthOpts=monthNames.map((n,i)=>`<option value="${i+1}"${(i+1)===m?" selected":""}>${n}</option>`).join("");
+  const bar=(pct,inclPct,cls)=>`<div style="height:8px;background:var(--plane);border-radius:6px;overflow:hidden;position:relative;margin:6px 0">
+      ${inclPct!=null?`<div style="position:absolute;top:0;left:0;height:100%;width:${inclPct}%;background:${cls==="ok"?"rgba(46,160,67,.28)":"rgba(35,110,232,.28)"};border-radius:6px"></div>`:""}
+      <div style="position:absolute;top:0;left:0;height:100%;width:${pct}%;background:${cls==="ok"?"var(--ok)":cls==="warn"?"var(--warn)":"var(--brand)"};border-radius:6px"></div>
+    </div>`;
+  const insuff='<span style="color:var(--muted);font-size:11px">ข้อมูลยังไม่เพียงพอ</span>';
+  el.innerHTML=`
+    <div class="dash-filter" style="margin-bottom:10px">
+      <div class="dash-filter-row" style="align-items:center;flex-wrap:wrap;gap:8px">
+        <div class="dash-filter-group"><label>เดือน</label><select onchange="setGoalScope('month',this.value)">${monthOpts}</select></div>
+        <div class="dash-filter-group"><label>ปี</label><select onchange="setGoalScope('year',this.value)">${yearOpts}</select></div>
+        <div class="dash-filter-group"><label>Advisor</label><input type="text" placeholder="ว่าง = All" value="${esc(advId)}" onchange="setGoalScope('advisorId',this.value)" style="width:120px"></div>
+        <div class="spacer"></div>
+        <div style="font-size:11px;color:var(--muted)">เหลืออีก <b style="color:var(--ink)">${daysLeft}</b> วันในเดือน</div>
+        <button class="btn primary sm" onclick="${goalIdx>=0?`openForm('goals',${goalIdx})`:`openForm('goals')`}">${goalIdx>=0?"✏ แก้เป้าเดือนนี้":"+ ตั้งเป้าเดือนนี้"}</button>
+      </div>
+      ${!goal.exists?'<div style="font-size:11px;color:var(--muted);margin-top:6px">ยังไม่ได้ตั้งเป้าสำหรับเดือน '+m+'/'+y+' · กำลังใช้ค่าเริ่มต้น (เช่า 100,000฿ · ขาย 1 หลัง)</div>':""}
+    </div>
+
+    <div class="dash-kpi-row" style="margin-bottom:12px">
+      <div class="dash-kpi" style="flex:2;min-width:280px">
+        <b style="display:flex;align-items:center;gap:6px">🏠 เป้ารายได้ค่าคอมเช่า <span style="color:var(--muted);font-size:11px;font-weight:400">${rentPct}%</span></b>
+        <div class="val" style="font-size:16px;margin-top:4px">฿${fmtBaht(rc.total)} <span style="font-size:11px;color:var(--muted);font-weight:400">/ ${fmtBaht(goal.rentalCommTarget)}</span></div>
+        ${bar(rentPct, rentPctInclPipe, rentPct>=100?"ok":rentPct<50?"warn":"")}
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:6px">
+          <span><b style="color:var(--ok)">รับจริง ฿${fmtBaht(rc.total)}</b></span>
+          <span style="color:var(--brand)">+ Pipeline ฿${fmtBaht(rentPipe)}</span>
+        </div>
+        <div style="font-size:11.5px;color:${rentGap>0?'var(--crit)':'var(--ok)'};margin-top:4px">
+          ${rentGap>0?"⚠ ยังขาด ฿"+fmtBaht(rentGap):"✅ ถึงเป้าแล้ว"}
+          ${rentGapAfterPipe>0&&rentGap>0?" · หลังรวม Pipeline ยังขาด ฿"+fmtBaht(rentGapAfterPipe):""}
+        </div>
+        ${rc.missingRecords?'<div style="font-size:10px;color:var(--warn);margin-top:2px">⚠ '+rc.missingRecords+' commission ที่รับเงินแล้วยังไม่กรอกจำนวน · '+insuff+'</div>':""}
+      </div>
+
+      <div class="dash-kpi" style="flex:2;min-width:280px">
+        <b style="display:flex;align-items:center;gap:6px">💼 เป้าปิดการขาย <span style="color:var(--muted);font-size:11px;font-weight:400">${salePct}%</span></b>
+        <div class="val" style="font-size:16px;margin-top:4px">${saleDone} <span style="font-size:11px;color:var(--muted);font-weight:400">/ ${goal.saleClosedTarget} หลัง</span></div>
+        ${bar(salePct, null, salePct>=100?"ok":salePct<50?"warn":"")}
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:6px">
+          <span><b style="color:var(--ok)">ปิดจริง ${saleDone}</b></span>
+          <span style="color:var(--brand)">Pipeline ${salePipe} ดีล</span>
+        </div>
+        <div style="font-size:11.5px;color:${saleGap>0?'var(--crit)':'var(--ok)'};margin-top:4px">
+          ${saleGap>0?"⚠ ยังขาด "+saleGap+" หลัง":"✅ ถึงเป้าแล้ว"}
+        </div>
+      </div>
+    </div>
+
+    <div class="mkt-src" style="font-size:11px">
+      <b>SSOT:</b>
+      รายได้เช่ารับจริง = <code>DB.rentalCommissions</code> status=รับครบ/บางส่วน · actualDate ∈ เดือน · ใช้ <code>actualReceived</code> ·
+      Pipeline = expectedDate ∈ เดือน (net−actualReceived) ·
+      ปิดขาย = <code>DB.deals</code> stage=5 · kind=ขาย · closeDate ∈ เดือน ·
+      ห้ามนับ จอง/ยกเลิก/เจรจา · ห้ามใช้ค่าเช่ารวมแทนค่าคอม
+    </div>`;
+}
+
+function renderDashPriority(){
+  const el=$("#dash-priority"); if(!el)return;
+  const y=_goalScope.year, m=_goalScope.month, advId=_goalScope.advisorId;
+  const goal=goalEffective(y,m,advId);
+  const rc=rentalCommReceivedInMonth(y,m,advId);
+  const rentGap=Math.max(0, goal.rentalCommTarget - rc.total - rentalCommPipelineInMonth(y,m,advId));
+  const saleGap=Math.max(0, goal.saleClosedTarget - saleClosedInMonth(y,m,advId));
+  const gapLabel=rentGap>0||saleGap>0
+    ?(rentGap>0?"ค่าคอมเช่ายังขาด ฿"+fmtBaht(rentGap):"")+(rentGap>0&&saleGap>0?" · ":"")+(saleGap>0?"ปิดขายยังขาด "+saleGap+" หลัง":"")
+    :"ทั้ง 2 เป้าถึงแล้ว";
+  const btnLabel=_priorityShown?"▲ ซ่อนรายการทรัพย์":"▼ ดูทรัพย์ที่ควรเร่งทำเป้า";
+  let body="";
+  if(_priorityShown){
+    /* Rentals */
+    const rentProps=(DB.props||[]).filter(p=>p&&(p.deal||"")==="เช่า" && String(p.status||"").indexOf("ปิด")<0 && String(p.status||"").indexOf("ยกเลิก")<0);
+    const rentPick=pickPropsToCoverGap(rentProps, "เช่า", rentGap);
+    /* Sales */
+    const saleProps=(DB.props||[]).filter(p=>p&&(p.deal||"")==="ขาย" && String(p.status||"").indexOf("ปิด")<0 && String(p.status||"").indexOf("ยกเลิก")<0);
+    const scoredSales=saleProps.map(p=>({p, s:scoreProperty(p,"ขาย")})).filter(x=>x.s.level!=="Insufficient Data");
+    scoredSales.sort((a,b)=>b.s.score-a.s.score || (b.s.expectedComm||0)-(a.s.expectedComm||0));
+    const salePrimary=scoredSales[0]||null;
+    const saleBackups=scoredSales.slice(1,4);
+    const badge=lvl=>{
+      const map={High:'var(--ok)',Medium:'var(--brand)',Low:'var(--warn)','Insufficient Data':'var(--muted)'};
+      return `<span style="background:${map[lvl]||'var(--muted)'};color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700">${lvl}</span>`;
+    };
+    const card=(p,s,label)=>{
+      const propIdx=DB.props.indexOf(p);
+      const priceStr=(p.deal||"")==="เช่า"?(p.rentPrice||p.price||"—"):(p.salePrice||p.price||"—");
+      return `<div class="mkt-card">
+        <div class="mc-head">
+          <div style="flex:1;min-width:0">
+            <div class="mc-title">${label?`<span style="color:var(--brand)">${label}</span> · `:""}${esc(p.code||"")} ${esc(p.title||"")}</div>
+            <div class="mc-sub">${esc(p.deal||"")} · ${esc(priceStr)} · ${esc(p.loc||"")}</div>
+          </div>
+          <div style="text-align:right">${badge(s.level)}<div style="font-size:10px;color:var(--muted);margin-top:2px">score ${s.score}</div></div>
+        </div>
+        <div class="mc-meta" style="font-size:11px">
+          ${s.expectedComm!=null?`💰 ค่าคอมคาดการณ์ <b>฿${fmtBaht(s.expectedComm)}</b> · `:'💰 <span style="color:var(--muted)">ค่าคอมสุทธิยังไม่มีข้อมูล</span> · '}
+          ${s.matches||0} matching · ${s.appts||0} นัด · ${s.deals||0} ดีล · ${s.activeMkt||0} ประกาศ
+        </div>
+        ${s.reasons.length?`<div class="mc-meta" style="color:var(--ok);font-size:11px">✓ ${s.reasons.map(esc).join(" · ")}</div>`:""}
+        ${s.blockers.length?`<div class="mc-meta" style="color:var(--warn);font-size:11px">⚠ ${s.blockers.map(esc).join(" · ")}</div>`:""}
+        ${s.nextAction?`<div class="mc-meta" style="font-size:11px;color:var(--brand)">🎯 งานถัดไป: ${esc(s.nextAction)} <span style="color:var(--muted)">(คำแนะนำ · กดยืนยันเองก่อนสร้าง Task)</span></div>`:""}
+        <div class="mc-actions">
+          <button onclick="openDetail(${propIdx})">📄 เปิดทรัพย์</button>
+          ${s.deals?`<button onclick="go('deals')">💼 ดูดีล</button>`:""}
+          ${s.matches?`<button onclick="go('customers')">👤 ลูกค้า Matching</button>`:""}
+        </div>
+      </div>`;
+    };
+    body=`
+      <div style="margin-top:10px">
+        <b style="font-size:13px">🏠 ทรัพย์เช่าที่แนะนำเร่งปิดค่าคอม</b>
+        ${rentGap<=0?'<div style="font-size:11px;color:var(--ok);margin-top:6px">ถึงเป้าแล้ว · ไม่ต้องเร่ง</div>':
+          rentPick.picked.length?`
+            <div style="font-size:11px;color:var(--muted);margin:4px 0">ยังขาด ฿${fmtBaht(rentGap)} · ระบบเลือก ${rentPick.picked.length} ทรัพย์ (รวมค่าคอมคาดการณ์ ฿${fmtBaht(rentPick.cumulative)})</div>
+            <div class="mkt-card-list">${rentPick.picked.map(x=>card(x.p,x.s,null)).join("")}</div>
+          `:`<div style="font-size:11.5px;color:var(--warn);margin-top:6px">⚠ ไม่มีทรัพย์เช่าที่มีค่าคอมสุทธิพร้อมพอ · ต้องเติมข้อมูล: สัญญา + กฎค่าคอม (rentalCommissions)</div>`}
+      </div>
+      <div style="margin-top:14px">
+        <b style="font-size:13px">💼 ทรัพย์ขายที่แนะนำเร่งปิด</b>
+        ${!scoredSales.length?'<div style="font-size:11.5px;color:var(--warn);margin-top:6px">⚠ ยังไม่มีทรัพย์ขายที่มีข้อมูลพอวิเคราะห์ · ต้องเติม: ราคา, ลูกค้า Matching, Deal Finance %</div>':`
+          <div class="mkt-card-list" style="margin-top:6px">
+            ${salePrimary?card(salePrimary.p, salePrimary.s, "หลัก"):""}
+            ${saleBackups.map(x=>card(x.p, x.s, "สำรอง")).join("")}
+          </div>`}
+      </div>
+    `;
+  }
+  el.innerHTML=`
+    <div class="sec-title" style="margin-top:0"><span class="os-mini">🎯</span>ทรัพย์ที่ควรเร่งทำเป้า · Property Priority</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <div style="font-size:12px;color:var(--ink-2);flex:1;min-width:220px">${esc(gapLabel)}</div>
+      <button class="btn ${_priorityShown?"":"primary"} sm" onclick="togglePriority()">${btnLabel}</button>
+    </div>
+    ${body}
+    <div class="mkt-src" style="margin-top:10px;font-size:11px">
+      <b>Scoring (คำแนะนำเท่านั้น · ห้ามแก้สถานะอัตโนมัติ):</b> ประกาศ Active · รูปพร้อม · เกรด A/B · ลูกค้า Matching · นัดหมาย · Pipeline · ค่าคอมสุทธิที่คำนวณจริง ·
+      Level: High ≥6 · Medium 3.5–5.9 · Low <3.5 · <b style="color:var(--warn)">Insufficient Data</b> เมื่อไม่มีค่าคอมสุทธิยืนยัน ·
+      ทุกคำแนะนำเป็นข้อเสนอ · กดยืนยันเองก่อนสร้าง Appointment/Task
+    </div>`;
+}
+/* Pick property set that covers a gap · greedy from highest expectedComm (spec §4) */
+function pickPropsToCoverGap(props, kind, gap){
+  const scored=props.map(p=>({p, s:scoreProperty(p,kind)})).filter(x=>x.s.expectedComm!=null && x.s.expectedComm>0 && x.s.level!=="Insufficient Data");
+  scored.sort((a,b)=>b.s.expectedComm-a.s.expectedComm || b.s.score-a.s.score);
+  const picked=[]; let cum=0;
+  for(const x of scored){ picked.push(x); cum+=x.s.expectedComm; if(cum>=gap && picked.length>=1)break; if(picked.length>=8)break; }
+  return {picked, cumulative:cum};
+}
+
+/* --- Selected month state (default = current month) --- */
+let _goalScope={year:new Date().getFullYear(), month:new Date().getMonth()+1, advisorId:""};
+function setGoalScope(k,v){ _goalScope[k]=(k==="advisorId")?v:num(v); renderDashGoals(); renderDashPriority(); }
+
 function renderDashCompany(){ const el=$("#dash-company"); if(!el)return;
   const inc=DB.income.filter(x=>x.date&&inDashRange(x.date));
   const exp=DB.expense.filter(x=>x.date&&inDashRange(x.date));
@@ -3850,6 +4270,8 @@ function syncBottomNav(){ const nav=$("#bottomNav"); if(!nav)return;
 
 function renderDashboard(){
   try{ updateDashRangeLabel(); }catch(e){}
+  try{ renderDashGoals(); }catch(e){}
+  try{ renderDashPriority(); }catch(e){}
   try{ renderDashCompany(); }catch(e){}
   try{ renderDashRevenue(); }catch(e){}
   try{ renderDashFunnel(); }catch(e){}
