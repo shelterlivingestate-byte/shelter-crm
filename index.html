@@ -199,6 +199,40 @@ html[data-theme="dark"] .tag.amber{color:#f0c04a}
 .dash-age-bar .cell.crit{background:var(--brand-soft);color:var(--brand)}
 .dash-age-bar .cell b{display:block;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
 
+/* Searchable Select — universal widget for property/customer/owner/tenant/contract/deal/project select fields */
+.ss-wrap{position:relative;display:block;width:100%}
+.ss-btn{width:100%;text-align:left;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface-1);color:var(--ink);cursor:pointer;font-family:inherit;font-size:13px;display:flex;justify-content:space-between;align-items:center;min-height:40px;gap:8px}
+.ss-btn:hover{border-color:var(--ink-2)}
+.ss-btn.on{border-color:var(--brand)}
+.ss-btn .ss-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}
+.ss-btn .ss-lbl small{color:var(--muted);font-size:11px}
+.ss-btn .ss-ph{color:var(--muted)}
+.ss-btn .ss-right{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.ss-btn .ss-chev{color:var(--muted);font-size:10px;transition:.15s}
+.ss-btn.on .ss-chev{transform:rotate(180deg);color:var(--brand)}
+.ss-clear{background:transparent;border:0;color:var(--muted);cursor:pointer;padding:2px 5px;font-size:16px;line-height:1;border-radius:4px}
+.ss-clear:hover{color:var(--crit);background:var(--crit-soft)}
+.ss-pop{position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:90;background:var(--panel);border:1px solid var(--brand);border-radius:9px;box-shadow:0 6px 22px rgba(0,0,0,.12);max-height:340px;overflow:hidden;display:none;flex-direction:column}
+.ss-pop.on{display:flex}
+.ss-pop-input{padding:9px 11px;border:0;border-bottom:1px solid var(--border);font-family:inherit;font-size:13px;background:var(--panel-2);color:var(--ink);outline:none;flex:0 0 auto}
+.ss-pop-input::placeholder{color:var(--muted)}
+.ss-list{overflow-y:auto;flex:1;max-height:280px;-webkit-overflow-scrolling:touch}
+.ss-item{padding:8px 11px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--hair);line-height:1.4;transition:.1s}
+.ss-item:hover,.ss-item.hi{background:var(--brand-soft);color:var(--brand)}
+.ss-item.sel{background:var(--gold-soft);color:var(--warn);font-weight:600}
+.ss-item .ss-id{font-family:var(--mono);color:var(--muted);font-size:10.5px;margin-right:6px;background:var(--panel-2);padding:1px 4px;border-radius:3px}
+.ss-item:hover .ss-id,.ss-item.hi .ss-id{background:var(--panel)}
+.ss-item .ss-sub{color:var(--muted);font-size:10.5px;display:block;margin-top:2px}
+.ss-item:hover .ss-sub,.ss-item.hi .ss-sub{color:var(--ink-2)}
+.ss-empty{padding:18px 12px;text-align:center;color:var(--muted);font-size:12px}
+.ss-empty small{display:block;margin-top:4px;font-size:10.5px}
+@media(max-width:720px){
+  .ss-pop{max-height:70vh}
+  .ss-list{max-height:calc(70vh - 40px)}
+  .ss-pop-input{font-size:15px;padding:11px 12px}
+  .ss-item{padding:11px 12px;font-size:13px;min-height:44px}
+}
+
 /* Marketing Merge: unified page tabs */
 .mkt-tabs{display:flex;gap:4px;overflow-x:auto;padding:4px 2px 10px;margin-bottom:12px;border-bottom:1px solid var(--border);-webkit-overflow-scrolling:touch;scrollbar-width:none;position:sticky;top:0;background:var(--plane);z-index:5}
 .mkt-tabs::-webkit-scrollbar{display:none}
@@ -2053,6 +2087,86 @@ async function onPhotoUpload(ev){
   renderPhotoField("props");
 }
 function removePhoto(i){ formPhotos.splice(i,1); renderPhotoField("props"); }
+/* ================= UNIVERSAL SEARCHABLE SELECT ================= */
+/* One widget replaces every propertyselect/customerselect/ownerselect/tenantselect/contractselect/dealselect/projectselect
+   Search: ID + name + code + zone + phone + LINE + email + owner + type + status · Thai/EN/number · case-insensitive */
+const SS_INIT={
+  property: id=>{ const p=DB.props.find(x=>x.id===id); if(!p)return null; const ow=p.ownerId?(DB.owners.find(o=>o.id===p.ownerId)||{}):{}; return {label:(p.code?p.code+" · ":"")+(p.title||"ทรัพย์"), sub:[p.deal,p.cat,p.loc,p.price?"฿"+p.price:"",p.status,ow.name?"👤 "+ow.name:""].filter(Boolean).join(" · ")}; },
+  customer: id=>{ const l=DB.leads.find(x=>x.id===id); return l?{label:l.n||"ลูกค้า", sub:[l.ph,l.line,l.email,(l.journeys||[]).join("/")].filter(Boolean).join(" · ")}:null; },
+  owner:    id=>{ const o=(DB.owners||[]).find(x=>x.id===id); if(!o)return null; const pn=DB.props.filter(p=>p.ownerId===o.id).length; return {label:o.name||"เจ้าของ", sub:[o.phone,o.line,o.email,pn?pn+" ทรัพย์":""].filter(Boolean).join(" · ")}; },
+  tenant:   id=>{ const l=DB.leads.find(x=>x.id===id); return l?{label:l.n||"ผู้เช่า", sub:[l.ph,l.line,(l.journeys||[]).includes("Renter")?"Renter":""].filter(Boolean).join(" · ")}:null; },
+  contract: id=>{ const c=DB.contracts.find(x=>x.id===id); if(!c)return null; return {label:(typeof contractLabel==="function"?contractLabel(c):c.id), sub:[c.status,c.startDate,c.endDate].filter(Boolean).join(" · ")}; },
+  deal:     id=>{ const d=DB.deals.find(x=>x.id===id); if(!d)return null; return {label:(d.n||"ดีล")+" · "+(d.prop||""), sub:[d.val,d.stage!=null?"stage "+d.stage:""].filter(Boolean).join(" · ")}; },
+  project:  id=>{ const p=DB.projects.find(x=>x.id===id); return p?{label:p.name||"โครงการ", sub:[p.developer,p.zone,p.cat].filter(Boolean).join(" · ")}:null; }
+};
+const SS_SRC={
+  property: ()=>DB.props.slice().sort((a,b)=>(a.deal==="เช่า"?0:1)-(b.deal==="เช่า"?0:1)),
+  customer: ()=>DB.leads.slice(),
+  owner:    ()=>(DB.owners||[]).slice(),
+  tenant:   ()=>DB.leads.filter(l=>(l.journeys||[]).includes("Renter")||l.type==="เช่า"),
+  contract: ()=>DB.contracts.slice(),
+  deal:     ()=>DB.deals.slice(),
+  project:  ()=>DB.projects.slice()
+};
+const SS_HAY={ /* build the search haystack per entity — anything users might type */
+  property: p=>{ const ow=p.ownerId?(DB.owners.find(o=>o.id===p.ownerId)||{}):{}; return [p.id,p.code,p.title,p.loc,p.zone,p.deal,p.cat,p.price,p.status,p.grade,p.ownerName,p.ownerPhone,ow.name,ow.phone,ow.line].filter(Boolean).join(" ").toLowerCase(); },
+  customer: l=>[l.id,l.n,l.ph,l.line,l.email,l.type,l.custType,l.src,l.zone,l.want,l.budget,l.stage,l.buyerStage,l.renterStage,(l.journeys||[]).join(" ")].filter(Boolean).join(" ").toLowerCase(),
+  owner:    o=>{ const props=DB.props.filter(p=>p.ownerId===o.id).map(p=>(p.code||"")+" "+(p.title||"")).join(" "); return [o.id,o.name,o.phone,o.line,o.email,o.notes,props].filter(Boolean).join(" ").toLowerCase(); },
+  tenant:   l=>[l.id,l.n,l.ph,l.line,l.email,l.zone,l.rentalBudget].filter(Boolean).join(" ").toLowerCase(),
+  contract: c=>{ const p=DB.props.find(x=>x.id===c.propertyId)||{}; const t=DB.leads.find(x=>x.id===c.tenantId)||{}; return [c.id,c.status,c.startDate,c.endDate,c.leaseClosedByType,p.code,p.title,p.loc,t.n,t.ph].filter(Boolean).join(" ").toLowerCase(); },
+  deal:     d=>{ const c=DB.leads.find(x=>x.id===(d.customerId||d.custId))||{}; const p=DB.props.find(x=>x.id===d.propertyId)||{}; return [d.id,d.n,d.prop,d.val,d.kind,d.stage,c.n,p.code,p.title].filter(Boolean).join(" ").toLowerCase(); },
+  project:  p=>[p.id,p.name,p.developer,p.zone,p.subzone,p.cat,p.nearby,p.highlights].filter(Boolean).join(" ").toLowerCase()
+};
+const SS_ITEM={ /* per entity → {id, label, sub} for list rendering */
+  property: p=>({id:p.id, label:(p.code?p.code+" · ":"")+(p.title||"ทรัพย์"), sub:[p.deal?"["+p.deal+"]":"",p.cat,p.loc,p.price?"฿"+p.price:"",p.status].filter(Boolean).join(" · ")}),
+  customer: l=>({id:l.id, label:l.n||"ลูกค้า", sub:[l.ph,l.line,l.email,(l.journeys||[]).join("/")||l.type].filter(Boolean).join(" · ")}),
+  owner:    o=>{ const pn=DB.props.filter(p=>p.ownerId===o.id).length; return {id:o.id, label:o.name||"เจ้าของ", sub:[o.phone,o.line,o.email,pn?pn+" ทรัพย์":""].filter(Boolean).join(" · ")}; },
+  tenant:   l=>({id:l.id, label:l.n||"ผู้เช่า", sub:[l.ph,l.line,l.email].filter(Boolean).join(" · ")}),
+  contract: c=>{ const p=DB.props.find(x=>x.id===c.propertyId)||{}; return {id:c.id, label:(typeof contractLabel==="function"?contractLabel(c):c.id), sub:[c.status,p.code,c.startDate&&c.endDate?c.startDate+"→"+c.endDate:""].filter(Boolean).join(" · ")}; },
+  deal:     d=>({id:d.id, label:(d.n||"ดีล")+" · "+(d.prop||""), sub:[d.val,d.stage!=null?"stage "+d.stage:""].filter(Boolean).join(" · ")}),
+  project:  p=>({id:p.id, label:p.name||"โครงการ", sub:[p.developer,p.zone,p.cat].filter(Boolean).join(" · ")})
+};
+function ssFieldHTML(f,val,type,cls,dg,req,extraTools){
+  extraTools=extraTools||"";
+  const init=val&&SS_INIT[type]?SS_INIT[type](val):null;
+  const inner=init?`<span class="ss-lbl"><span class="ss-id" style="font-family:var(--mono);color:var(--muted);font-size:10.5px">${esc(val).slice(0,10)}</span> ${esc(init.label)}${init.sub?`<small> · ${esc(init.sub)}</small>`:""}</span>`:`<span class="ss-ph">— เลือก${esc(f.l)} (พิมพ์ค้นหาได้) —</span>`;
+  const clearBtn=val?`<button type="button" class="ss-clear" onclick="ssClearVal(event,this)" title="ยกเลิกตัวเลือก">×</button>`:"";
+  return `<label class="${cls}"${dg}><span style="display:flex;align-items:center;gap:6px">${esc(f.l)}${req?' *':''} ${extraTools}</span>
+    <div class="ss-wrap" data-name="${f.k}" data-type="${type}"${req?' data-req="1"':''}>
+      <input type="hidden" name="${f.k}" value="${esc(val||'')}"${req}>
+      <button type="button" class="ss-btn" onclick="ssOpen(this)">${inner}<span class="ss-right">${clearBtn}<span class="ss-chev">▾</span></span></button>
+      <div class="ss-pop">
+        <input type="text" class="ss-pop-input" placeholder="🔍 พิมพ์ค้นหา ID / ชื่อ / ทำเล / เบอร์ / อื่นๆ" oninput="ssFilter(this)" onkeydown="ssKey(event,this)">
+        <div class="ss-list"></div>
+      </div>
+    </div></label>`;
+}
+function ssOpen(btn){ ssCloseAll(btn); const wrap=btn.closest(".ss-wrap"); if(!wrap)return; btn.classList.add("on"); const pop=wrap.querySelector(".ss-pop"); pop.classList.add("on"); const inp=pop.querySelector(".ss-pop-input"); inp.value=""; ssRender(wrap,""); setTimeout(()=>{try{inp.focus();}catch(e){}},50); }
+function ssCloseAll(exceptBtn){ document.querySelectorAll(".ss-wrap").forEach(w=>{ const b=w.querySelector(".ss-btn"); if(b===exceptBtn)return; b.classList.remove("on"); const p=w.querySelector(".ss-pop"); if(p)p.classList.remove("on"); }); }
+function ssFilter(inp){ const wrap=inp.closest(".ss-wrap"); ssRender(wrap, inp.value); }
+function ssRender(wrap, query){ const type=wrap.dataset.type; const listEl=wrap.querySelector(".ss-list"); if(!listEl||!SS_SRC[type])return; const q=(query||"").trim().toLowerCase(); const currentId=wrap.querySelector('input[type=hidden]').value;
+  let rows=SS_SRC[type](); if(q){ const hay=SS_HAY[type]; rows=rows.filter(r=>hay(r).includes(q)); } rows=rows.slice(0,150);
+  if(!rows.length){ listEl.innerHTML=`<div class="ss-empty"><b>ไม่พบข้อมูล</b><small>ลองค้นด้วย ID บางส่วน · ชื่อ · เบอร์ · ทำเล</small></div>`; return; }
+  const itemFn=SS_ITEM[type];
+  listEl.innerHTML=rows.map(r=>{ const it=itemFn(r); const sel=it.id===currentId?" sel":""; return `<div class="ss-item${sel}" data-id="${esc(it.id)}" onclick="ssPickItem(this)"><span class="ss-id">${esc(it.id).slice(0,10)}</span>${esc(it.label)}${it.sub?`<small class="ss-sub">${esc(it.sub)}</small>`:""}</div>`; }).join("");
+}
+function ssPickItem(el){ const wrap=el.closest(".ss-wrap"); const id=el.dataset.id; ssSetValue(wrap, id); ssCloseAll(null); }
+function ssSetValue(wrap, id){ const hid=wrap.querySelector('input[type=hidden]'); if(!hid)return; hid.value=id||""; try{hid.dispatchEvent(new Event("change",{bubbles:true}));}catch(e){}
+  const type=wrap.dataset.type; const btn=wrap.querySelector(".ss-btn"); const label=id&&SS_INIT[type]?SS_INIT[type](id):null;
+  const inner=label?`<span class="ss-lbl"><span class="ss-id" style="font-family:var(--mono);color:var(--muted);font-size:10.5px">${esc(id).slice(0,10)}</span> ${esc(label.label)}${label.sub?`<small> · ${esc(label.sub)}</small>`:""}</span>`:`<span class="ss-ph">— เลือก (พิมพ์ค้นหาได้) —</span>`;
+  const clr=id?`<button type="button" class="ss-clear" onclick="ssClearVal(event,this)" title="ยกเลิกตัวเลือก">×</button>`:"";
+  btn.innerHTML=inner+`<span class="ss-right">${clr}<span class="ss-chev">▾</span></span>`;
+}
+function ssClearVal(ev,btn){ ev.stopPropagation(); const wrap=btn.closest(".ss-wrap"); ssSetValue(wrap,""); }
+function ssKey(ev, inp){ if(ev.key==="Escape"){ ssCloseAll(null); return; }
+  if(ev.key==="Enter"){ ev.preventDefault(); const first=inp.closest(".ss-wrap").querySelector(".ss-item"); if(first){ ssPickItem(first); } return; }
+  if(ev.key==="ArrowDown"||ev.key==="ArrowUp"){ ev.preventDefault(); const list=inp.closest(".ss-wrap").querySelector(".ss-list"); const items=[...list.querySelectorAll(".ss-item")]; if(!items.length)return; const cur=list.querySelector(".ss-item.hi"); let idx=cur?items.indexOf(cur):-1; idx=ev.key==="ArrowDown"?Math.min(items.length-1,idx+1):Math.max(0,idx-1); items.forEach(i=>i.classList.remove("hi")); items[idx].classList.add("hi"); items[idx].scrollIntoView({block:"nearest"}); }
+}
+/* Refresh all searchable buttons after applyToForm sets hidden values */
+function ssRefreshAll(){ document.querySelectorAll('.ss-wrap').forEach(w=>{ const hid=w.querySelector('input[type=hidden]'); if(hid) ssSetValue(w, hid.value); }); }
+/* Click-outside handler (global, registered once) */
+if(!window._ssBound){ window._ssBound=true; document.addEventListener("click",e=>{ if(!e.target.closest(".ss-wrap")) ssCloseAll(null); }); document.addEventListener("keydown",e=>{ if(e.key==="Escape") ssCloseAll(null); }); }
+
 function fieldHTML(f,val){
   const dg=f.grp?` data-grp="${f.grp}"`:"";
   if(f.type==="heading") return `<div class="fld full form-heading"${dg}>${f.l}</div>`;
@@ -2060,35 +2174,14 @@ function fieldHTML(f,val){
   if(f.type==="journeycheck") return `<div class="fld full"${dg}><div style="font-weight:650;font-size:12.5px;color:var(--ink-2);margin-bottom:6px">${f.l}</div><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="jchk"><input type="checkbox" id="jcBuyer" onchange="applyFormGroups('leads')"> 🛒 ต้องการซื้อ (Buyer)</label><label class="jchk"><input type="checkbox" id="jcRenter" onchange="applyFormGroups('leads')"> 🏠 ต้องการเช่า (Renter)</label></div></div>`;
   const cls="fld"+(f.full?" full":"");
   const req=f.req?" required":""; const star=f.req?' *':'';
-  if(f.type==="projectselect"){
-    const opts=['<option value="">— ไม่ระบุ / ยังไม่ผูกโครงการ —</option>'].concat(DB.projects.map(p=>`<option value="${p.id}" ${p.id===val?'selected':''}>${esc(p.name)}${p.zone?' · '+esc(p.zone):''}</option>`)).join("");
-    return `<label class="${cls}"${dg}>${f.l}${star} <button type="button" class="ai-link" onclick="quickAddProject()">+ เพิ่มโครงการใหม่</button><select name="${f.k}">${opts}</select></label>`;
-  }
-  if(f.type==="propertyselect"){
-    const sorted=DB.props.slice().sort((a,b)=>(a.deal==="เช่า"?0:1)-(b.deal==="เช่า"?0:1));
-    const opts=['<option value="">— เลือกทรัพย์ —</option>'].concat(sorted.map(p=>`<option value="${p.id}" ${p.id===val?'selected':''}>${esc((p.code?p.code+" ":"")+(p.title||""))}${p.deal?" ["+esc(p.deal)+"]":""}${p.loc?" · "+esc(p.loc):""}</option>`)).join("");
-    return `<label class="${cls}"${dg}>${f.l}${star}<select name="${f.k}"${req}>${opts}</select></label>`;
-  }
-  if(f.type==="tenantselect"){
-    const opts=['<option value="">— เลือกผู้เช่า (ลูกค้าเช่า) —</option>'].concat(DB.leads.filter(l=>l.type==="เช่า").map(l=>`<option value="${l.id}" ${l.id===val?'selected':''}>${esc(l.n||"")}${l.ph?" · "+esc(l.ph):""}</option>`)).join("");
-    return `<label class="${cls}"${dg}>${f.l}${star}<select name="${f.k}"${req}>${opts}</select></label>`;
-  }
-  if(f.type==="contractselect"){
-    const opts=['<option value="">— เลือกสัญญา —</option>'].concat(DB.contracts.map(c=>`<option value="${c.id}" ${c.id===val?'selected':''}>${esc(contractLabel(c))}</option>`)).join("");
-    return `<label class="${cls}"${dg}>${f.l}${star}<select name="${f.k}"${req}>${opts}</select></label>`;
-  }
-  if(f.type==="dealselect"){
-    const opts=['<option value="">— เลือกดีล —</option>'].concat(DB.deals.map(d=>`<option value="${d.id}" ${d.id===val?'selected':''}>${esc((d.n||"ดีล")+" · "+(d.prop||"")+" · "+(d.val||""))}</option>`)).join("");
-    return `<label class="${cls}"${dg}>${f.l}${star}<select name="${f.k}"${req}>${opts}</select></label>`;
-  }
-  if(f.type==="customerselect"){
-    const opts=['<option value="">— เลือกลูกค้า (Customer) —</option>'].concat(DB.leads.map(l=>`<option value="${l.id}" ${l.id===val?'selected':''}>${esc((l.n||"ลูกค้า")+(l.ph?" · "+l.ph:"")+(l.custType?" ["+l.custType+"]":""))}</option>`)).join("");
-    return `<label class="${cls}"${dg}>${f.l}${star}<select name="${f.k}"${req}>${opts}</select></label>`;
-  }
-  if(f.type==="ownerselect"){
-    const opts=['<option value="">— ไม่ผูก / จับคู่อัตโนมัติ —</option>'].concat((DB.owners||[]).map(o=>`<option value="${o.id}" ${o.id===val?'selected':''}>${esc((o.name||"เจ้าของ")+(o.phone?" · "+o.phone:""))}</option>`)).join("");
-    return `<label class="${cls}"${dg}>${f.l}${star}<select name="${f.k}">${opts}</select></label>`;
-  }
+  /* Universal Searchable Select — all 7 reference types share ssFieldHTML() (single source, single UX) */
+  if(f.type==="projectselect")   return ssFieldHTML(f,val,"project",  cls, dg, req, '<button type="button" class="ai-link" onclick="quickAddProject()" style="margin-left:6px;font-size:11px">+ เพิ่มโครงการใหม่</button>');
+  if(f.type==="propertyselect")  return ssFieldHTML(f,val,"property", cls, dg, req);
+  if(f.type==="tenantselect")    return ssFieldHTML(f,val,"tenant",   cls, dg, req);
+  if(f.type==="contractselect")  return ssFieldHTML(f,val,"contract", cls, dg, req);
+  if(f.type==="dealselect")      return ssFieldHTML(f,val,"deal",     cls, dg, req);
+  if(f.type==="customerselect")  return ssFieldHTML(f,val,"customer", cls, dg, req);
+  if(f.type==="ownerselect")     return ssFieldHTML(f,val,"owner",    cls, dg, req);
   if(f.type==="select"){
     const opts=f.opts.map(o=>`<option ${String(o)===String(val)?'selected':''}>${esc(o)}</option>`).join("");
     return `<label class="${cls}"${dg}>${f.l}${star}<select name="${f.k}"${req}>${opts}</select></label>`;
@@ -4891,6 +4984,8 @@ function applyToForm(entity,obj){
     /* Refresh conditional field groups so buy/rent sections show/hide */
     try{ if(typeof applyFormGroups==="function")applyFormGroups("leads"); }catch(e){}
   }
+  /* Searchable Select: refresh button labels since applyToForm sets hidden input values directly */
+  try{ if(typeof ssRefreshAll==="function")ssRefreshAll(); }catch(e){}
   return changed;
 }
 function offlineParse(entity,raw){
