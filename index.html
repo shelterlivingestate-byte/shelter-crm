@@ -1106,6 +1106,7 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
         <button class="mkt-tab" data-tab="3" onclick="setMktTab(3)"><b>3</b> ทรัพย์และช่องทาง</button>
         <button class="mkt-tab" data-tab="4" onclick="setMktTab(4)"><b>4</b> ผลงานช่องทาง</button>
         <button class="mkt-tab" data-tab="5" onclick="setMktTab(5)"><b>5</b> แคมเปญและค่าใช้จ่าย</button>
+        <button class="mkt-tab" data-tab="6" onclick="setMktTab(6)"><b>6</b> LI Credits</button>
       </div>
       <div id="mktPanel" class="mkt-panel"></div>
     </section>
@@ -1752,6 +1753,15 @@ const SCHEMA={
     {k:"email",l:"Email",type:"text"},
     {k:"preferredContact",l:"ช่องทางติดต่อที่สะดวก",type:"select",opts:["","โทร","LINE","Email"]},
     {k:"notes",l:"หมายเหตุ (บันทึกกลางของเจ้าของ)",type:"textarea",full:1}]},
+  /* Marketing↔Finance SSOT · Phase 3 · spec §9 · LivingInsider credit usage records
+   * ผู้ใช้อัปเดตแบบสรุปงวด · rate ณ เวลานั้น frozen ใน record · แก้ไขได้ (in-place · ห้ามสร้างซ้ำ) */
+  liCredits:{title:"LivingInsider Credits (สรุปงวด)", fields:[
+    {k:"periodLabel",l:"งวด (YYYY-MM หรือช่วงเวลา)",type:"text",req:1},
+    {k:"listingsCount",l:"จำนวนครั้งลงประกาศใหม่ (× "+50+" เครดิต หรือตามอัตราปัจจุบัน)",type:"number"},
+    {k:"boostsCount",l:"จำนวนครั้ง Boost (× "+10+" เครดิต หรือตามอัตราปัจจุบัน)",type:"number"},
+    {k:"purchasedCredits",l:"เครดิตที่ซื้อมาในงวดนี้ (ถ้ามี · เพิ่มใน Balance)",type:"number"},
+    {k:"purchaseExpenseId",l:"เชื่อม Expense การซื้อเครดิต (Expense ID · ว่างได้)",type:"text"},
+    {k:"note",l:"หมายเหตุ",type:"textarea",full:1}]},
   competitors:{title:"ประกาศคู่แข่ง (Competitor Listing)", fields:[
     {k:"sourcePropId",l:"ทรัพย์ต้นทางของเรา (Source Property)",type:"propertyselect",req:1,full:1},
     {k:"competitorProjectId",l:"โครงการคู่แข่ง (ถ้ามีในระบบ)",type:"projectselect",full:1},
@@ -1788,8 +1798,8 @@ const needsTemplate=["งบประมาณสูงสุดที่รั�
 
 /* ================= STATE ================= */
 const KEY="shelteros_crm_v2";
-const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue","activities","propertyImages"];
-let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[],activities:[],propertyImages:[]};
+const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue","activities","propertyImages","liCredits"];
+let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[],activities:[],propertyImages:[],liCredits:[]};
 let kb=[]; let todos=[]; let needsState=needsTemplate.map(()=>false);
 DB.kb=kb;
 const uid=()=>"id"+Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36);
@@ -2306,6 +2316,55 @@ function saveForm(ev){
     obj.channels=ch;
     if(obj.driveFolder!=null)obj.driveFolder=(obj.driveFolder||"").trim();
     obj.updatedAt=todayISO();
+  }
+  /* Marketing↔Finance SSOT · Phase 3 · spec §9 · LivingInsider credit · freeze rate + negative balance guard + no duplicate period */
+  if(entity==="liCredits"){
+    const s=getSettings();
+    /* Freeze rate ณ เวลานั้น (rule change ในอนาคตไม่กระทบประวัติ) — set only when creating */
+    if(index==null){
+      if(obj.rateListing==null) obj.rateListing=s.liListingCredit;
+      if(obj.rateBoost==null) obj.rateBoost=s.liBoostCredit;
+    } else {
+      /* Edit: preserve existing rate from prev record · never overwrite frozen rate */
+      const prevRec=(DB.liCredits||[])[index]||{};
+      obj.rateListing=(prevRec.rateListing!=null)?prevRec.rateListing:s.liListingCredit;
+      obj.rateBoost=(prevRec.rateBoost!=null)?prevRec.rateBoost:s.liBoostCredit;
+    }
+    /* Prevent duplicate period (spec §9 · ห้ามสร้างรายการสรุปซ้ำ) */
+    if(index==null && (obj.periodLabel||"").trim()){
+      const dup=(DB.liCredits||[]).find(x=>x&&(x.periodLabel||"").trim()===(obj.periodLabel||"").trim());
+      if(dup){ alert("⚠ มีรายการสรุปงวด "+obj.periodLabel+" อยู่แล้ว · ให้แก้ไขรายการเดิมแทนการสร้างใหม่"); return; }
+    }
+    /* Negative balance guard (spec §9 · ต้องยืนยันก่อนบันทึกถ้าจะติดลบ) */
+    try{
+      const proj=(DB.liCredits||[]).slice();
+      if(index==null) proj.push(obj); else proj[index]=Object.assign({},proj[index]||{},obj);
+      let purchased=0, used=0;
+      proj.forEach(r=>{ purchased+=num(r.purchasedCredits||0); const u=liCreditsUsed(r.listingsCount, r.boostsCount, r.rateListing, r.rateBoost); used+=u.total; });
+      if(purchased-used<0){
+        if(!confirm("⚠ เครดิตคงเหลือจะติดลบ ("+(purchased-used)+")\n\nยืนยันบันทึก?")) return;
+      }
+    }catch(e){}
+  }
+  /* Marketing↔Finance SSOT · Phase 3 · spec §5 · Lead auto-link + source history */
+  if(entity==="leads"){
+    const prevRec=(index==null?{}:(arr(entity)[index]||{}));
+    /* Source history · ถ้า user เปลี่ยน src ให้เก็บ log · ห้ามเปลี่ยนอัตโนมัติ */
+    if(prevRec.src && obj.src && prevRec.src!==obj.src){
+      obj.srcHistory=(prevRec.srcHistory||[]).slice();
+      obj.srcHistory.push({from:prevRec.src, to:obj.src, at:todayISO()});
+    } else if(prevRec.srcHistory){
+      obj.srcHistory=prevRec.srcHistory.slice();
+    }
+    /* Auto-link marketingRecordId · เฉพาะเมื่อยังไม่มี · pick most recent active mkt with matching ch */
+    if(obj.src && !obj.marketingRecordId && !prevRec.marketingRecordId){
+      const active=new Set(["กำลังลงประกาศ","Live","Active","กำลังรัน"]);
+      const cand=(DB.mkt||[]).filter(m=>m&&m.ch===obj.src&&active.has(m.status||""))
+        .sort((a,b)=>{ const da=new Date(b.publishedAt||b.createdAt||0)-new Date(a.publishedAt||a.createdAt||0); return da; });
+      if(cand.length) obj.marketingRecordId=cand[0].id;
+    } else if(prevRec.marketingRecordId && !obj.marketingRecordId){
+      obj.marketingRecordId=prevRec.marketingRecordId;  /* preserve existing */
+    }
   }
   /* Marketing↔Finance SSOT · spec §10 · duplicate detection (Marketing + Expense) */
   if(entity==="mkt" && index==null && obj.propertyId && obj.ch){
@@ -4430,15 +4489,37 @@ function mktExpiringPackages(){
   });
 }
 
-/* LivingInsider credit balance · spec §9 · sum จาก DB.expense (ซื้อเครดิต) − credit used
- * Records เก็บ purchase (credit type expense) และการใช้ (LI mkt records) */
+/* LivingInsider credit balance · spec §9 · SSOT = DB.liCredits summary records
+ * แต่ละ record เก็บ rate ณ เวลานั้น frozen · ไม่กระทบเมื่อกฎเปลี่ยน
+ * Fallback ถ้ายังไม่มี liCredits records: derive จาก mkt records + expense (transition) */
 function mktLICreditBalance(){
+  const records=DB.liCredits||[];
+  if(records.length){
+    let purchased=0, used=0, listingsTotal=0, boostsTotal=0;
+    records.forEach(r=>{
+      purchased += num(r.purchasedCredits||0);
+      const u=liCreditsUsed(r.listingsCount, r.boostsCount, r.rateListing, r.rateBoost);
+      used += u.total;
+      listingsTotal += num(r.listingsCount||0);
+      boostsTotal += num(r.boostsCount||0);
+    });
+    return {purchased, used, balance:purchased-used, listingsTotal, boostsTotal, source:"liCredits"};
+  }
+  /* Transition fallback · ยังไม่มีสรุปงวด · ประมาณจาก mkt records + expense */
   const purchased=(DB.expense||[]).filter(e=>e&&e.category==="ค่าลงประกาศแพลตฟอร์ม"&&(e.note||"").indexOf("LivingInsider")>=0)
     .reduce((s,e)=>s+num(e.creditsReceived||0),0);
   const liListings=(DB.mkt||[]).filter(m=>m&&m.ch==="LivingInsider").length;
   const liBoosts=(DB.mkt||[]).filter(m=>m&&m.ch==="LivingInsider"&&(m.note||"").toLowerCase().indexOf("boost")>=0).length;
   const used=liCreditsUsed(liListings, liBoosts).total;
-  return {purchased, used, balance:purchased-used};
+  return {purchased, used, balance:purchased-used, listingsTotal:liListings, boostsTotal:liBoosts, source:"fallback"};
+}
+/* Credit used ในเดือนปัจจุบัน · spec §13 */
+function mktLICreditUsedThisMonth(){
+  const now=new Date(); const ym=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  const records=(DB.liCredits||[]).filter(r=>(r.periodLabel||"").indexOf(ym)>=0);
+  let used=0;
+  records.forEach(r=>{ const u=liCreditsUsed(r.listingsCount, r.boostsCount, r.rateListing, r.rateBoost); used+=u.total; });
+  return used;
 }
 
 /* KPI ratios · null when divisor = 0 · spec §11 */
@@ -4473,7 +4554,7 @@ function renderMarketing(){ const view=$("#v-marketing"); if(!view)return;
   view.querySelectorAll('.mkt-tab').forEach(el=>el.classList.toggle('on',+el.dataset.tab===mktTabActive));
   const badge=$("#mktTasksBadge"); if(badge){ try{const n=mktTasks().length; if(n){badge.textContent=n>99?"99+":String(n);badge.style.display="";}else badge.style.display="none";}catch(e){} }
   const panel=$("#mktPanel"); if(!panel)return;
-  try{ switch(mktTabActive){ case 1:renderMktOverview(panel);break; case 2:renderMktTasksTab(panel);break; case 3:renderMktPropChannels(panel);break; case 4:renderMktChannelPerf(panel);break; case 5:renderMktCampaigns(panel);break; } }
+  try{ switch(mktTabActive){ case 1:renderMktOverview(panel);break; case 2:renderMktTasksTab(panel);break; case 3:renderMktPropChannels(panel);break; case 4:renderMktChannelPerf(panel);break; case 5:renderMktCampaigns(panel);break; case 6:renderMktLICredits(panel);break; } }
   catch(e){ panel.innerHTML=`<div class="mkt-empty"><div class="ico">⚠</div>ผิดพลาด: ${esc(e.message||"unknown")}</div>`; }
 }
 
@@ -4590,6 +4671,62 @@ function renderMktChannelPerf(panel){
     return {ch,rows,propCount:propIds.size,active,expired,cost,leads,appts,deals,rev,cpl,roi,conv,updated};
   });
   panel.innerHTML=mktToolbar()+`<div class="mkt-card-list">${list.map(x=>`<div class="mkt-card" style="border-left:3px solid ${x.ch.color}"><div class="mc-head"><div><div class="mc-title" style="display:flex;align-items:center;gap:8px"><span class="mkt-chip" style="background:${x.ch.color};color:#fff">${esc(x.ch.badge)}</span> ${esc(x.ch.name)}</div><div class="mc-sub">${x.propCount?`${x.propCount} ทรัพย์`:'ยังไม่ลง'} · Active ${x.active} · หมดอายุ ${x.expired}${x.updated?" · อัปเดต "+esc(x.updated):""}</div></div><button onclick="setMktScope('channelKey','${esc(x.ch.key)}');setMktTab(3)" style="font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface-1);cursor:pointer">กรองทรัพย์ →</button></div><div class="mc-meta">💸 ฿${fmtBaht(x.cost)} · 👤 ${x.leads} leads · 📅 ${x.appts} นัด · ✅ ${x.deals} ดีล · 💰 ฿${fmtBaht(x.rev)}<br>CpL: ${x.cpl!=null?"฿"+fmtBaht(x.cpl):"—"} · Conv: ${x.conv!=null?x.conv+"%":"—"} · ROI: <b style="color:${x.roi==null?'var(--muted)':x.roi>=0?'var(--ok)':'var(--crit)'}">${x.roi!=null?x.roi+"%":"—"}</b></div></div>`).join("")}</div><div class="mkt-src">15 platforms แยกกันทุกช่อง · Facebook ≠ DDproperty ≠ DotProperty · derived KPIs · Leads คำนวณจาก manual field หรือ <code>DB.leads.src</code> matching</div>`;
+}
+
+/* Tab 6: LivingInsider Credits · spec §9 · Phase 3 */
+function editLIRates(){
+  const s=getSettings();
+  const nL=prompt("อัตราเครดิตลงประกาศใหม่ (ปัจจุบัน "+s.liListingCredit+" เครดิต/ครั้ง)\n\n⚠ กฎใหม่จะใช้กับรายการที่บันทึกหลังจากนี้เท่านั้น · ประวัติเดิมยัง frozen rate ในระเบียนตัวเอง",String(s.liListingCredit));
+  if(nL===null)return;
+  const nB=prompt("อัตราเครดิต Boost (ปัจจุบัน "+s.liBoostCredit+" เครดิต/ครั้ง)",String(s.liBoostCredit));
+  if(nB===null)return;
+  const vL=num(nL), vB=num(nB);
+  if(vL<=0||vB<=0){ alert("ค่าต้อง > 0"); return; }
+  s.liListingCredit=vL; s.liBoostCredit=vB;
+  save(); renderMarketing();
+}
+function renderMktLICredits(panel){
+  const bal=mktLICreditBalance();
+  const monthUsed=mktLICreditUsedThisMonth();
+  const s=getSettings();
+  const recs=(DB.liCredits||[]).slice().sort((a,b)=>String(b.periodLabel||"").localeCompare(String(a.periodLabel||"")));
+  const balColor=bal.balance<0?'var(--crit)':bal.balance<50?'var(--warn)':'var(--ok)';
+  panel.innerHTML=`
+    <div class="mkt-toolbar" style="margin-bottom:12px">
+      <b style="font-size:13px">🎫 LivingInsider Credits</b>
+      <div class="spacer"></div>
+      <button class="btn sm" onclick="editLIRates()">⚙ ตั้งค่ากฎเครดิต (${s.liListingCredit}/${s.liBoostCredit})</button>
+      <button class="btn primary sm" onclick="openForm('liCredits')">+ บันทึกงวดใหม่</button>
+    </div>
+    <div class="dash-kpi-row" style="margin-bottom:12px">
+      <div class="dash-kpi"><b>เครดิตคงเหลือ</b><div class="val" style="color:${balColor}">${bal.balance}</div><div class="sub">${bal.source==="liCredits"?"จาก DB.liCredits":"ประมาณจาก mkt + expense (fallback)"}</div></div>
+      <div class="dash-kpi"><b>เครดิตซื้อสะสม</b><div class="val">${bal.purchased}</div></div>
+      <div class="dash-kpi"><b>เครดิตใช้สะสม</b><div class="val">${bal.used}</div><div class="sub">${bal.listingsTotal||0} ลง · ${bal.boostsTotal||0} boost</div></div>
+      <div class="dash-kpi"><b>ใช้เดือนนี้</b><div class="val">${monthUsed}</div></div>
+    </div>
+    <div class="mkt-src" style="margin-bottom:10px">
+      <b>กฎปัจจุบัน:</b> ลงประกาศใหม่ = <code>${s.liListingCredit}</code> เครดิต · Boost = <code>${s.liBoostCredit}</code> เครดิต ·
+      <b style="color:var(--warn)">rate ณ เวลานั้น frozen ในแต่ละ record</b> · การเปลี่ยนกฎไม่กระทบประวัติเดิม (spec §9)
+    </div>
+    ${recs.length?`
+    <table class="tbl"><thead><tr><th>งวด</th><th>ลงประกาศ</th><th>Boost</th><th>อัตรา ณ เวลานั้น</th><th style="text-align:right">เครดิตใช้</th><th style="text-align:right">ซื้อมา</th><th>หมายเหตุ</th><th style="width:80px"></th></tr></thead><tbody>
+      ${recs.map(r=>{ const u=liCreditsUsed(r.listingsCount, r.boostsCount, r.rateListing, r.rateBoost); const idx=DB.liCredits.indexOf(r); return `<tr>
+        <td><b>${esc(r.periodLabel||"—")}</b></td>
+        <td>${num(r.listingsCount||0)}</td>
+        <td>${num(r.boostsCount||0)}</td>
+        <td style="font-size:11px;color:var(--muted)">${r.rateListing}/${r.rateBoost}</td>
+        <td style="text-align:right"><b>${u.total}</b><br><span style="font-size:10px;color:var(--muted)">L${u.listing}+B${u.boost}</span></td>
+        <td style="text-align:right">${num(r.purchasedCredits||0)?"<b style='color:var(--ok)'>+"+num(r.purchasedCredits||0)+"</b>":"—"}</td>
+        <td style="font-size:11px">${esc(r.note||"")}</td>
+        <td>${rowActions("liCredits",idx)}</td>
+      </tr>`; }).join("")}
+    </tbody></table>
+    `:`<div class="mkt-empty"><div class="ico">🎫</div>ยังไม่มีบันทึกงวดใน DB.liCredits · กด "+ บันทึกงวดใหม่" เพื่อเริ่ม<br><span style="font-size:11px;color:var(--muted)">Balance ปัจจุบันประมาณจาก mkt + expense (fallback)</span></div>`}
+    <div class="mkt-src" style="margin-top:10px">
+      SSOT = <code>DB.liCredits</code> · fallback สำหรับ transition = <code>DB.mkt</code> (ch=LivingInsider) + <code>DB.expense</code> (category=ค่าลงประกาศแพลตฟอร์ม · note มี "LivingInsider" · creditsReceived) ·
+      แก้ไข: กด ✏ ที่ record เดิม (ห้ามสร้างซ้ำ · spec §9) ·
+      แพลตฟอร์มอื่นไม่ใช้สูตรนี้
+    </div>`;
 }
 
 /* Tab 5: แคมเปญและค่าใช้จ่าย */
