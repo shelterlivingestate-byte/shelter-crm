@@ -1835,7 +1835,10 @@ function scheduleN8NSync(){ if(!n8nAutoOn())return; const url=n8nUrl(); if(!/^ht
 const SB_POLL_KEY="shelter_sb_poll"; let sbPollT=null;
 function sbPollOn(){ try{ const v=localStorage.getItem(SB_POLL_KEY); return v==null ? true : v==="1"; }catch(e){return false;} }
 function toggleSBPoll(cb){ try{localStorage.setItem(SB_POLL_KEY,cb.checked?"1":"0");}catch(e){} if(cb.checked)startCloudPolling(); else stopCloudPolling(); const s=$("#sbStatus"); if(s){s.textContent=cb.checked?"เปิด real-time pull ทุก 20 วิ ✓":"ปิด real-time pull";s.className="ai-status ok";} }
-async function pollCloudOnce(){ if(!sbReady())return; try{ const {url}=sbCfg(); const res=await fetch(url+"/rest/v1/crm_state?id=eq.1&select=doc,updated_at",{headers:sbHeaders()}); if(!res.ok)return; const arr=await res.json(); if(!arr||!arr.length)return; const row=arr[0]; if((row.updated_at||"")>(localDataTs()||"")){ applyCloudDoc(row); const s=$("#sbStatus"); if(s){s.textContent="⬇ ดึงข้อมูลใหม่จากอุปกรณ์อื่น "+new Date().toLocaleTimeString("th-TH");s.className="ai-status ok";} } }catch(e){} }
+async function pollCloudOnce(){ if(!sbReady())return; try{ const {url}=sbCfg(); const res=await fetch(url+"/rest/v1/crm_state?id=eq.1&select=doc,updated_at",{headers:sbHeaders()}); if(!res.ok)return; const arr=await res.json(); if(!arr||!arr.length)return; const row=arr[0];
+    /* Fix C: epoch comparison — cloud "+00:00" vs local "Z" formats are equal in UTC but string compare mismatches */
+    const _le=Date.parse(localDataTs()||""); const _ce=Date.parse(row.updated_at||"");
+    if(!isNaN(_ce)&&(isNaN(_le)||_ce>_le+500)){ applyCloudDoc(row); const s=$("#sbStatus"); if(s){s.textContent="⬇ ดึงข้อมูลใหม่จากอุปกรณ์อื่น "+new Date().toLocaleTimeString("th-TH");s.className="ai-status ok";} } }catch(e){} }
 function startCloudPolling(){ stopCloudPolling(); if(!sbPollOn())return; sbPollT=setInterval(pollCloudOnce,20000); }
 function stopCloudPolling(){ if(sbPollT){clearInterval(sbPollT);sbPollT=null;} }
 /* ---- PWA (installable + offline shell) ---- */
@@ -1908,9 +1911,12 @@ async function cloudPull(apply){ const s=$("#sbStatus"); const {url}=sbCfg(); if
     return row; }
   catch(e){ if(s){s.textContent="ผิดพลาด: "+(e&&e.message||e);s.className="ai-status err";} return null; } }
 function applyCloudDoc(row){ try{
-    /* Phase 0 guard: skip apply if local is newer than cloud (protects unsaved local changes) */
+    /* Phase 0 guard: skip apply if local is newer than cloud (protects unsaved local changes)
+       Fix C: use epoch comparison (Date.parse) so timezone format differences (`Z` vs `+00:00`) don't misfire.
+       500ms tolerance = format rounding and network jitter safety */
     const _lts=localDataTs(); const _cts=(row&&row.updated_at)?row.updated_at:"";
-    if(_lts&&_cts&&_lts>_cts){ const s=$("#sbStatus"); if(s){s.textContent="⚠ ข้ามการดึงจากคลาวด์ — local ใหม่กว่า (กด ⬆ ส่งขึ้นก่อน)";s.className="ai-status err";} return; }
+    const _le=_lts?Date.parse(_lts):NaN; const _ce=_cts?Date.parse(_cts):NaN;
+    if(!isNaN(_le)&&!isNaN(_ce)&&_le>_ce+500){ const s=$("#sbStatus"); if(s){s.textContent="⚠ ข้ามการดึงจากคลาวด์ — local ใหม่กว่า (กด ⬆ ส่งขึ้นก่อน)";s.className="ai-status err";} return; }
     /* Phase 0 safety: snapshot current local into rolling backups before overwrite */
     try{ const _pl=localStorage.getItem(KEY); if(_pl)autoBackup(_pl); }catch(e){}
     const o=JSON.parse(row.doc); DBKEYS.forEach(k=>{DB[k]=Array.isArray(o.DB&&o.DB[k])?o.DB[k]:[];}); if(Array.isArray(o.kb)){kb.length=0;o.kb.forEach(x=>kb.push(x));} if(Array.isArray(o.todos))todos=o.todos; if(Array.isArray(o.needsState))needsState=o.needsState; localStorage.setItem(KEY,row.doc); setLocalDataTs(row.updated_at||new Date().toISOString()); try{migrateMatchingV2();}catch(e){} renderAll(); }catch(e){} }
@@ -1920,7 +1926,9 @@ function scheduleCloudPush(){ if(!sbAutoOn()||!sbReady()){ try{updateSyncBadge(s
   clearTimeout(sbSyncT); try{updateSyncBadge("pending");}catch(e){}
   sbSyncT=setTimeout(()=>cloudPush(true),800); }
 async function cloudInitSync(){ if(!sbReady())return; try{ const row=await cloudPull(false); if(!row){ if(sbAutoOn())cloudPush(true); return; }
-    if((row.updated_at||"")>(localDataTs()||"")){ applyCloudDoc(row); flashSaved("ดึงข้อมูลล่าสุดจากคลาวด์ ✓"); }
+    /* Fix C: epoch comparison — see pollCloudOnce comment above */
+    const _le=Date.parse(localDataTs()||""); const _ce=Date.parse(row.updated_at||"");
+    if(!isNaN(_ce)&&(isNaN(_le)||_ce>_le+500)){ applyCloudDoc(row); flashSaved("ดึงข้อมูลล่าสุดจากคลาวด์ ✓"); }
     else if(sbAutoOn()){ cloudPush(true); } }catch(e){} }
 function openBackup(){ const arr=listBackups(); const box=$("#backupList");
   try{ const u=localStorage.getItem(GS_KEY); if(u&&$("#gsUrl"))$("#gsUrl").value=u; const cb=$("#gsAuto"); if(cb)cb.checked=gsAutoOn();
@@ -5621,20 +5629,28 @@ function doBulkImport(){ const e=$("#bulkEntity").value; const txt=$("#bulkText"
     else { if(!c[0])return; const o={id:uid(),title:c[0],code:(c[1]||"").trim()||nextPropCode(),deal:c[2]||"ขาย",cat:c[3]||"คอนโด",loc:c[4]||"",spec:c[5]||"",price:c[6]||"",status:c[7]||"ว่าง"}; if(!o.f)o.f=parseSpec(o.spec); DB.props.push(o); n++; } });
   save(); flashSaved("นำเข้า "+n+" รายการแล้ว ✓"); alert("นำเข้า "+n+" รายการเรียบร้อย ✓"); renderAll(); }
 
-/* ================= INIT ================= */
+/* ================= INIT (cloud-first boot to prevent seed/save from overwriting cloud) ================= */
 buildNav(); loadAI(); load();
-try{ if(DB.projects.length===0 && !localStorage.getItem("shelter_seeded_projects")) seedProjects(false); }catch(e){}
-try{ if(DB.props.length===0 && !localStorage.getItem("shelter_seeded_listings")) seedListings(false); }catch(e){}
+try{ initAuth(); }catch(e){}
+/* Fix B: seedProjects/seedListings auto-run DISABLED — user must trigger via "โหลดข้อมูลตัวอย่าง" button in จัดการข้อมูล modal.
+   Cloud is the source of truth; if empty on fresh browser, cloudInitSync (below) will pull real data. */
+/* renderAll immediately so UI shows local data (or empty state) — cloud pull runs in background */
 try{ migrateMatchingV2(); }catch(e){}
 try{ backfillIds(); }catch(e){}
-/* Rental sample seed disabled per user request — function is neutered; cleanup runs via migrateRemoveRentalSample() in renderAll */
 try{ migrateRemoveRentalSample(); }catch(e){}
-try{ runRentalAutomation(); }catch(e){}
 renderAll();
-try{ initAuth(); }catch(e){}
-try{ cloudInitSync(); }catch(e){}
-try{ resolveOwnerLinks(true); }catch(e){}
-try{ startCloudPolling(); }catch(e){}
+/* Fix A: cloudInitSync FIRST (before any migration that could save() and race-overwrite cloud) · use IIFE with timeout so boot never hangs */
+(async () => {
+  try{
+    const cloudP = (typeof cloudInitSync==="function") ? cloudInitSync() : Promise.resolve();
+    const timeoutP = new Promise(res => setTimeout(res, 8000)); /* 8s cap — cloud may be slow */
+    await Promise.race([cloudP, timeoutP]);
+  }catch(e){}
+  /* AFTER cloud is settled: safe to run rental automation and secondary migrations that save() */
+  try{ runRentalAutomation(); }catch(e){}
+  try{ resolveOwnerLinks(true); }catch(e){}
+  try{ startCloudPolling(); }catch(e){}
+})();
 try{ installPWA(); }catch(e){}
 /* Data-loss fix: sync badge + emergency push listeners */
 function _syncBadgeEl(){ let el=document.getElementById("syncBadge"); if(el)return el;
