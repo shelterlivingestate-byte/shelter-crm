@@ -4270,16 +4270,180 @@ function mktScopeFilter(){ return DB.mkt.filter(m=>{
   if(mktScope.type){ const p=m.propertyId?DB.props.find(x=>x.id===m.propertyId):null; if(p&&(p.deal||"")!==mktScope.type)return false; }
   return mktInRange(m.date||m.publishedAt||m.lastUpdatedAt);
 }); }
-function mktCostOf(items){ return items.reduce((s,m)=>s+bn(m.cost||0)+bn(m.boostCost||0)+bn(m.otherCost||0),0); }
-function mktLeadsOf(items){ /* sum manual leads field OR count DB.leads with src matching mkt channel */
-  const manual=items.reduce((s,m)=>s+num(m.leads||0),0); if(manual)return manual;
-  const chNames=new Set(items.map(m=>m.ch).filter(Boolean));
-  return DB.leads.filter(l=>l.src&&chNames.has(l.src)).length;
+/* ================================================================
+ * Marketing↔Finance SSOT · Phase 2 · Cost/ROI recompute (spec §6, §7, §8, §11, §12, §13)
+ *
+ * แนวคิด:
+ *  - ค่าใช้จ่ายทุกก้อน SSOT อยู่ที่ DB.expense (Commission & Finance) — spec §8
+ *  - Commission ที่วัดผลต้องเป็น "ได้รับเงินจริงแล้ว" เท่านั้น — spec §7
+ *  - Lead / Appointment / Deal count ดึงจาก CRM จริง (ไม่ใช้ manual mkt fields ถ้ามีข้อมูลจริง) — spec §6
+ *  - Source verification: ถ้าผู้ใช้ filter ตาม platform → นับ commission เฉพาะ deal ที่ lead.src ตรง — spec §11 "ห้ามเดา"
+ *  - Legacy mkt.cost/boostCost/otherCost ยังนับรวม (transition) แต่แสดง breakdown ให้เห็น
+ *  - ตัวหาร = 0 → return null → UI แสดง "ข้อมูลยังไม่เพียงพอ" / "—"
+ * ================================================================ */
+
+/* Expense categories ที่ถือเป็น marketing spend (จาก SCHEMA.expense.category opts) */
+const MKT_EXPENSE_CATEGORIES=["ถ่ายภาพ","วิดีโอ","โดรน","ออกแบบกราฟิก","Facebook Ads","ค่าลงประกาศแพลตฟอร์ม","ค่า Boost / Featured","ค่าจ้างทำคอนเทนต์","ป้าย","จัดบ้าน (Staging)"];
+
+/* Cost from Expense SSOT · ผูกด้วย mktId (precise) หรือ propertyId + category (broad) */
+function mktCostOfExpense(items){
+  if(!items||!items.length)return 0;
+  const mktIds=new Set(items.map(m=>m.id).filter(Boolean));
+  const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean));
+  const chFiltered=!!mktScope.channelKey;
+  let total=0;
+  (DB.expense||[]).forEach(e=>{
+    if(!e)return;
+    if(e.date && !mktInRange(e.date))return;
+    /* Priority 1: soft link mktId (DM-5) */
+    if(e.mktId && mktIds.has(e.mktId)){ total+=bn(e.amount||0); return; }
+    /* Priority 2: property + marketing category · ข้าม ถ้า user filter platform (กัน over-attribute) */
+    if(!chFiltered && e.propertyId && propIds.has(e.propertyId) && MKT_EXPENSE_CATEGORIES.includes(e.category||"")){
+      total+=bn(e.amount||0);
+    }
+  });
+  return total;
 }
-function mktApptsOf(items){ const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean)); if(!propIds.size)return 0; return DB.appointments.filter(a=>a.propertyId&&propIds.has(a.propertyId)).length; }
-function mktDealsOf(items){ const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean)); if(!propIds.size)return 0; return DB.deals.filter(d=>d.stage===5&&d.propertyId&&propIds.has(d.propertyId)).length; }
-function mktRevenueOf(items){ const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean)); if(!propIds.size)return 0; return DB.income.filter(i=>i.propertyId&&propIds.has(i.propertyId)).reduce((s,i)=>s+bn(i.amount||0),0); }
+function mktCostOfLegacy(items){ return items.reduce((s,m)=>s+bn(m.cost||0)+bn(m.boostCost||0)+bn(m.otherCost||0),0); }
+function mktCostOf(items){ return mktCostOfExpense(items)+mktCostOfLegacy(items); }
+
+/* Date scope helper for records with createdAt/updatedAt */
+function _mktRecInRange(r){ if(!r)return true; return mktInRange(r.date||r.createdAt||r.updatedAt||r.publishedAt); }
+
+/* Inquiries · spec §6 · ดึงจาก DB.leads (all with src matching), fallback manual */
+function mktInquiriesOf(items){
+  const chNames=new Set(items.map(m=>m.ch).filter(Boolean));
+  if(chNames.size){
+    const crm=(DB.leads||[]).filter(l=>l&&l.src&&chNames.has(l.src)&&_mktRecInRange(l)).length;
+    if(crm>0)return crm;
+  }
+  return items.reduce((s,m)=>s+num(m.inquiries||0),0);
+}
+
+/* Qualified Leads · spec §6 · lead ที่ก้าวหน้าเลย "ลูกค้าใหม่"/"ปิดเคส" */
+function mktQualifiedLeadsOf(items){
+  const chNames=new Set(items.map(m=>m.ch).filter(Boolean));
+  const nonQ=new Set(["","ลูกค้าใหม่","ปิดเคส"]);
+  if(chNames.size){
+    const crm=(DB.leads||[]).filter(l=>{
+      if(!l||!l.src||!chNames.has(l.src))return false;
+      if(!_mktRecInRange(l))return false;
+      return (!nonQ.has(l.buyerStage||""))||(!nonQ.has(l.renterStage||""));
+    }).length;
+    if(crm>0)return crm;
+  }
+  return items.reduce((s,m)=>s+num(m.leads||0),0);
+}
+
+/* Alias: mktLeadsOf ใช้ qualified (สำหรับ CPL คำนวณเดิม) */
+function mktLeadsOf(items){ return mktQualifiedLeadsOf(items); }
+
+/* Appointments · spec §6 · จาก DB.appointments ตาม property + date scope */
+function mktApptsOf(items){
+  const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean));
+  if(!propIds.size)return 0;
+  return (DB.appointments||[]).filter(a=>a&&a.propertyId&&propIds.has(a.propertyId)&&_mktRecInRange(a)).length;
+}
+
+/* Actual viewings (นัดชม status = "ชมแล้ว") · spec §11 · exposed สำหรับ dashboard */
+function mktViewingsOf(items){
+  const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean));
+  if(!propIds.size)return 0;
+  return (DB.appointments||[]).filter(a=>a&&a.propertyId&&propIds.has(a.propertyId)&&(a.status==="ชมแล้ว")&&_mktRecInRange(a)).length;
+}
+
+/* Closed deals · spec §7 · nếu filter ตาม channel → verify source ของ lead */
+function mktDealsOf(items){
+  const chNames=new Set(items.map(m=>m.ch).filter(Boolean));
+  const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean));
+  return (DB.deals||[]).filter(d=>{
+    if(!d||d.stage!==5)return false;
+    if(propIds.size && !(d.propertyId&&propIds.has(d.propertyId))) return false;
+    if(!_mktRecInRange(d))return false;
+    if(chNames.size){
+      /* Source verification — ห้ามเดา */
+      const l=d.customerId?(DB.leads||[]).find(x=>x.id===d.customerId):null;
+      if(!l||!l.src||!chNames.has(l.src)) return false;
+    }
+    return true;
+  }).length;
+}
+
+/* Commission received · spec §7 · เฉพาะสถานะ "ได้รับเงินจริงแล้ว" · source-verified ถ้า channel filter */
+function mktCommissionReceivedOf(items){
+  const chNames=new Set(items.map(m=>m.ch).filter(Boolean));
+  const propIds=new Set(items.map(m=>m.propertyId).filter(Boolean));
+  let total=0;
+  /* Sale commission · DB.income category=ค่าคอมมิชชั่น status=ชำระแล้ว */
+  (DB.income||[]).forEach(inc=>{
+    if(!inc)return;
+    if((inc.category||"")!=="ค่าคอมมิชชั่น")return;
+    if((inc.status||"")!=="ชำระแล้ว")return;
+    if(inc.actualDate && !mktInRange(inc.actualDate))return;
+    const d=inc.dealId?(DB.deals||[]).find(x=>x.id===inc.dealId):null;
+    if(propIds.size && !(d&&d.propertyId&&propIds.has(d.propertyId))) return;
+    if(chNames.size){
+      const l=d&&d.customerId?(DB.leads||[]).find(x=>x.id===d.customerId):null;
+      if(!l||!l.src||!chNames.has(l.src)) return;
+    }
+    total+=bn(inc.amount||0);
+  });
+  /* Rental commission · status=รับครบแล้ว OR รับบางส่วน · use actualReceived */
+  (DB.rentalCommissions||[]).forEach(rc=>{
+    if(!rc||!rc.actualReceived||+rc.actualReceived<=0)return;
+    if((rc.status||"")!=="รับครบแล้ว"&&(rc.status||"")!=="รับบางส่วน")return;
+    if(rc.actualDate && !mktInRange(rc.actualDate))return;
+    const c=(DB.contracts||[]).find(x=>x.id===rc.contractId);
+    if(!c)return;
+    if(propIds.size && !(c.propertyId&&propIds.has(c.propertyId))) return;
+    if(chNames.size){
+      const t=c.tenantId?(DB.leads||[]).find(x=>x.id===c.tenantId):null;
+      if(!t||!t.src||!chNames.has(t.src)) return;
+    }
+    total+=bn(rc.actualReceived||0);
+  });
+  return total;
+}
+/* mktRevenueOf now = commission received (spec §7 rule) · replaces raw income sum */
+function mktRevenueOf(items){ return mktCommissionReceivedOf(items); }
+
+/* Active listings · spec §13 */
+const _ACTIVE_STATUSES=new Set(["กำลังลงประกาศ","Live","Active","กำลังรัน"]);
+function mktActiveListingsOf(items){ return (items||[]).filter(m=>_ACTIVE_STATUSES.has(m.status||"")).length; }
+
+/* Cost per Property (Average estimate) · spec §12 · ห้ามหารด้วย 0 */
+function mktAvgCostPerListing(items){
+  const cnt=mktActiveListingsOf(items);
+  if(!cnt)return null;
+  const cost=mktCostOf(items);
+  return Math.round(cost/cnt);
+}
+
+/* Expiring packages · spec §13 · จาก DB.expense ที่มี expiryDate ใน 30 วันข้างหน้า
+ * (expense schema เดิมยังไม่มี expiryDate — Phase 3 ค่อยเพิ่มใน form · ตอนนี้ derive จาก note "expiry:YYYY-MM-DD") */
+function mktExpiringPackages(){
+  const now=new Date(); const in30=new Date(now.getTime()+30*86400000);
+  return (DB.expense||[]).filter(e=>{
+    if(!e||!e.expiryDate)return false;
+    const d=new Date(e.expiryDate); if(isNaN(d))return false;
+    return d>=now && d<=in30;
+  });
+}
+
+/* LivingInsider credit balance · spec §9 · sum จาก DB.expense (ซื้อเครดิต) − credit used
+ * Records เก็บ purchase (credit type expense) และการใช้ (LI mkt records) */
+function mktLICreditBalance(){
+  const purchased=(DB.expense||[]).filter(e=>e&&e.category==="ค่าลงประกาศแพลตฟอร์ม"&&(e.note||"").indexOf("LivingInsider")>=0)
+    .reduce((s,e)=>s+num(e.creditsReceived||0),0);
+  const liListings=(DB.mkt||[]).filter(m=>m&&m.ch==="LivingInsider").length;
+  const liBoosts=(DB.mkt||[]).filter(m=>m&&m.ch==="LivingInsider"&&(m.note||"").toLowerCase().indexOf("boost")>=0).length;
+  const used=liCreditsUsed(liListings, liBoosts).total;
+  return {purchased, used, balance:purchased-used};
+}
+
+/* KPI ratios · null when divisor = 0 · spec §11 */
 function cplOf(items){ const c=mktCostOf(items),l=mktLeadsOf(items); return l?Math.round(c/l):null; }
+function cpiOf(items){ const c=mktCostOf(items),i=mktInquiriesOf(items); return i?Math.round(c/i):null; }
 function cpaOf(items){ const c=mktCostOf(items),a=mktApptsOf(items); return a?Math.round(c/a):null; }
 function cpdOf(items){ const c=mktCostOf(items),d=mktDealsOf(items); return d?Math.round(c/d):null; }
 function roiOf(items){ const c=mktCostOf(items); if(!c)return null; const rev=mktRevenueOf(items); return Math.round((rev-c)/c*100); }
@@ -4289,7 +4453,16 @@ function fmtOrDash(v){ return (v==null||!isFinite(v))?"—":v; }
 function mktTasks(){ const tasks=[];
   DB.props.forEach(p=>{ const chs=p.channels?Object.keys(p.channels).filter(k=>k!=="copy"):[]; if(!chs.length&&(p.status||"").indexOf("ปิด")<0)tasks.push({kind:"no-listing",propId:p.id,label:"ยังไม่ได้ลงประกาศ",msg:(p.code||p.title||"ทรัพย์")}); });
   DB.mkt.forEach(m=>{ const d=m.lastUpdatedAt||m.publishedAt||m.date; if(!d)return; const days=Math.floor((Date.now()-new Date(d).getTime())/86400000); if(days>=30&&(m.status||"").indexOf("Removed")<0)tasks.push({kind:"stale",mktId:m.id,label:"ไม่ได้อัปเดต "+days+" วัน",msg:m.name||""}); });
-  DB.mkt.forEach(m=>{ const cost=bn(m.cost||0)+bn(m.boostCost||0); const leads=num(m.leads||0); if(cost>0&&leads===0)tasks.push({kind:"spend-no-lead",mktId:m.id,label:"ใช้งบแต่ยังไม่มี Lead",msg:m.name+" ฿"+fmtBaht(cost)}); });
+  /* SSOT · Phase 2 · ค่าใช้จ่ายจริงต่อ mkt record = expense.mktId + propertyId·category + legacy */
+  DB.mkt.forEach(m=>{
+    const ssot=(DB.expense||[]).filter(e=>e&&(e.mktId===m.id||(e.propertyId===m.propertyId&&MKT_EXPENSE_CATEGORIES.includes(e.category||"")))).reduce((s,e)=>s+bn(e.amount||0),0);
+    const legacy=bn(m.cost||0)+bn(m.boostCost||0);
+    const cost=ssot+legacy;
+    /* Qualified leads: จริงจาก DB.leads (ตาม src=platform) · หรือ manual field */
+    let leads=num(m.leads||0);
+    if(!leads && m.ch){ leads=(DB.leads||[]).filter(l=>l&&l.src===m.ch).length; }
+    if(cost>0&&leads===0)tasks.push({kind:"spend-no-lead",mktId:m.id,label:"ใช้งบแต่ยังไม่มี Lead",msg:mktDisplayName(m)+" ฿"+fmtBaht(cost)});
+  });
   return tasks;
 }
 
@@ -4314,29 +4487,54 @@ function renderMktOverview(panel){
   const propsAll=DB.props.filter(p=>!mktScope.type||(p.deal||"")===mktScope.type);
   const propsListed=propsAll.filter(p=>p.channels&&Object.keys(p.channels).filter(k=>k!=="copy").length);
   const propsUnlisted=propsAll.filter(p=>!p.channels||!Object.keys(p.channels).filter(k=>k!=="copy").length);
-  const cost=mktCostOf(items),leads=mktLeadsOf(items),appts=mktApptsOf(items),deals=mktDealsOf(items),rev=mktRevenueOf(items);
-  const cpl=cplOf(items),cpa=cpaOf(items),cpd=cpdOf(items),roi=roiOf(items);
-  const bestCh=(()=>{ const by={}; items.forEach(m=>{by[m.ch]=(by[m.ch]||0)+bn(m.cost||0)+bn(m.boostCost||0);}); const arr=Object.entries(by).sort((a,b)=>b[1]-a[1]); return arr[0]?arr[0][0]:"—"; })();
+  /* Phase 2 SSOT metrics · spec §11, §13 */
+  const activeListings=mktActiveListingsOf(items);
+  const cost=mktCostOf(items), costSSOT=mktCostOfExpense(items), costLegacy=mktCostOfLegacy(items);
+  const inq=mktInquiriesOf(items), leads=mktQualifiedLeadsOf(items);
+  const appts=mktApptsOf(items), viewings=mktViewingsOf(items), deals=mktDealsOf(items);
+  const rev=mktCommissionReceivedOf(items);
+  const cpi=cpiOf(items), cpl=cplOf(items), cpa=cpaOf(items), cpd=cpdOf(items), roi=roiOf(items);
+  const avgCost=mktAvgCostPerListing(items);
+  const li=mktLICreditBalance();
+  const expiring=mktExpiringPackages();
+  const dash=(label,val,cls,onclick,sub)=>`<div class="dash-kpi${onclick?' click':''}"${onclick?` onclick="${onclick}"`:""}><b>${label}</b><div class="val"${cls?` style="${cls}"`:""}>${val}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`;
+  const money=v=>v==null?'<span style="color:var(--muted)">—</span>':"฿"+fmtBaht(v);
+  const pct=v=>v==null?'<span style="color:var(--muted)">ข้อมูลยังไม่เพียงพอ</span>':v+"%";
   panel.innerHTML=mktToolbar()+`
     <div class="dash-kpi-row" style="margin-bottom:8px">
-      <div class="dash-kpi click" onclick="setMktTab(3)"><b>พร้อมทำตลาด</b><div class="val">${propsAll.length}</div><div class="sub">ทรัพย์ทั้งหมด</div></div>
-      <div class="dash-kpi click" onclick="setMktTab(3)"><b>ลงประกาศแล้ว</b><div class="val" style="color:var(--ok)">${propsListed.length}</div></div>
-      <div class="dash-kpi click" onclick="setMktTab(2)"><b>ยังไม่ได้ลง</b><div class="val" style="color:${propsUnlisted.length?'var(--warn)':'var(--ink)'}">${propsUnlisted.length}</div></div>
-      <div class="dash-kpi"><b>ค่าใช้จ่ายการตลาด</b><div class="val">฿${fmtBaht(cost)}</div></div>
-      <div class="dash-kpi click" onclick="go('customers')"><b>Leads</b><div class="val">${leads}</div></div>
-      <div class="dash-kpi"><b>ช่องทางดีสุด</b><div class="val" style="font-size:14px">${esc(bestCh)}</div></div>
+      ${dash("ประกาศ Active",activeListings,"color:var(--ok)","setMktTab(3)")}
+      ${dash("Inquiries (สอบถาม)",inq,null,"go('customers')")}
+      ${dash("Qualified Leads",leads,null,"go('customers')")}
+      ${dash("นัดหมาย",appts,null,null,viewings?viewings+" ชมแล้ว":"")}
+      ${dash("Closed Deals",deals,"color:var(--brand)")}
     </div>
-    <details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:var(--ink-2);padding:6px 8px;background:var(--plane);border-radius:6px;border:1px solid var(--border)">▾ ดูเพิ่มเติม · นัดชม/ดีล/รายได้/CpL/CpA/CpD/ROI</summary>
-    <div class="dash-kpi-row" style="margin-top:8px">
-      <div class="dash-kpi"><b>นัดชมจากการตลาด</b><div class="val">${appts}</div></div>
-      <div class="dash-kpi"><b>ดีลจากการตลาด</b><div class="val">${deals}</div></div>
-      <div class="dash-kpi"><b>รายได้จากการตลาด</b><div class="val">฿${fmtBaht(rev)}</div></div>
-      <div class="dash-kpi"><b>ต้นทุนต่อ Lead</b><div class="val">${cpl!=null?"฿"+fmtBaht(cpl):"—"}</div></div>
-      <div class="dash-kpi"><b>ต้นทุนต่อนัดชม</b><div class="val">${cpa!=null?"฿"+fmtBaht(cpa):"—"}</div></div>
-      <div class="dash-kpi"><b>ต้นทุนต่อดีล</b><div class="val">${cpd!=null?"฿"+fmtBaht(cpd):"—"}</div></div>
-      <div class="dash-kpi"><b>ROI</b><div class="val" style="color:${roi==null?'var(--muted)':roi>=0?'var(--ok)':'var(--crit)'}">${roi!=null?roi+"%":"—"}</div></div>
-    </div></details>
-    <div class="mkt-src">คำนวณจาก <code>DB.mkt</code>, <code>DB.props.channels</code>, <code>DB.appointments</code>, <code>DB.deals</code>, <code>DB.income</code>, <code>DB.leads.src</code> · ตัวหาร=0 → คืน null → แสดง "—"</div>`;
+    <div class="dash-kpi-row" style="margin-bottom:8px">
+      ${dash("ค่าใช้จ่ายจริง (Expense SSOT)",money(cost),null,"go('finance')",costLegacy?`SSOT ${money(costSSOT)} + legacy ${money(costLegacy)}`:"จาก Commission & Finance")}
+      ${dash("Commission ได้รับจริง",money(rev),"color:var(--ok)","go('finance')","เฉพาะสถานะรับครบ/รับบางส่วน · ชำระแล้ว")}
+      ${dash("ROI",pct(roi),"color:"+(roi==null?'var(--muted)':roi>=0?'var(--ok)':'var(--crit)'))}
+      ${dash("ต้นทุนเฉลี่ยโดยประมาณ / ประกาศ",money(avgCost),null,null,avgCost==null?"ไม่มีประกาศ Active":"= Expense ÷ "+activeListings+" ประกาศ")}
+    </div>
+    <div class="dash-kpi-row" style="margin-bottom:8px">
+      ${dash("Cost per Inquiry",money(cpi))}
+      ${dash("Cost per Lead",money(cpl))}
+      ${dash("Cost per Appointment",money(cpa))}
+      ${dash("Cost per Closed Deal",money(cpd))}
+    </div>
+    <div class="dash-kpi-row" style="margin-bottom:8px">
+      ${dash("LivingInsider · เครดิตคงเหลือ",li.balance,"color:"+(li.balance<0?'var(--crit)':li.balance<50?'var(--warn)':'var(--ok)'),null,"ซื้อ "+li.purchased+" · ใช้ "+li.used+" (สูตร "+getSettings().liListingCredit+"/"+getSettings().liBoostCredit+")")}
+      ${dash("แพ็กเกจใกล้หมดอายุ (30 วัน)",expiring.length,"color:"+(expiring.length?'var(--warn)':'var(--muted)'),expiring.length?"go('finance')":null)}
+      ${dash("ทรัพย์ในระบบ",propsAll.length,null,"setMktTab(3)",propsListed.length+" ลงประกาศ · "+propsUnlisted.length+" ยังไม่ลง")}
+    </div>
+    <div class="mkt-src">
+      <b>Single Source of Truth:</b>
+      ค่าใช้จ่าย <code>DB.expense</code> (ผูก mktId + propertyId·category) ·
+      Commission <code>DB.income</code> status=ชำระแล้ว + <code>DB.rentalCommissions</code> status=รับครบ/บางส่วน ·
+      Inquiries/Leads <code>DB.leads.src</code> ·
+      Deals <code>DB.deals</code> stage=5 (source-verified) ·
+      Appts <code>DB.appointments</code> ·
+      <b style="color:var(--warn)">ห้ามเดา:</b> เมื่อ filter platform · Commission/Deal นับเฉพาะที่ lead.src ตรง (spec §7, §11) ·
+      ตัวหาร=0 → "ข้อมูลยังไม่เพียงพอ"
+    </div>`;
 }
 
 /* Tab 2: งานที่ต้องทำ */
