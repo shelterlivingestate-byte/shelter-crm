@@ -1090,7 +1090,7 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
       </div>
       <div class="card" id="mktBreakdown" style="margin-bottom:14px"></div>
       <div class="tablewrap">
-        <div class="toolbar"><b style="font-size:13px">ช่องทาง / เว็บการตลาด & ค่าใช้จ่าย</b><div class="spacer"></div><button class="btn primary sm" onclick="openForm('mkt')">+ เพิ่มช่องทาง/ค่าใช้จ่าย</button></div>
+        <div class="toolbar"><b style="font-size:13px">ช่องทางการลงประกาศ (ค่าใช้จ่าย · Commission & Finance เป็นต้นทาง)</b><div class="spacer"></div><button class="btn primary sm" onclick="openForm('mkt')">+ เพิ่มช่องทางการลงประกาศ</button></div>
         <div style="overflow-x:auto"><table>
           <thead><tr><th>แคมเปญ/ทรัพย์</th><th>ช่องทาง</th><th>ค่าโฆษณา</th><th>คอนเซาท์</th><th>แนะนำ</th><th>เสื้อ</th><th>น้ำมัน</th><th>อื่นๆ</th><th>รวม</th><th>Leads</th><th>ต้นทุน/Lead</th><th>สถานะ</th><th></th></tr></thead>
           <tbody id="mktBody"></tbody>
@@ -1417,7 +1417,8 @@ const ICONS={
   heart:'<path d="M12 20s-7-4.6-9.2-9C1.3 8 3 5 6 5c2 0 3.2 1.2 4 2.3C10.8 6.2 12 5 14 5c3 0 4.7 3 3.2 6-2.2 4.4-9.2 9-9.2 9z"/>',
   spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/>',
 };
-const SRC=["PropertyHub","Facebook","DDproperty","Living Insider","Line OA","Referral","อื่นๆ"];
+/* Marketing↔Finance SSOT · SRC ครบตาม spec §5 (15 sources) · legacy values ใน records เก่ายัง render ได้ */
+const SRC=["LivingInsider","PropertyHub","DDproperty","DotProperty","Hipflat","Thailand Property","Facebook","Instagram","Website","LINE","ลูกค้าแนะนำ","Owner แนะนำ","Agent แนะนำ","ป้ายหน้าทรัพย์","อื่น ๆ"];
 const STOPWORDS=new Set(["และ","ที่","มี","ต้องการ","กับ","ของ","ใน","ให้","เป็น","ไม่","การ","คน","อยาก","ได้","มาก","ประมาณ","ค่ะ","ครับ","อยู่","จะ","ก็","แต่","หรือ","เพราะ","ชอบ","ต้อง","ทำ","นะ","เลย","แล้ว","มา","ไป","this","that","with","near","the","and","for","have","want"]);
 // แนวคิด/คำพ้อง สำหรับจับคู่ไลฟ์สไตล์-Pain point กับข้อมูลทรัพย์+โครงการ (แก้ปัญหาคำไทยติดกัน)
 const MATCH_CONCEPTS=[
@@ -1624,29 +1625,22 @@ const SCHEMA={
     {k:"ch",l:"ช่องทาง",type:"select",opts:["ชมห้องจริง","Video Call","โทรศัพท์","พบที่ออฟฟิศ","LINE"]},
     {k:"status",l:"สถานะ",type:"select",opts:["ยืนยันแล้ว","รอยืนยัน","เสร็จสิ้น"]},
     {k:"needs",l:"โจทย์ความต้องการ (Needs)",type:"textarea",full:1}]},
-  mkt:{title:"การตลาด · ช่องทาง & ค่าใช้จ่าย", fields:[
-    {k:"name",l:"ชื่อแคมเปญ / ทรัพย์ / รอบ",type:"text",req:1,full:1},
-    {k:"propertyId",l:"ทรัพย์ที่โปรโมท (Property ID — ถ้ามี)",type:"propertyselect",full:1},
-    /* Part 4: 9 platforms per spec §F — Hipflat, Thailand Property, Proppit, Website added */
-    {k:"ch",l:"ช่องทาง / เว็บการตลาด",type:"select",opts:["Livinginsider","PropertyHub","DDproperty","Hipflat","Thailand Property","Proppit","Website","Facebook Ads","Marketplace","Line OA","TikTok","Google Ads","YouTube","ป้าย / ออฟไลน์","อื่น ๆ"]},
-    {k:"url",l:"Listing URL (ลิงก์ประกาศจริง)",type:"text",full:1},
-    {k:"publishedAt",l:"วันที่เริ่มลง (YYYY-MM-DD)",type:"text"},
-    {k:"lastUpdatedAt",l:"วันที่อัปเดตล่าสุด (YYYY-MM-DD)",type:"text"},
-    {k:"status",l:"สถานะ",type:"select",opts:["Live","Active","Paused","Expired","Removed","Draft","กำลังรัน","หยุดชั่วคราว","จบแล้ว"]},
-    /* Metrics — user-input (no API yet); 0 = no data */
-    {k:"views",l:"Views (ยอดเข้าชม)",type:"number"},
-    {k:"reach",l:"Reach (ยอดเข้าถึง)",type:"number"},
-    {k:"clicks",l:"Clicks",type:"number"},
-    {k:"saves",l:"Saves / Bookmarks",type:"number"},
+  /* Marketing↔Finance SSOT · spec §3, §4 · financial fields removed from form (kept in old records — Object.assign merge preserves) */
+  mkt:{title:"เพิ่มช่องทางการลงประกาศ", fields:[
+    {k:"propertyId",l:"ทรัพย์ (Property) *",type:"propertyselect",req:1,full:1},
+    {k:"ch",l:"แพลตฟอร์ม (Platform) *",type:"select",req:1,opts:["LivingInsider","PropertyHub","DDproperty","DotProperty","Hipflat","Thailand Property","FazWaz","Baania","TerraBKK","Baan Finder","Proppit / PP+","Facebook","Instagram","LINE VOOM","Website (ของเรา)","อื่น ๆ"]},
+    {k:"publishedAt",l:"วันที่เริ่มลง (YYYY-MM-DD) *",type:"text",req:1},
+    {k:"status",l:"สถานะประกาศ *",type:"select",req:1,opts:["กำลังลงประกาศ","พักประกาศ","หมดอายุ","ปิดประกาศ","ขายแล้ว/ปล่อยเช่าแล้ว"]},
+    {k:"url",l:"Listing URL (ไม่บังคับ)",type:"text",full:1},
+    {type:"heading",k:"_hm",l:"📊 ผลการตลาด (ไม่บังคับ · ถ้ามีใน CRM ระบบดึงให้อัตโนมัติ · ห้ามกรอกซ้ำ)"},
+    {k:"views",l:"Views / Reach",type:"number"},
     {k:"inquiries",l:"Inquiries (สอบถาม)",type:"number"},
-    {k:"leads",l:"Leads (คนติดต่อจริง)",type:"number"},
-    /* Costs */
-    {k:"cost",l:"ค่าลงประกาศ / โฆษณา (บาท)",type:"number"},
-    {k:"boostCost",l:"ค่า Boost / Featured (บาท)",type:"number"},
-    {k:"consultFee",l:"ค่าคอนเซาท์",type:"number"},
-    {k:"referralFee",l:"ค่าแนะนำ",type:"number"},
-    {k:"otherCost",l:"ค่าใช้จ่ายอื่น ๆ",type:"number"},
-    {k:"date",l:"เดือน/วันที่ (YYYY-MM-DD)",type:"text"},
+    {k:"leads",l:"Qualified Leads (กรอกเฉพาะกรณีที่ไม่อยู่ใน CRM)",type:"number"},
+    {k:"clicks",l:"Clicks (ข้อมูลเพิ่มเติม)",type:"number"},
+    {k:"saves",l:"Saves / Bookmarks (ข้อมูลเพิ่มเติม)",type:"number"},
+    {k:"endedAt",l:"วันที่สิ้นสุดประกาศ (YYYY-MM-DD)",type:"text"},
+    {type:"heading",k:"_hn",l:"📝 อื่นๆ"},
+    {k:"name",l:"ชื่อแคมเปญ (ไม่บังคับ · เว้นว่างระบบสร้างจาก Property + Platform)",type:"text",full:1},
     {k:"note",l:"หมายเหตุ",type:"textarea",full:1}]},
   deals:{title:"ดีล / Pipeline", fields:[
     {k:"customerId",l:"ลูกค้า (Customer ID — ตัวเชื่อมหลัก)",type:"customerselect",full:1},
@@ -2313,9 +2307,28 @@ function saveForm(ev){
     if(obj.driveFolder!=null)obj.driveFolder=(obj.driveFolder||"").trim();
     obj.updatedAt=todayISO();
   }
+  /* Marketing↔Finance SSOT · spec §10 · duplicate detection (Marketing + Expense) */
+  if(entity==="mkt" && index==null && obj.propertyId && obj.ch){
+    const activeStatuses=["กำลังลงประกาศ","Live","Active","กำลังรัน"];
+    const dup=(DB.mkt||[]).find(x=>x&&x.propertyId===obj.propertyId&&x.ch===obj.ch&&activeStatuses.includes(x.status||""));
+    if(dup){
+      const p=DB.props.find(x=>x.id===obj.propertyId);
+      const pName=p?(p.code||"")+" "+(p.title||""):"ทรัพย์";
+      if(!confirm("⚠ พบประกาศ Active ของ "+pName.trim()+" บน "+obj.ch+" อยู่แล้ว\n\nบันทึกซ้ำ?")) return;
+    }
+  }
+  if(entity==="expense" && index==null && obj.amount && obj.date){
+    const dup=(DB.expense||[]).find(x=>x&&+x.amount===+obj.amount&&x.date===obj.date&&(x.category||"")===(obj.category||"")&&(x.propertyId||"")===(obj.propertyId||""));
+    if(dup){ if(!confirm("⚠ พบ Expense เดิม (จำนวน "+obj.amount+" · "+obj.date+" · "+(obj.category||"—")+")\n\nบันทึกซ้ำ?")) return; }
+  }
   if(index==null && !obj.id) obj.id=uid();
   if(entity==="props" && index==null && !(obj.code||"").trim()) obj.code=nextPropCode();
   if(entity==="todos") obj.done=index==null?false:(arr(entity)[index].done||false);
+  /* Marketing↔Finance SSOT · spec §3 · lastUpdatedAt อัตโนมัติ · name auto-generated ถ้าว่าง */
+  if(entity==="mkt"){
+    obj.lastUpdatedAt=todayISO();
+    if(!(obj.name||"").trim()){ try{ obj.name=mktDisplayName(obj); }catch(e){} }
+  }
   const list=arr(entity);
   if(index==null) list.push(obj); else list[index]=Object.assign(list[index],obj);
   save();
@@ -2615,7 +2628,27 @@ function upsertOwnerReport(propertyId, period, patch){ period=period||curReportP
 function openOwnerReportFor(propertyId){ const idx=DB.props.findIndex(p=>p.id===propertyId); if(idx<0)return; go("owner"); refreshOwnerSelect(); const sel=$("#orProp"); if(sel){ sel.value=String(idx); orFillMaster(); } const rc=$("#orResultCard"); }
 
 /* ===== SETTINGS · AUDIT LOG · RENTAL COMMISSION ENGINE (Phase 1) ===== */
-function getSettings(){ if(!DB.settings.length)DB.settings.push({id:uid(),vatPct:0,whtPct:0,createdAt:todayISO()}); return DB.settings[0]; }
+function getSettings(){ if(!DB.settings.length)DB.settings.push({id:uid(),vatPct:0,whtPct:0,createdAt:todayISO()});
+  const s=DB.settings[0];
+  /* Marketing↔Finance SSOT · spec §9 · LivingInsider credit rates (configurable · not hardcoded across files) */
+  if(s.liListingCredit==null) s.liListingCredit=50;
+  if(s.liBoostCredit==null) s.liBoostCredit=10;
+  return s; }
+/* LivingInsider credit computation · rate ณ เวลานั้น frozen เป็น argument · rule change ไม่กระทบประวัติเดิม */
+function liCreditsUsed(listings, boosts, rateListing, rateBoost){
+  const rL=(rateListing==null)?getSettings().liListingCredit:rateListing;
+  const rB=(rateBoost==null)?getSettings().liBoostCredit:rateBoost;
+  const L=(+listings||0)*rL, B=(+boosts||0)*rB;
+  return {listing:L, boost:B, total:L+B, rateListing:rL, rateBoost:rB};
+}
+/* Marketing display name · spec §3 · Property Code + Title + Platform (fallback ถ้าไม่มี name) */
+function mktDisplayName(m){ if(!m)return "";
+  if((m.name||"").toString().trim()) return m.name;
+  const p=(m.propertyId&&Array.isArray(DB.props))?DB.props.find(x=>x.id===m.propertyId):null;
+  const parts=[];
+  if(p){ if(p.code)parts.push(p.code); if(p.title)parts.push(p.title); }
+  if(m.ch)parts.push(m.ch);
+  return parts.join(" · ")||"—"; }
 function auditLog(entity,entityId,field,oldV,newV){ if(String(oldV==null?"":oldV)===String(newV==null?"":newV))return; DB.auditLog.unshift({id:uid(),entity,entityId,field,old:(oldV==null?"":String(oldV)),new:(newV==null?"":String(newV)),by:"JJ",at:nowStamp()}); }
 /* Part 4: central Activity Timeline. logActivity() is additive — call from any mutation without breaking existing code paths */
 function logActivity(type,entityKind,entityId,summary,opts){ opts=opts||{}; try{ if(!Array.isArray(DB.activities))DB.activities=[];
@@ -4375,8 +4408,8 @@ function renderMktCampaigns(panel){
       <div class="dash-kpi"><b>จาก Expense (หมวดการตลาด)</b><div class="val" style="font-size:15px">฿${fmtBaht(totalExp)}</div></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-      <button class="btn primary sm" onclick="openForm('mkt')">+ แคมเปญ + ค่าใช้จ่าย</button>
-      <button class="btn sm" onclick="openForm('expense')">+ ค่าใช้จ่ายอย่างเดียว (Expense)</button>
+      <button class="btn primary sm" onclick="openForm('mkt')">+ ช่องทางการลงประกาศ</button>
+      <button class="btn sm" onclick="openForm('expense')">+ ค่าใช้จ่ายแพลตฟอร์ม (ไปที่ Expense/Finance)</button>
     </div>
     ${combined.length?`<div class="mkt-card-list">${combined.slice(0,80).map(x=>`<div class="mkt-card"><div class="mc-head"><div><div class="mc-title">${esc(x.name)} <span class="mkt-chip ${x.type==='mkt'?'brand':'gray'}">${x.type==='mkt'?'MKT':'EXP'}</span></div><div class="mc-sub">${esc(x.cat)} · ${esc(x.date||"—")} · ${esc(x.status)}</div></div><b style="color:var(--brand);font-size:14px">฿${fmtBaht(x.amount)}</b></div>${x.linkedExpense?`<div class="mc-meta">🔗 เชื่อม Expense · <code>${esc(x.linkedExpense.id)}</code></div>`:""}${x.linkedMkt?`<div class="mc-meta">🔗 เชื่อม MKT · <code>${esc(x.linkedMkt.id)}</code></div>`:""}<div class="mc-actions">${x.type==='mkt'?`<button onclick="openForm('mkt',DB.mkt.findIndex(m=>m.id==='${esc(x.id)}'))">✏ แก้ไข</button>`:`<button onclick="openForm('expense',DB.expense.findIndex(e=>e.id==='${esc(x.id)}'))">✏ แก้ไข</button>`}<button onclick="go('finance')">📊 เปิด Finance</button></div></div>`).join("")}</div>`:'<div class="mkt-empty"><div class="ico">💸</div>ยังไม่มีค่าใช้จ่ายการตลาดในช่วงที่เลือก</div>'}
     <div class="mkt-src">รวมข้อมูลจาก <code>DB.mkt.cost/boostCost</code> + <code>DB.expense</code> (category ที่เข้าข่ายการตลาด) · เชื่อมด้วย <code>expense.mktId</code> (DM-5) · ค่าเสื้อ/น้ำมัน/คอนเซาท์/แนะนำ ย้ายไปหมวด Commission/Finance แล้ว</div>`;
