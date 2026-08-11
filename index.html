@@ -1453,7 +1453,14 @@ function leadGradeFromScore(s){ return s>=75?"A":s>=50?"B":"C"; }
 function leadGradeOf(l){ if(l&&(l.grade==="A"||l.grade==="B"||l.grade==="C"))return l.grade; return leadGradeFromScore(leadScoreOf(l||{})); }
 function gradeColor(g){ return g==="A"?"#0a7a2f":g==="B"?"#8a6516":"#b02"; }
 /* รหัสทรัพย์อัตโนมัติ: SH + เลข 3 หลัก */
-function nextPropCode(){ let mx=0; DB.props.forEach(p=>{ const m=String(p.code||"").match(/^SH(\d{1,})$/i); if(m){ const n=+m[1]; if(n>mx)mx=n; } }); return "SH"+String(mx+1).padStart(3,"0"); }
+/* Part A: single unified running number "JJxxx" for ALL properties (sale + rent + sale/rent) · scans MAX(existing JJ) + 1 · retry loop guards against race between tabs */
+function nextPropCode(){ let mx=0;
+  DB.props.forEach(p=>{ const m=String(p.code||"").match(/^JJ(\d+)$/i); if(m){ const n=+m[1]; if(n>mx)mx=n; } });
+  let next=mx+1;
+  /* Safety: verify generated code doesn't already exist (multi-tab race guard) */
+  const has=n=>DB.props.some(p=>(p.code||"").toUpperCase()==="JJ"+String(n).padStart(3,"0"));
+  while(has(next)) next++;
+  return "JJ"+String(next).padStart(3,"0"); }
 const pipeStages=["ข้อเสนอ · Offer","ต่อรอง · Negotiation","จอง · Booking","ยื่นกู้ · Loan","โอน · Transfer","หลังการขาย · After Sales"];
 // Field schemas drive the add/edit forms
 const SCHEMA={
@@ -1516,7 +1523,7 @@ const SCHEMA={
     {k:"highlights",l:"จุดเด่นโครงการ",type:"textarea",full:1},
     {k:"note",l:"หมายเหตุ (SWOT / คู่แข่ง / ราคาตลาด / Buyer Persona)",type:"textarea",full:1}]},
   props:{title:"ทรัพย์ / Property", fields:[
-    {k:"title",l:"ชื่อทรัพย์ / ยูนิต",type:"text",req:1},{k:"code",l:"รหัสทรัพย์ (ว่างไว้ = รันอัตโนมัติ SH001, SH002…)",type:"text"},
+    {k:"title",l:"ชื่อทรัพย์ / ยูนิต",type:"text",req:1},{k:"code",l:"รหัสทรัพย์ (ว่างไว้ = รันอัตโนมัติ JJxxx ต่อจากเลขสูงสุดในระบบ · ขาย/เช่า/ขาย+เช่า ใช้ counter เดียวกัน)",type:"text"},
     {k:"deal",l:"ประเภทดีล",type:"select",opts:["ขาย","เช่า"]},{k:"cat",l:"ประเภททรัพย์",type:"select",opts:["คอนโด","บ้านเดี่ยว","ทาวน์โฮม","ทาวน์เฮ้าส์","Home Office","อาคารพาณิชย์","ที่ดิน"]},
     {k:"loc",l:"ทำเล",type:"text",full:1},{k:"spec",l:"ห้อง / พื้นที่",type:"text"},{k:"price",l:"ราคา",type:"text"},
     {k:"status",l:"สถานะ",type:"select",opts:["ใหม่","ว่าง","มีนัดชม","กำลังเจรจา","จองแล้ว","ปล่อยเช่าแล้ว","ปิดการขาย","ไม่ว่าง","คลังเก็บ"]},{k:"grade",l:"เกรดทรัพย์",type:"select",opts:["","A","B","C"]},
@@ -3352,6 +3359,37 @@ function migrateOwners(){ let ch=false; DB.props.forEach(p=>{ if(!p.id){p.id=uid
         p.ownerId=o.id;ch=true; } } });
   if(ch)save(); }
 function ownerOf(p){ if(p&&p.ownerId){ const o=DB.owners.find(x=>x.id===p.ownerId); if(o)return o; } return {id:null,name:p&&p.ownerName,phone:p&&p.ownerPhone,line:p&&p.ownerLine}; }
+/* Property Image helpers — Phase 1 · single source · reads propertyImages FIRST, falls back to legacy p.photos[] for backward-compat.
+   propertyImages[] schema: {id, property_id, storage_path, public_url, file_name, mime_type, sort_order, is_cover, sync_status, drive_file_id, ...}
+   Phase 2 will add upload flow that writes propertyImages · Phase 3 syncs to Google Drive via n8n.
+   Legacy p.photos[] (Base64) still readable — future migration button will move them to Supabase Storage. */
+function imagesByProp(propId){
+  if(!propId||!Array.isArray(DB.propertyImages))return [];
+  return DB.propertyImages.filter(i=>i&&i.property_id===propId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+}
+function coverImage(p){
+  if(!p)return null;
+  /* Prefer marked cover from propertyImages */
+  const imgs=imagesByProp(p.id);
+  if(imgs.length){ const cov=imgs.find(i=>i.is_cover)||imgs[0]; return cov.public_url||cov.storage_path||null; }
+  /* Fallback: legacy Base64 p.photos[0] */
+  if(Array.isArray(p.photos)&&p.photos.length)return p.photos[0];
+  return null;
+}
+function galleryImages(p){
+  if(!p)return [];
+  const imgs=imagesByProp(p.id);
+  if(imgs.length)return imgs.map(i=>i.public_url||i.storage_path).filter(Boolean);
+  /* Fallback: legacy Base64 */
+  return Array.isArray(p.photos)?p.photos.slice():[];
+}
+function hasAnyImage(p){ return coverImage(p)!==null; }
+function imageCountOf(p){
+  if(!p)return 0;
+  const imgs=imagesByProp(p.id);
+  if(imgs.length)return imgs.length;
+  return Array.isArray(p.photos)?p.photos.length:0;
+}
 function propsOfOwner(ownerId){ return DB.props.filter(p=>p.ownerId===ownerId); }
 function ownerDuplicates(){ const groups=[]; const byPh={},byName={}; const seen=new Set();
   DB.owners.forEach(o=>{ const p=normPh(o.phone); if(p&&p.length>=6)(byPh[p]=byPh[p]||[]).push(o); const n=String(o.name||"").trim().toLowerCase(); if(n)(byName[n]=byName[n]||[]).push(o); });
@@ -3535,7 +3573,8 @@ function renderDashPortfolio(){ const el=$("#dash-portfolio"); if(!el)return;
   const sale=props.filter(p=>(p.deal||"")!=="เช่า").length;
   const rent=props.filter(p=>(p.deal||"")==="เช่า").length;
   const tot=props.reduce((s,p)=>s+bn(p.price||0),0);
-  const noImg=props.filter(p=>!(p.images||[]).length).length;
+  /* Phase 1 fix: use hasAnyImage() helper — was reading undefined p.images (real field is p.photos + propertyImages) */
+  const noImg=props.filter(p=>!hasAnyImage(p)).length;
   /* Reports Merge Step A: migrate KPIs from Reports (grade breakdown + projects count) */
   const gA=props.filter(p=>p.grade==="A").length;
   const gB=props.filter(p=>p.grade==="B").length;
@@ -3837,7 +3876,9 @@ function nextActionText(p){
 }
 function lastUpdatedText(p){ const d=p.updatedAt||p.lastOwnerUpdate||p.marketingStart; return d?("อัปเดต "+esc(d)):""; }
 function propCard(p,i,deal){
-  const thumb=(p.photos&&p.photos.length)?`<img class="lc-thumb" src="${p.photos[0]}" alt="">`:`<div class="lc-thumb-ph"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-4 4-2-2-5 5"/></svg></div>`;
+  /* Phase 1: coverImage() reads propertyImages first, falls back to legacy p.photos[0] */
+  const _cov=coverImage(p);
+  const thumb=_cov?`<img class="lc-thumb" src="${esc(_cov)}" alt="">`:`<div class="lc-thumb-ph"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-4 4-2-2-5 5"/></svg></div>`;
   const grade=p.grade?`<span class="lc-grade" style="background:${{A:"#0ca30c",B:"#2a78d6",C:"#948d80"}[p.grade]||"#948d80"}">${p.grade}</span>`:"";
   const pr=projOf(p);
   const priceUnit=deal==="เช่า"?'<small>/เดือน</small>':"";
@@ -4037,7 +4078,9 @@ function toggleAcc(btn){ btn.parentElement.classList.toggle("open"); }
 function openDetail(i){
   const p=DB.props[i]; if(!p)return; detailIdx=i;
   const pr=projOf(p);
-  const hero=(p.photos&&p.photos.length)?`<img class="dh-img" src="${p.photos[0]}" alt="">`:`<div class="dh-ph"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-4 4-2-2-5 5"/></svg></div>`;
+  /* Phase 1: coverImage() reads propertyImages first, falls back to legacy p.photos[0] */
+  const _cov=coverImage(p);
+  const hero=_cov?`<img class="dh-img" src="${esc(_cov)}" alt="">`:`<div class="dh-ph"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-4 4-2-2-5 5"/></svg></div>`;
   const priceUnit=p.deal==="เช่า"?'<small>/เดือน</small>':"";
   // sec1 property
   const s1=drow("ประเภททรัพย์",p.cat)+drow("ดีล",p.deal)+drow("ทำเล",p.loc)+drow("ห้อง/พื้นที่",p.spec)+drow("โครงการ",pr.name)+drow("ใกล้",p.nearby||pr.nearby)+drow("เกรด",p.grade)+drow("สถานะ",statusOf(p));
@@ -4047,7 +4090,8 @@ function openDetail(i){
   // sec3 owner
   const s3=drow("ชื่อเจ้าของ",p.ownerName)+drow("เบอร์โทร",p.ownerPhone)+drow("LINE",p.ownerLine)+drow("เหตุผลขาย",p.ownerReason)+drow("Timeline",p.ownerTimeline);
   // sec4 photos/docs
-  let s4=""; if(p.photos&&p.photos.length)s4+=`<div class="detail-gallery">${p.photos.map(src=>`<img src="${src}" alt="">`).join("")}</div>`; if(p.driveFolder)s4+=`<div style="margin-top:10px"><a href="${esc(p.driveFolder)}" target="_blank" rel="noopener" class="chan-badge" style="--c:var(--brand)">📁 เปิดโฟลเดอร์ Drive</a></div>`; if(p.r_docs)s4+=`<div style="margin-top:10px">${esc(p.r_docs)}</div>`;
+  /* Phase 1: galleryImages() reads propertyImages first, falls back to legacy p.photos[] */
+  let s4=""; const _gal=galleryImages(p); if(_gal.length)s4+=`<div class="detail-gallery">${_gal.map(src=>`<img src="${esc(src)}" alt="">`).join("")}</div>`; if(p.driveFolder)s4+=`<div style="margin-top:10px"><a href="${esc(p.driveFolder)}" target="_blank" rel="noopener" class="chan-badge" style="--c:var(--brand)">📁 เปิดโฟลเดอร์ Drive</a></div>`; if(p.r_docs)s4+=`<div style="margin-top:10px">${esc(p.r_docs)}</div>`;
   // sec5 channels
   const s5=(p.channels&&Object.keys(p.channels).length)?`<div style="display:flex;gap:6px;flex-wrap:wrap">${chanLinks(p)}</div>`:"";
   // sec6 interested buyers (match)
