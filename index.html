@@ -699,6 +699,16 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
         <button class="btn sm" onclick="runSaveDiagnostic()" style="margin-left:8px">ตรวจสถานะ save</button>
         <pre id="diagOut" style="margin-top:8px;padding:8px;background:var(--plane);border-radius:6px;font-size:11px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-word;display:none"></pre>
       </div>
+      <div style="margin-top:10px;padding:10px;border:1px solid var(--warn);border-radius:8px;background:rgba(255,180,50,.06)">
+        <b style="font-size:12px;color:var(--warn)">🗑 บีบข้อมูล (localStorage เต็ม?)</b>
+        <div style="font-size:11px;color:var(--muted);margin:4px 0 8px">ปลดล็อกพื้นที่เพื่อบันทึกต่อได้ · Supabase Cloud มีข้อมูลครบอยู่แล้ว · Export ก่อนบีบเพื่อความปลอดภัย</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn sm" onclick="compactBackups()">1. ล้าง Backup ใน localStorage (ปลอดภัย)</button>
+          <button class="btn sm" onclick="compactClosedPhotos()">2. ลบรูปของทรัพย์ที่ปิด/ปล่อยเช่าแล้ว</button>
+          <button class="btn sm" onclick="compactAllPhotos()" style="border-color:var(--crit);color:var(--crit)">3. ลบรูปทั้งหมด (Nuclear · Cloud ยังมี)</button>
+        </div>
+        <div id="compactOut" style="margin-top:8px;font-size:11.5px;color:var(--ink)"></div>
+      </div>
     </div>
     <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:14px">
       <b style="font-size:13px">🔗 n8n Webhook (Automation)</b>
@@ -1999,6 +2009,50 @@ async function cloudPush(silent){ const s=$("#sbStatus"); const {url}=sbCfg(); i
     if(res.ok){ setLocalDataTs(ts); if(s){s.textContent="ส่งขึ้นคลาวด์แล้ว ✓ "+new Date().toLocaleTimeString("th-TH");s.className="ai-status ok";} try{updateSyncBadge("ok");}catch(e){} }
     else { const t=await res.text(); if(s){s.textContent="ส่งไม่สำเร็จ: "+t.slice(0,120);s.className="ai-status err";} try{updateSyncBadge("err",t.slice(0,60));}catch(e){} } }
   catch(e){ if(s){s.textContent="ผิดพลาด: "+(e&&e.message||e);s.className="ai-status err";} try{updateSyncBadge("err",String(e.message||e).slice(0,60));}catch(e2){} } }
+/* Compact tools · ปลด localStorage เต็ม · ไม่แตะ Supabase Cloud
+   ผู้ใช้ทำได้เอง 3 ระดับ · เริ่มจากปลอดภัยสุด · เพราะ Cloud เก็บข้อมูลจริงอยู่แล้ว */
+function _bytesToMB(n){ return (n/1048576).toFixed(2); }
+function _reportCompact(msg, ok){ const el=$("#compactOut"); if(!el)return; el.innerHTML=(ok?'<span style="color:var(--ok)">✓ </span>':'')+esc(msg); }
+
+function compactBackups(){
+  try{
+    const before=(localStorage.getItem(BKKEY)||"").length;
+    if(!before){ _reportCompact("ไม่มี backup อยู่แล้ว (ไม่มีอะไรลบ)", false); return; }
+    if(!confirm("ล้าง Backup ใน localStorage ทั้งหมด?\n\n(Backup ใน Supabase Cloud + Export ไฟล์ล่าสุดยังอยู่ · ปลอดภัย)\n\nขนาดที่จะปล่อย ~ "+_bytesToMB(before)+" MB")) return;
+    localStorage.removeItem(BKKEY);
+    _reportCompact("ล้าง backup local แล้ว · ประหยัด "+_bytesToMB(before)+" MB · ลองบันทึกใหม่ได้เลย", true);
+    try{ runSaveDiagnostic(); }catch(e){}
+  }catch(e){ _reportCompact("Error: "+e.message, false); }
+}
+
+function compactClosedPhotos(){
+  try{
+    const targets=(DB.props||[]).filter(p=>{ const s=String(p.status||""); return s.indexOf("ปิด")>=0 || s.indexOf("ปล่อยเช่าแล้ว")>=0 || s.indexOf("ขายแล้ว")>=0; });
+    if(!targets.length){ _reportCompact("ไม่มีทรัพย์ที่ปิด/ปล่อยเช่าแล้ว (ไม่มีรูปให้ลบ)", false); return; }
+    let totalPhotos=0, totalBytes=0;
+    targets.forEach(p=>{ (p.photos||[]).forEach(url=>{ totalPhotos++; totalBytes+=(url||"").length; }); });
+    if(!totalPhotos){ _reportCompact("ทรัพย์ที่ปิด "+targets.length+" หลัง · ไม่มีรูปให้ลบ", false); return; }
+    if(!confirm("ลบรูปของทรัพย์ที่ปิด/ปล่อยเช่าแล้ว?\n\n· ทรัพย์: "+targets.length+" หลัง\n· รูป: "+totalPhotos+" ภาพ\n· ประหยัดพื้นที่ ~ "+_bytesToMB(totalBytes*1.35)+" MB (base64 overhead)\n\n⚠ Cloud จะ sync ตามหลัง (รูปในทรัพย์ที่ปิดแล้วจะหายจาก cloud ด้วย) · ปกติทรัพย์ปิดแล้วไม่ต้องดูรูป\n\nยืนยัน?")) return;
+    targets.forEach(p=>{ p.photos=[]; p.updatedAt=todayISO(); if(!Array.isArray(p.logs))p.logs=[]; p.logs.unshift({date:nowStamp(),text:"ลบรูปทั้งหมด (compact localStorage · ทรัพย์นี้ปิดแล้ว)"}); });
+    if(save()){ _reportCompact("ลบรูปสำเร็จ · "+totalPhotos+" ภาพ · จาก "+targets.length+" ทรัพย์ · ประหยัด ~"+_bytesToMB(totalBytes*1.35)+" MB", true); try{ renderAll(); }catch(e){} try{ runSaveDiagnostic(); }catch(e){} }
+    else _reportCompact("ลบรูปแล้ว แต่ save() ยังฟ้อง full · ลอง compactBackups ก่อน · แล้วลอง compact ระดับถัดไป", false);
+  }catch(e){ _reportCompact("Error: "+e.message, false); }
+}
+
+function compactAllPhotos(){
+  try{
+    const withPhotos=(DB.props||[]).filter(p=>Array.isArray(p.photos)&&p.photos.length);
+    if(!withPhotos.length){ _reportCompact("ไม่มีทรัพย์ที่มีรูป (ไม่มีอะไรลบ)", false); return; }
+    let totalPhotos=0, totalBytes=0;
+    withPhotos.forEach(p=>{ (p.photos||[]).forEach(url=>{ totalPhotos++; totalBytes+=(url||"").length; }); });
+    if(!confirm("⚠ NUCLEAR · ลบรูปทรัพย์ทั้งหมด "+withPhotos.length+" หลัง · "+totalPhotos+" ภาพ\n\n· ประหยัด ~ "+_bytesToMB(totalBytes*1.35)+" MB\n· Cloud จะ sync ตาม (รูปหายจาก cloud ด้วย)\n· ⚠ ทรัพย์ Active ก็จะไม่มีรูป · ต้องอัปโหลดใหม่ทีหลัง\n\n**ควรทำเฉพาะเมื่อ compact ระดับ 1-2 ไม่พอเท่านั้น**\n\nยืนยันจริงหรือ?")) return;
+    if(!confirm("ยืนยันซ้ำ · ลบรูปทรัพย์ Active ทั้งหมดด้วย?")) return;
+    withPhotos.forEach(p=>{ p.photos=[]; p.updatedAt=todayISO(); if(!Array.isArray(p.logs))p.logs=[]; p.logs.unshift({date:nowStamp(),text:"ลบรูปทั้งหมด (compact NUCLEAR)"}); });
+    if(save()){ _reportCompact("ลบรูปทั้งหมดสำเร็จ · "+totalPhotos+" ภาพ · ประหยัด ~"+_bytesToMB(totalBytes*1.35)+" MB", true); try{ renderAll(); }catch(e){} try{ runSaveDiagnostic(); }catch(e){} }
+    else _reportCompact("ลบรูปแล้ว แต่ localStorage ยังเต็ม · Export data ก่อนแล้ว Clear browser data", false);
+  }catch(e){ _reportCompact("Error: "+e.message, false); }
+}
+
 /* In-app save diagnostic · ไม่ต้อง F12 · เข้าจาก จัดการข้อมูล modal */
 async function runSaveDiagnostic(){
   const out=$("#diagOut"); if(!out)return;
