@@ -699,8 +699,18 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
         <button class="btn sm" onclick="runSaveDiagnostic()" style="margin-left:8px">ตรวจสถานะ save</button>
         <pre id="diagOut" style="margin-top:8px;padding:8px;background:var(--plane);border-radius:6px;font-size:11px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-word;display:none"></pre>
       </div>
-      <div style="margin-top:10px;padding:10px;border:2px solid #06c755;border-radius:8px;background:rgba(6,199,85,.06)">
-        <b style="font-size:12px;color:#06c755">🚀 ย้ายรูปไป Google Drive (แก้ localStorage เต็มถาวร)</b>
+      <div style="margin-top:10px;padding:10px;border:2px solid #10b981;border-radius:8px;background:rgba(16,185,129,.08)">
+        <b style="font-size:12px;color:#10b981">💚 ย้ายรูปไป Supabase Storage (แนะนำ · ง่ายกว่า)</b>
+        <div style="font-size:11px;color:var(--muted);margin:4px 0 8px">
+          <b>ทำ 1 ครั้ง:</b> เข้า <a href="https://supabase.com/dashboard" target="_blank" style="color:#10b981;text-decoration:underline">Supabase Dashboard</a> → Storage → <b>New bucket</b> · name: <code>property-images</code> · <b>ติ๊ก Public bucket</b> · Save
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          <button class="btn sm primary" onclick="migratePhotosToSupabase()">🚀 ย้ายรูปเก่าไป Supabase Storage</button>
+        </div>
+        <div id="sbMigOut" style="margin-top:6px;font-size:11px"></div>
+      </div>
+      <div style="margin-top:10px;padding:10px;border:2px solid #06c755;border-radius:8px;background:rgba(6,199,85,.06);opacity:.7">
+        <b style="font-size:12px;color:#06c755">🚀 ย้ายรูปไป Google Drive (ทางเลือก · ตั้งซับซ้อนกว่า)</b>
         <div style="font-size:11px;color:var(--muted);margin:4px 0 8px">รูป base64 → ย้ายขึ้น Google Drive (ใช้ 200GB ที่ซื้อ) · localStorage เก็บแค่ URL · ประหยัด 99% · ต้องตั้ง n8n workflow ก่อน (ดู <code>docs/GOOGLE_DRIVE_SETUP.md</code>)</div>
         <label style="font-size:11px;color:var(--muted)">Drive Webhook URL (จาก n8n):</label>
         <input id="driveUrl" placeholder="https://n8n.shelterlivingestate.tech/webhook/drive-upload" style="width:100%;font-family:inherit;font-size:11.5px;padding:7px;border:1px solid var(--border);border-radius:6px;background:var(--surface-1);color:var(--ink);margin-top:2px" value="">
@@ -1949,6 +1959,62 @@ function confirmLegacyImport(){ const txt=($("#legacyOwnerCSV")||{}).value||""; 
 const N8N_URL_KEY="shelter_n8n_url", N8N_AUTO_KEY="shelter_n8n_auto", DRIVE_URL_KEY="shelter_drive_webhook_url"; let n8nSyncT=null;
 function driveWebhookUrl(){ try{return (localStorage.getItem(DRIVE_URL_KEY)||"").trim();}catch(e){return "";} }
 function saveDriveUrl(){ const u=(($("#driveUrl")||{}).value||"").trim(); try{localStorage.setItem(DRIVE_URL_KEY,u);}catch(e){} const s=$("#driveStatus"); if(u&&!/^https?:\/\//.test(u)){ if(s){s.textContent="ต้องเป็น URL http/https";s.className="ai-status err";} return; } if(s){s.textContent=u?"บันทึกลิงก์แล้ว ✓":"ล้างลิงก์แล้ว";s.className="ai-status ok";} }
+/* Supabase Storage · ทางเลือกที่ง่ายกว่า Google Drive · คุณคลิก 1 ปุ่มใน Dashboard · ผมจัดการที่เหลือ */
+const SB_BUCKET="property-images";
+/* Convert base64 data URI → Uint8Array for binary upload */
+function _b64ToBytes(dataUri){
+  const m=dataUri.match(/^data:([^;]+);base64,(.+)$/);
+  if(!m) throw new Error("invalid base64");
+  const bin=atob(m[2]); const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return {bytes, mime:m[1]};
+}
+/* Upload one photo → Supabase Storage · returns public URL */
+async function uploadPhotoToSupabase(propCode, filename, base64){
+  if(!sbReady()) throw new Error("Supabase ยังไม่พร้อม");
+  const {url,key}=sbCfg();
+  const {bytes,mime}=_b64ToBytes(base64);
+  const safeCode=String(propCode||"UNKNOWN").replace(/[^A-Za-z0-9_-]/g,"_");
+  const safeName=String(filename||("p_"+Date.now()+".jpg")).replace(/[^A-Za-z0-9._-]/g,"_");
+  const path=safeCode+"/"+safeName;
+  const putUrl=url+"/storage/v1/object/"+SB_BUCKET+"/"+encodeURIComponent(safeCode)+"/"+encodeURIComponent(safeName);
+  const res=await fetch(putUrl,{method:"POST",headers:{"apikey":key,"authorization":"Bearer "+key,"content-type":mime,"x-upsert":"true"},body:bytes});
+  if(!res.ok){ const t=await res.text(); throw new Error("HTTP "+res.status+" "+t.slice(0,80)); }
+  return url+"/storage/v1/object/public/"+SB_BUCKET+"/"+encodeURIComponent(safeCode)+"/"+encodeURIComponent(safeName);
+}
+/* Migrate all base64 photos → Supabase Storage · frees localStorage massively */
+async function migratePhotosToSupabase(){
+  const out=$("#sbMigOut"); if(out)out.innerHTML="กำลังเตรียม...";
+  if(!sbReady()){ if(out)out.innerHTML='<span style="color:var(--crit)">⚠ Supabase URL/Key ยังไม่ตั้ง</span>'; return; }
+  /* Count base64 photos */
+  const targets=[];
+  (DB.props||[]).forEach(p=>{
+    if(!Array.isArray(p.photos))return;
+    p.photos.forEach((ph,idx)=>{ if(typeof ph==="string"&&ph.startsWith("data:")){ targets.push({p,idx,size:ph.length}); } });
+  });
+  if(!targets.length){ if(out)out.innerHTML='<span style="color:var(--muted)">ไม่มีรูป base64 (อาจย้ายไปแล้วหมด)</span>'; return; }
+  if(!confirm("ย้าย "+targets.length+" รูปไป Supabase Storage bucket '"+SB_BUCKET+"'?\n\n· ต้อง create bucket ใน Supabase Dashboard ก่อน (public access)\n· ใช้เวลา ~1-2 วิ/รูป · "+targets.length+" รูป ~"+Math.ceil(targets.length*1.5)+" วิ\n· รูปย้ายจริง · localStorage เบาลง\n\nเริ่ม?")) return;
+  const startTs=Date.now(); let done=0, failed=0, bytesFreed=0;
+  for(const t of targets){
+    try{
+      if(out)out.innerHTML=`กำลังย้าย ${done+1}/${targets.length} · ${esc(t.p.code||t.p.title||"?")} · ✓ ${done} · ✗ ${failed}`;
+      const filename=(t.p.code||"prop")+"_"+t.idx+"_"+Date.now()+".jpg";
+      const publicUrl=await uploadPhotoToSupabase(t.p.code||t.p.id, filename, t.p.photos[t.idx]);
+      bytesFreed+=t.size;
+      t.p.photos[t.idx]=publicUrl;
+      done++;
+      if(done%5===0){ try{ save(); }catch(e){} }
+    }catch(e){
+      failed++;
+      if(out)out.innerHTML+=`<br><span style="color:var(--crit)">✗ ${esc(t.p.code||"?")}: ${esc(e.message||e)}</span>`;
+      if(failed>=3){ if(out)out.innerHTML+='<br><b style="color:var(--crit)">ล้มเหลว 3 ครั้ง · หยุด · ตรวจว่า bucket \''+SB_BUCKET+'\' ถูกสร้างและ public แล้ว</b>'; break; }
+    }
+  }
+  try{ save(); }catch(e){}
+  try{ renderAll(); }catch(e){}
+  const elapsed=((Date.now()-startTs)/1000).toFixed(1);
+  if(out)out.innerHTML=`<span style="color:var(--ok)">✓ เสร็จ · ย้าย ${done}/${targets.length} รูป · ล้มเหลว ${failed} · เวลา ${elapsed}s · localStorage ประหยัด ~${(bytesFreed/1048576).toFixed(2)} MB</span>`;
+}
 /* Upload one base64 photo to Google Drive via n8n webhook · returns permanent Drive URL */
 async function uploadPhotoToDrive(propCode, filename, base64){
   const url=driveWebhookUrl();
