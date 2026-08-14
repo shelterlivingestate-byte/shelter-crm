@@ -700,12 +700,15 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
         <pre id="diagOut" style="margin-top:8px;padding:8px;background:var(--plane);border-radius:6px;font-size:11px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-word;display:none"></pre>
       </div>
       <div style="margin-top:10px;padding:10px;border:2px solid #10b981;border-radius:8px;background:rgba(16,185,129,.08)">
-        <b style="font-size:12px;color:#10b981">💚 ย้ายรูปไป Supabase Storage (แนะนำ · ง่ายกว่า)</b>
+        <b style="font-size:12px;color:#10b981">💚 ย้ายรูปไป Supabase Storage</b>
         <div style="font-size:11px;color:var(--muted);margin:4px 0 8px">
-          <b>ทำ 1 ครั้ง:</b> เข้า <a href="https://supabase.com/dashboard" target="_blank" style="color:#10b981;text-decoration:underline">Supabase Dashboard</a> → Storage → <b>New bucket</b> · name: <code>property-images</code> · <b>ติ๊ก Public bucket</b> · Save
+          <b>2 ขั้น:</b>
+          <br>1. <a href="https://supabase.com/dashboard" target="_blank" style="color:#10b981;text-decoration:underline">Supabase Dashboard</a> → SQL Editor → paste <code>docs/SUPABASE_STORAGE_RLS.sql</code> → RUN (สร้าง 4 policies)
+          <br>2. กลับมา → กด "🔍 ทดสอบ" → ถ้าเขียว → กด "🚀 Migrate"
         </div>
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-          <button class="btn sm primary" onclick="migratePhotosToSupabase()">🚀 ย้ายรูปเก่าไป Supabase Storage</button>
+          <button class="btn sm" onclick="testSupabaseBucket()">🔍 ทดสอบ bucket + policies</button>
+          <button class="btn sm primary" onclick="migratePhotosToSupabase()">🚀 Migrate (auto-backup + verify)</button>
         </div>
         <div id="sbMigOut" style="margin-top:6px;font-size:11px"></div>
       </div>
@@ -1969,6 +1972,42 @@ function _b64ToBytes(dataUri){
   for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
   return {bytes, mime:m[1]};
 }
+/* Test bucket access before migration · verifies RLS policies + bucket exists */
+async function testSupabaseBucket(){
+  const out=$("#sbMigOut"); if(out)out.innerHTML="กำลังทดสอบ bucket...";
+  if(!sbReady()){ if(out)out.innerHTML='<span style="color:var(--crit)">⚠ Supabase URL/Key ยังไม่ตั้ง</span>'; return false; }
+  const {url,key}=sbCfg();
+  try{
+    /* Test 1: bucket exists (list objects with limit=1) */
+    const listUrl=url+"/storage/v1/object/list/"+SB_BUCKET;
+    const listRes=await fetch(listUrl,{method:"POST",headers:{"apikey":key,"authorization":"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({prefix:"",limit:1})});
+    if(!listRes.ok){
+      const t=await listRes.text();
+      if(listRes.status===404 || /not found/i.test(t)){ if(out)out.innerHTML='<span style="color:var(--crit)">❌ ไม่พบ bucket \''+SB_BUCKET+'\' · สร้างใน Supabase Dashboard → Storage ก่อน</span>'; return false; }
+      if(out)out.innerHTML='<span style="color:var(--crit)">❌ อ่าน bucket ไม่ได้: HTTP '+listRes.status+' '+esc(t.slice(0,80))+'</span>';
+      return false;
+    }
+    /* Test 2: upload test file */
+    const testBytes=new Uint8Array([137,80,78,71,13,10,26,10]); /* PNG header 8 bytes */
+    const testPath="_test/upload_test_"+Date.now()+".png";
+    const upRes=await fetch(url+"/storage/v1/object/"+SB_BUCKET+"/"+testPath,{method:"POST",headers:{"apikey":key,"authorization":"Bearer "+key,"content-type":"image/png","x-upsert":"true"},body:testBytes});
+    if(!upRes.ok){
+      const t=await upRes.text();
+      if(/row.?level|policy|denied|permission/i.test(t)){ if(out)out.innerHTML='<span style="color:var(--crit)">❌ ยัง upload ไม่ได้ · <b>ต้องรัน SQL policies ก่อน</b><br>ดู <code>docs/SUPABASE_STORAGE_RLS.sql</code> · ไป Supabase → SQL Editor → paste → RUN</span>'; return false; }
+      if(out)out.innerHTML='<span style="color:var(--crit)">❌ Upload fail: HTTP '+upRes.status+' '+esc(t.slice(0,80))+'</span>';
+      return false;
+    }
+    /* Test 3: public read test file */
+    const pubUrl=url+"/storage/v1/object/public/"+SB_BUCKET+"/"+testPath;
+    const readRes=await fetch(pubUrl,{method:"HEAD"});
+    if(!readRes.ok){ if(out)out.innerHTML='<span style="color:var(--warn)">⚠ Upload ได้ · แต่ public URL อ่านไม่ได้ (HTTP '+readRes.status+') · Bucket อาจไม่ public · ตั้ง Public bucket ใน Dashboard</span>'; return false; }
+    /* Test 4: delete test file (cleanup) */
+    await fetch(url+"/storage/v1/object/"+SB_BUCKET+"/"+testPath,{method:"DELETE",headers:{"apikey":key,"authorization":"Bearer "+key}});
+    if(out)out.innerHTML='<span style="color:var(--ok)">✅ พร้อม migrate · bucket + policies + public read ทำงานถูกต้อง</span>';
+    return true;
+  }catch(e){ if(out)out.innerHTML='<span style="color:var(--crit)">❌ Error: '+esc(e.message||e)+'</span>'; return false; }
+}
+
 /* Upload one photo → Supabase Storage · returns public URL */
 async function uploadPhotoToSupabase(propCode, filename, base64){
   if(!sbReady()) throw new Error("Supabase ยังไม่พร้อม");
@@ -1976,44 +2015,74 @@ async function uploadPhotoToSupabase(propCode, filename, base64){
   const {bytes,mime}=_b64ToBytes(base64);
   const safeCode=String(propCode||"UNKNOWN").replace(/[^A-Za-z0-9_-]/g,"_");
   const safeName=String(filename||("p_"+Date.now()+".jpg")).replace(/[^A-Za-z0-9._-]/g,"_");
-  const path=safeCode+"/"+safeName;
   const putUrl=url+"/storage/v1/object/"+SB_BUCKET+"/"+encodeURIComponent(safeCode)+"/"+encodeURIComponent(safeName);
   const res=await fetch(putUrl,{method:"POST",headers:{"apikey":key,"authorization":"Bearer "+key,"content-type":mime,"x-upsert":"true"},body:bytes});
   if(!res.ok){ const t=await res.text(); throw new Error("HTTP "+res.status+" "+t.slice(0,80)); }
-  return url+"/storage/v1/object/public/"+SB_BUCKET+"/"+encodeURIComponent(safeCode)+"/"+encodeURIComponent(safeName);
+  const publicUrl=url+"/storage/v1/object/public/"+SB_BUCKET+"/"+encodeURIComponent(safeCode)+"/"+encodeURIComponent(safeName);
+  /* Verify · HEAD request to confirm file is readable via public URL */
+  const verifyRes=await fetch(publicUrl,{method:"HEAD"});
+  if(!verifyRes.ok) throw new Error("upload OK แต่ verify HEAD fail HTTP "+verifyRes.status);
+  return publicUrl;
 }
-/* Migrate all base64 photos → Supabase Storage · frees localStorage massively */
+
+/* Auto-download JSON backup before migration · safety net */
+function autoExportBackup(){
+  try{
+    const payload=JSON.stringify({DB:snapshot(),kb,todos,needsState,_exportedAt:new Date().toISOString(),_reason:"pre-migration backup"});
+    const blob=new Blob([payload],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download="shelter-crm-backup-"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")+".json"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    return true;
+  }catch(e){ return false; }
+}
+/* Migrate all base64 photos → Supabase Storage
+ * Safety: (1) test bucket · (2) auto-export JSON backup · (3) upload+verify HEAD per photo ·
+ * (4) replace base64 ONLY after verify passes · (5) incremental save every 5 · (6) stop after 3 fails */
 async function migratePhotosToSupabase(){
   const out=$("#sbMigOut"); if(out)out.innerHTML="กำลังเตรียม...";
   if(!sbReady()){ if(out)out.innerHTML='<span style="color:var(--crit)">⚠ Supabase URL/Key ยังไม่ตั้ง</span>'; return; }
-  /* Count base64 photos */
+  /* Step 1: Test bucket + policies first · aborts if anything wrong */
+  const ok=await testSupabaseBucket();
+  if(!ok){ if(out)out.innerHTML+='<br><b style="color:var(--crit)">หยุด migration · แก้ปัญหาข้างบนก่อน</b>'; return; }
+  /* Step 2: Count base64 photos */
   const targets=[];
   (DB.props||[]).forEach(p=>{
     if(!Array.isArray(p.photos))return;
     p.photos.forEach((ph,idx)=>{ if(typeof ph==="string"&&ph.startsWith("data:")){ targets.push({p,idx,size:ph.length}); } });
   });
   if(!targets.length){ if(out)out.innerHTML='<span style="color:var(--muted)">ไม่มีรูป base64 (อาจย้ายไปแล้วหมด)</span>'; return; }
-  if(!confirm("ย้าย "+targets.length+" รูปไป Supabase Storage bucket '"+SB_BUCKET+"'?\n\n· ต้อง create bucket ใน Supabase Dashboard ก่อน (public access)\n· ใช้เวลา ~1-2 วิ/รูป · "+targets.length+" รูป ~"+Math.ceil(targets.length*1.5)+" วิ\n· รูปย้ายจริง · localStorage เบาลง\n\nเริ่ม?")) return;
+  /* Step 3: Confirmation */
+  if(!confirm("ย้าย "+targets.length+" รูปไป bucket '"+SB_BUCKET+"'?\n\n· ระบบจะ Export backup JSON ลง Downloads ก่อน (safety)\n· รูปย้ายทีละภาพ · verify HEAD ทุกภาพ · เก็บ base64 ไว้จนกว่า verify OK\n· ~1-2 วิ/รูป · รวม ~"+Math.ceil(targets.length*1.5)+" วิ\n\nเริ่ม?")) return;
+  /* Step 4: Auto-backup */
+  if(out)out.innerHTML="กำลัง Export backup...";
+  if(!autoExportBackup()){ if(!confirm("⚠ Export backup ไม่สำเร็จ · ยังต้องการ migrate ต่อ?")) return; }
+  else if(out)out.innerHTML='<span style="color:var(--ok)">✓ Backup ดาวน์โหลดใน Downloads แล้ว · เริ่ม migrate</span>';
+  /* Step 5: Migration loop with verify */
   const startTs=Date.now(); let done=0, failed=0, bytesFreed=0;
-  for(const t of targets){
+  for(let i=0;i<targets.length;i++){
+    const t=targets[i];
     try{
-      if(out)out.innerHTML=`กำลังย้าย ${done+1}/${targets.length} · ${esc(t.p.code||t.p.title||"?")} · ✓ ${done} · ✗ ${failed}`;
-      const filename=(t.p.code||"prop")+"_"+t.idx+"_"+Date.now()+".jpg";
+      if(out)out.innerHTML=`⏳ ${i+1}/${targets.length} · ${esc(t.p.code||t.p.title||"?")} #${t.idx} · ✓${done} ✗${failed}`;
+      const filename="p"+t.idx+"_"+Date.now()+".jpg";
+      /* Upload + HEAD verify (both inside uploadPhotoToSupabase) */
       const publicUrl=await uploadPhotoToSupabase(t.p.code||t.p.id, filename, t.p.photos[t.idx]);
+      /* Verify passed · replace base64 with URL */
       bytesFreed+=t.size;
       t.p.photos[t.idx]=publicUrl;
+      t.p.updatedAt=todayISO();
       done++;
       if(done%5===0){ try{ save(); }catch(e){} }
     }catch(e){
       failed++;
       if(out)out.innerHTML+=`<br><span style="color:var(--crit)">✗ ${esc(t.p.code||"?")}: ${esc(e.message||e)}</span>`;
-      if(failed>=3){ if(out)out.innerHTML+='<br><b style="color:var(--crit)">ล้มเหลว 3 ครั้ง · หยุด · ตรวจว่า bucket \''+SB_BUCKET+'\' ถูกสร้างและ public แล้ว</b>'; break; }
+      if(failed>=3){ if(out)out.innerHTML+='<br><b style="color:var(--crit)">หยุด (fail 3 ครั้ง) · ตรวจ policies + bucket ก่อนลองใหม่ · Backup JSON อยู่ใน Downloads แล้ว</b>'; break; }
     }
   }
   try{ save(); }catch(e){}
   try{ renderAll(); }catch(e){}
   const elapsed=((Date.now()-startTs)/1000).toFixed(1);
-  if(out)out.innerHTML=`<span style="color:var(--ok)">✓ เสร็จ · ย้าย ${done}/${targets.length} รูป · ล้มเหลว ${failed} · เวลา ${elapsed}s · localStorage ประหยัด ~${(bytesFreed/1048576).toFixed(2)} MB</span>`;
+  if(out)out.innerHTML=`<span style="color:var(--ok)">✅ เสร็จ · ย้าย ${done}/${targets.length} รูป · ล้มเหลว ${failed} · เวลา ${elapsed}s · localStorage ประหยัด ~${(bytesFreed/1048576).toFixed(2)} MB</span><br><span style="color:var(--muted);font-size:11px">Backup JSON เก็บใน Downloads folder · รูปที่ verify OK ถูกแทนใน state ·  รูปที่ fail ยังเป็น base64 (ไม่หาย)</span>`;
 }
 /* Upload one base64 photo to Google Drive via n8n webhook · returns permanent Drive URL */
 async function uploadPhotoToDrive(propCode, filename, base64){
