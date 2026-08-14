@@ -311,6 +311,20 @@ html[data-theme="dark"] .tag.amber{color:#f0c04a}
 @media(prefers-reduced-motion:reduce){.sync-badge.busy{animation:none}}
 @media(max-width:720px){.sync-badge{bottom:calc(92px + env(safe-area-inset-bottom,0px));right:12px;padding:5px 10px;font-size:11px}}
 @media(max-width:720px){.mind{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}.pipe{grid-template-columns:repeat(6,220px)}}
+/* Section 1.5 · Goal cards mobile stack + Section 1.4 popup */
+@media(max-width:720px){
+  .goal-cards{flex-direction:column}
+  .goal-card{min-width:0!important;width:100%}
+  .goal-card .val{font-size:15px!important}
+}
+.goal-popup-scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 12px}
+.goal-popup-scrim.on{display:flex}
+.goal-popup{background:var(--panel);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:20px;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);animation:goalPopIn .18s ease-out}
+@keyframes goalPopIn{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.goal-popup h3{font-size:16px;margin:0 0 4px}
+.goal-popup .p-close{position:absolute;top:12px;right:12px;background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1;padding:4px 8px}
+.goal-fab{position:fixed;bottom:calc(140px + env(safe-area-inset-bottom,0px));right:12px;background:var(--brand);color:#fff;border:none;border-radius:20px;padding:8px 14px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(35,110,232,.35);z-index:900;display:none}
+.goal-fab.on{display:inline-flex;align-items:center;gap:6px}
 .principle{display:flex;gap:12px;align-items:flex-start}
 .principle .num{width:28px;height:28px;border-radius:8px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:13px;flex:0 0 auto}
 .principle b{font-size:13.5px} .principle p{font-size:12.5px;color:var(--ink-2);margin-top:2px}
@@ -1226,6 +1240,15 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
   </div>
 </nav>
 
+<!-- Goal Focus Popup · spec §1.4 · once per session · sessionStorage flag -->
+<div class="goal-popup-scrim" id="goalPopupScrim" onclick="if(event.target===this)closeGoalPopup()">
+  <div class="goal-popup" id="goalPopupBox" style="position:relative">
+    <button class="p-close" onclick="closeGoalPopup()" aria-label="ปิด">×</button>
+    <div id="goalPopupBody"></div>
+  </div>
+</div>
+<button class="goal-fab" id="goalFab" onclick="openGoalPopup(true)" title="ดูเป้าหมายเดือนนี้">🎯 เป้าเดือนนี้</button>
+
 <!-- MODAL -->
 <div class="modal-scrim" id="modalScrim" onclick="closeForm()"></div>
 <div class="modal" id="modal">
@@ -1535,7 +1558,15 @@ const SCHEMA={
     {k:"loc",l:"ทำเล",type:"text",full:1},{k:"spec",l:"ห้อง / พื้นที่",type:"text"},{k:"price",l:"ราคา",type:"text"},
     {k:"status",l:"สถานะ",type:"select",opts:["ใหม่","ว่าง","มีนัดชม","กำลังเจรจา","จองแล้ว","ปล่อยเช่าแล้ว","ปิดการขาย","ไม่ว่าง","คลังเก็บ"]},{k:"grade",l:"เกรดทรัพย์",type:"select",opts:["","A","B","C"]},
     {k:"tags",l:"แท็ก/จุดเด่นเพื่อจับคู่ (เช่น ใกล้โรงเรียน, ใกล้ BTS, เงียบสงบ, เลี้ยงสัตว์ได้, ทิศเหนือ)",type:"text",full:1},
-    {k:"marketingStart",l:"วันที่เริ่มทำตลาด (YYYY-MM-DD)",type:"text"},{k:"lastOwnerUpdate",l:"อัปเดต Owner ล่าสุด (YYYY-MM-DD)",type:"text"},
+    /* Rental Care Timeline · spec §2.9 · หมุดเวลาฝั่งเราเท่านั้น · ไม่ถาม Owner */
+    {k:"intakeDate",l:"วันที่รับ New Listing เข้าพอร์ต (YYYY-MM-DD)",type:"text"},
+    {k:"availableDate",l:"วันที่บ้านว่าง/พร้อมเข้าอยู่ (YYYY-MM-DD)",type:"text"},
+    {k:"dataReadyDate",l:"วันที่ข้อมูลทรัพย์พร้อม (YYYY-MM-DD)",type:"text"},
+    {k:"photosReadyDate",l:"วันที่รูปภาพพร้อม (YYYY-MM-DD)",type:"text"},
+    {k:"marketingStart",l:"วันที่เริ่มทำการตลาดจริง (YYYY-MM-DD)",type:"text"},
+    {k:"knownLeasedDate",l:"วันที่ทราบว่าปล่อยเช่าแล้ว (YYYY-MM-DD · ไม่ต้องเป็นวันปิดจริง)",type:"text"},
+    {k:"marketingPausedDate",l:"วันที่พัก/ยกเลิกทำตลาด (YYYY-MM-DD)",type:"text"},
+    {k:"lastOwnerUpdate",l:"อัปเดต Owner ล่าสุด (YYYY-MM-DD)",type:"text"},
     {type:"heading",k:"_hp",l:"🏢 โครงการ (เชื่อมฐานข้อมูล)"},
     {k:"projectId",l:"เลือกโครงการ",type:"projectselect",full:1},
     {type:"heading",k:"_hgeo",l:"📍 พิกัด & เรดาร์คู่แข่ง (Competitor Radar)"},
@@ -1673,7 +1704,8 @@ const SCHEMA={
     {type:"heading",k:"_hlc",l:"🤝 การปิดดีลเช่า (Lease Closing)"},
     {k:"termMonths",l:"ระยะสัญญา (เดือน)",type:"number"},
     {k:"closeDate",l:"วันที่ปิดดีล (YYYY-MM-DD)",type:"text"},{k:"signDate",l:"วันที่ทำสัญญา (YYYY-MM-DD)",type:"text"},{k:"handoverDate",l:"วันที่ส่งมอบ (YYYY-MM-DD)",type:"text"},
-    {k:"leaseClosedByType",l:"ผู้ปล่อยเช่า (Lease Closed By)",type:"select",opts:["Our Agency (เราปล่อยเอง)","Co-Agent (ปิดร่วม)","Other Agent (Agent อื่น)","Owner Direct (เจ้าของปล่อยเอง)","Unknown"]},
+    /* Rental Care spec §2.7 · รวม 3 ตัวเลือกเดิม (Other Agent/Owner Direct/Unknown) เป็นตัวเดียว · เก่าที่บันทึกไว้ยังอ่านได้ */
+    {k:"leaseClosedByType",l:"ผู้ปล่อยเช่า (Lease Closed By)",type:"select",opts:["Our Agency (เราปล่อยเอง)","Co-Agent (ปิดร่วม)","ปิดเช่าจากช่องทางอื่น","Other Agent (Agent อื่น)","Owner Direct (เจ้าของปล่อยเอง)","Unknown"]},
     {k:"closingAgentName",l:"ชื่อ Agent ผู้ปิด",type:"text"},{k:"coAgentName",l:"ชื่อ Co-Agent",type:"text"},{k:"internalOwner",l:"ผู้ดูแลดีลภายใน",type:"text"},
     {k:"afterSalesResponsibility",l:"ผู้รับผิดชอบหลังเช่า",type:"select",opts:["SHELTER ดูแลเต็มรูปแบบ","SHELTER ดูแลบางส่วน","Co-Agent ดูแล","เจ้าของดูแลเอง","ไม่มีบริการหลังเช่า"]},
     {k:"careOverride",l:"SHELTER รับดูแลแม้ไม่ได้ปิดดีล?",type:"select",opts:["","ใช่"]},
@@ -2466,6 +2498,7 @@ function go(id){
   if(window.innerWidth<=640)toggleMenu(true);
   window.scrollTo({top:0,behavior:"smooth"});
   try{syncBottomNav();}catch(e){}
+  try{_updateGoalFab();}catch(e){}
 }
 $("#cta").onclick=()=>{ const o=OS.find(x=>x.id===activeView); if(activeView==="customers"){openCustomerForm();return;} if(!o.key)return; if(o.key==="props")openPropForm(o.deal); else if(o.key==="leads")openLeadForm(o.ltype); else openForm(o.key); };
 
@@ -3819,13 +3852,130 @@ function scoreProperty(p, kind){
   return {level, score:+score.toFixed(1), reasons, blockers, expectedComm, nextAction, activeMkt:activeMkt.length, matches:matches.length, appts:appts.length, deals:deals.length};
 }
 
+/* Section 1.4 · Goal Focus Popup · once per SESSION (sessionStorage clears on browser close) */
+const _GOAL_POPUP_KEY="shelter_goal_popup_shown_v1";
+function _goalPopupShownThisSession(){ try{ return sessionStorage.getItem(_GOAL_POPUP_KEY)==="1"; }catch(e){ return false; } }
+function _markGoalPopupShown(){ try{ sessionStorage.setItem(_GOAL_POPUP_KEY,"1"); }catch(e){} }
+function openGoalPopup(manual){
+  const scrim=$("#goalPopupScrim"), body=$("#goalPopupBody"); if(!scrim||!body)return;
+  const advId=currentAdvisorId(); _goalScope.advisorId=advId;
+  const y=_goalScope.year, m=_goalScope.month;
+  const goal=goalEffective(y,m,advId);
+  const rc=rentalCommReceivedInMonth(y,m,advId);
+  const rentPipe=rentalCommPipelineInMonth(y,m,advId);
+  const rentGap=Math.max(0, goal.rentalCommTarget - rc.total);
+  const rentPct=goal.rentalCommTarget?Math.min(100, Math.round(rc.total/goal.rentalCommTarget*100)):0;
+  const saleDone=saleClosedInMonth(y,m,advId);
+  const saleGap=Math.max(0, goal.saleClosedTarget - saleDone);
+  const salePct=goal.saleClosedTarget?Math.min(100, Math.round(saleDone/goal.saleClosedTarget*100)):0;
+  const daysLeft=_daysLeftInMonth(y,m);
+  let todaysTask="—"; try{
+    const rentProps=(DB.props||[]).filter(p=>p&&(p.deal||"")==="เช่า"&&String(p.status||"").indexOf("ปิด")<0&&String(p.status||"").indexOf("ยกเลิก")<0);
+    const picks=pickPropsToCoverGap(rentProps,"เช่า",rentGap);
+    if(picks.picked.length){ const top=picks.picked[0]; todaysTask=`<b>${esc(top.p.code||top.p.title||"ทรัพย์")}</b> · ${esc(top.s.nextAction||"ติดตามลูกค้า")}`; }
+    else if(!rentGap && !saleGap) todaysTask="ทั้ง 2 เป้าถึงแล้ว 🎉";
+  }catch(e){}
+  const bar=(pct,cls)=>`<div style="height:8px;background:var(--plane);border-radius:6px;overflow:hidden;margin:6px 0">
+    <div style="height:100%;width:${pct}%;background:${cls==="ok"?"var(--ok)":cls==="warn"?"var(--warn)":"var(--brand)"};border-radius:6px"></div></div>`;
+  body.innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <div style="font-size:24px">🎯</div>
+      <div><h3 style="margin:0">เป้าหมายของฉัน</h3>
+      <div style="font-size:12px;color:var(--muted)">${thaiMonthYear(y,m,true)} · เหลืออีก <b style="color:var(--ink)">${daysLeft}</b> วัน</div></div>
+    </div>
+    <div style="background:var(--plane);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+        <b style="font-size:13px">🏠 ค่าคอมเช่า</b>
+        <span style="font-size:11px;color:var(--muted)">${rentPct}%</span>
+      </div>
+      ${bar(rentPct, rentPct>=100?"ok":rentPct<50?"warn":"")}
+      <div style="display:flex;justify-content:space-between;font-size:12px">
+        <span>รับจริง <b style="color:var(--ok)">฿${fmtBaht(rc.total)}</b> / ฿${fmtBaht(goal.rentalCommTarget)}</span>
+        <span style="color:${rentGap>0?'var(--crit)':'var(--ok)'}">${rentGap>0?"ขาด ฿"+fmtBaht(rentGap):"ถึงเป้า ✅"}</span>
+      </div>
+      ${rentPipe?`<div style="font-size:11px;color:var(--brand);margin-top:4px">+ Pipeline ฿${fmtBaht(rentPipe)}</div>`:""}
+    </div>
+    <div style="background:var(--plane);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+        <b style="font-size:13px">💼 ปิดการขาย</b>
+        <span style="font-size:11px;color:var(--muted)">${salePct}%</span>
+      </div>
+      ${bar(salePct, salePct>=100?"ok":salePct<50?"warn":"")}
+      <div style="display:flex;justify-content:space-between;font-size:12px">
+        <span>ปิดจริง <b style="color:var(--ok)">${saleDone}</b> / ${goal.saleClosedTarget} หลัง</span>
+        <span style="color:${saleGap>0?'var(--crit)':'var(--ok)'}">${saleGap>0?"ขาด "+saleGap+" หลัง":"ถึงเป้า ✅"}</span>
+      </div>
+    </div>
+    <div style="background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--brand);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12.5px">
+      <div style="color:var(--muted);font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">งานสำคัญวันนี้</div>${todaysTask}
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" style="flex:1" onclick="closeGoalPopup();go('dashboard')">ไปที่ Advisor Dashboard</button>
+      <button class="btn" onclick="closeGoalPopup()">ปิด</button>
+    </div>`;
+  scrim.classList.add("on");
+  if(!manual) _markGoalPopupShown();
+  const fab=$("#goalFab"); if(fab)fab.classList.remove("on");
+}
+function closeGoalPopup(){ const scrim=$("#goalPopupScrim"); if(scrim)scrim.classList.remove("on"); _markGoalPopupShown(); _updateGoalFab(); }
+/* Show floating "ดูเป้าหมายเดือนนี้" button on non-dashboard views · spec §1.4 */
+function _updateGoalFab(){ const fab=$("#goalFab"); if(!fab)return;
+  const showFab=(activeView&&activeView!=="dashboard")&&_goalPopupShownThisSession();
+  fab.classList.toggle("on", !!showFab);
+}
+/* First-boot trigger · call once from init after DB loaded */
+function _maybeOpenGoalPopup(){ if(_goalPopupShownThisSession())return; try{ openGoalPopup(false); }catch(e){} }
+
 /* Toggle state for showing priority list (spec §4 · "ดูทรัพย์ที่ควรเร่งทำเป้า" button) */
 let _priorityShown=false;
 function togglePriority(){ _priorityShown=!_priorityShown; renderDashPriority(); }
 
+/* ================================================================
+ * Rental Care · Timeline speed helpers · spec §2.9, §2.10
+ * ใช้ Property เดิม + timeline fields ใหม่ · ไม่สร้าง store แยก
+ * "ความเร็วจากข้อมูลฝั่งเรา" · ห้ามอ้างว่าเป็นระยะเวลาการตลาดทั้งหมดของ Owner
+ * ================================================================ */
+function _daysBetween(fromStr, toStr){
+  if(!fromStr||!toStr)return null;
+  const a=new Date(fromStr), b=new Date(toStr);
+  if(isNaN(a)||isNaN(b))return null;
+  const ms=b.getTime()-a.getTime();
+  if(ms<0) return 0; /* spec: ห้ามคำนวณค่าติดลบ */
+  return Math.floor(ms/86400000);
+}
+/* Ref end date: known leased date if set, else marketingPausedDate, else today */
+function _propRefEndDate(p){
+  if(p&&p.knownLeasedDate) return {date:p.knownLeasedDate, leased:true, paused:false};
+  if(p&&p.marketingPausedDate) return {date:p.marketingPausedDate, leased:false, paused:true};
+  return {date:todayISO(), leased:false, paused:false};
+}
+/* A · ระยะเตรียมการ = marketingStart − intakeDate */
+function propPrepDays(p){ if(!p)return null; return _daysBetween(p.intakeDate, p.marketingStart); }
+/* B · ระยะเวลาทำตลาดฝั่งเรา = end − marketingStart · Active Days ถ้ายังไม่ปล่อย */
+function propMarketDays(p){ if(!p||!p.marketingStart)return null; const ref=_propRefEndDate(p); const d=_daysBetween(p.marketingStart, ref.date); return d==null?null:{days:d, active:!ref.leased && !ref.paused, leased:ref.leased, paused:ref.paused}; }
+/* C · ระยะรวมในพอร์ต = end − intakeDate */
+function propTotalPortfolioDays(p){ if(!p||!p.intakeDate)return null; const ref=_propRefEndDate(p); const d=_daysBetween(p.intakeDate, ref.date); return d==null?null:{days:d, active:!ref.leased && !ref.paused, leased:ref.leased, paused:ref.paused}; }
+/* Timeline missing-fields report for UI · spec §2.10 "ข้อมูล Timeline ยังไม่ครบ" */
+function propTimelineMissing(p){ if(!p)return ["Property"];
+  const missing=[];
+  if(!p.intakeDate) missing.push("วันที่รับเข้าพอร์ต");
+  if(!p.marketingStart) missing.push("วันที่เริ่มทำการตลาด");
+  return missing;
+}
+
+/* Section 1.1 · Advisor auto = current user · spec ให้ hardcode NAME ไม่ได้ · ใช้ settings.currentUser หรือ empty */
+function currentAdvisorId(){ try{ const s=getSettings(); return (s&&s.currentUser)||""; }catch(e){ return ""; } }
+
+/* Thai month names + Buddhist year (พ.ศ.) label helpers · spec §1.2 */
+const _TH_MONTHS_FULL=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+const _TH_MONTHS_SHORT=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+function thaiMonthYear(y, m, full){ return (full?_TH_MONTHS_FULL:_TH_MONTHS_SHORT)[m-1]+" "+(y+543); }
+
 function renderDashGoals(){
   const el=$("#dash-goals"); if(!el)return;
-  const y=_goalScope.year, m=_goalScope.month, advId=_goalScope.advisorId;
+  /* Section 1.1: auto-use current advisor · no manual input */
+  const advId=currentAdvisorId(); _goalScope.advisorId=advId;
+  const y=_goalScope.year, m=_goalScope.month;
   const goal=goalEffective(y,m,advId);
   const rc=rentalCommReceivedInMonth(y,m,advId);
   const rentPipe=rentalCommPipelineInMonth(y,m,advId);
@@ -3840,29 +3990,34 @@ function renderDashGoals(){
   const daysLeft=_daysLeftInMonth(y,m);
   const goalRec=goalGetFor(y,m,advId);
   const goalIdx=goalRec?DB.goals.indexOf(goalRec):-1;
-  const monthNames=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
-  const yearOpts=[y-1,y,y+1].map(v=>`<option value="${v}"${v===y?" selected":""}>${v}</option>`).join("");
-  const monthOpts=monthNames.map((n,i)=>`<option value="${i+1}"${(i+1)===m?" selected":""}>${n}</option>`).join("");
+  const yearOpts=[y-1,y,y+1].map(v=>`<option value="${v}"${v===y?" selected":""}>${v+543}</option>`).join("");
+  const monthOpts=_TH_MONTHS_SHORT.map((n,i)=>`<option value="${i+1}"${(i+1)===m?" selected":""}>${n}</option>`).join("");
   const bar=(pct,inclPct,cls)=>`<div style="height:8px;background:var(--plane);border-radius:6px;overflow:hidden;position:relative;margin:6px 0">
       ${inclPct!=null?`<div style="position:absolute;top:0;left:0;height:100%;width:${inclPct}%;background:${cls==="ok"?"rgba(46,160,67,.28)":"rgba(35,110,232,.28)"};border-radius:6px"></div>`:""}
       <div style="position:absolute;top:0;left:0;height:100%;width:${pct}%;background:${cls==="ok"?"var(--ok)":cls==="warn"?"var(--warn)":"var(--brand)"};border-radius:6px"></div>
     </div>`;
-  const insuff='<span style="color:var(--muted);font-size:11px">ข้อมูลยังไม่เพียงพอ</span>';
+  /* Section 1.3 · Today's key action = top priority property nextAction */
+  let todaysTask=""; try{
+    const rentProps=(DB.props||[]).filter(p=>p&&(p.deal||"")==="เช่า" && String(p.status||"").indexOf("ปิด")<0 && String(p.status||"").indexOf("ยกเลิก")<0);
+    const picks=pickPropsToCoverGap(rentProps,"เช่า",rentGap);
+    if(picks.picked.length){ const top=picks.picked[0]; todaysTask=`🎯 <b>${esc(top.p.code||top.p.title||"ทรัพย์")}</b> · ${esc(top.s.nextAction||"ติดตามลูกค้า")}`; }
+  }catch(e){}
   el.innerHTML=`
     <div class="dash-filter" style="margin-bottom:10px">
       <div class="dash-filter-row" style="align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="flex:1;min-width:200px">
+          <b style="font-size:14px">เป้าหมายของฉัน · ${thaiMonthYear(y,m,true)}</b>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">เหลืออีก <b style="color:var(--ink)">${daysLeft}</b> วันในเดือน</div>
+        </div>
         <div class="dash-filter-group"><label>เดือน</label><select onchange="setGoalScope('month',this.value)">${monthOpts}</select></div>
-        <div class="dash-filter-group"><label>ปี</label><select onchange="setGoalScope('year',this.value)">${yearOpts}</select></div>
-        <div class="dash-filter-group"><label>Advisor</label><input type="text" placeholder="ว่าง = All" value="${esc(advId)}" onchange="setGoalScope('advisorId',this.value)" style="width:120px"></div>
-        <div class="spacer"></div>
-        <div style="font-size:11px;color:var(--muted)">เหลืออีก <b style="color:var(--ink)">${daysLeft}</b> วันในเดือน</div>
-        <button class="btn primary sm" onclick="${goalIdx>=0?`openForm('goals',${goalIdx})`:`openForm('goals')`}">${goalIdx>=0?"✏ แก้เป้าเดือนนี้":"+ ตั้งเป้าเดือนนี้"}</button>
+        <div class="dash-filter-group"><label>ปี (พ.ศ.)</label><select onchange="setGoalScope('year',this.value)">${yearOpts}</select></div>
+        <button class="btn primary sm" onclick="${goalIdx>=0?`openForm('goals',${goalIdx})`:`openForm('goals')`}">${goalIdx>=0?"✏ แก้เป้า":"+ ตั้งเป้า"}</button>
       </div>
-      ${!goal.exists?'<div style="font-size:11px;color:var(--muted);margin-top:6px">ยังไม่ได้ตั้งเป้าสำหรับเดือน '+m+'/'+y+' · กำลังใช้ค่าเริ่มต้น (เช่า 100,000฿ · ขาย 1 หลัง)</div>':""}
+      ${!goal.exists?'<div style="font-size:11px;color:var(--muted);margin-top:6px">ยังไม่ได้ตั้งเป้าสำหรับ '+thaiMonthYear(y,m,false)+' · กำลังใช้ค่าเริ่มต้น (เช่า 100,000฿ · ขาย 1 หลัง)</div>':""}
     </div>
 
-    <div class="dash-kpi-row" style="margin-bottom:12px">
-      <div class="dash-kpi" style="flex:2;min-width:280px">
+    <div class="dash-kpi-row goal-cards" style="margin-bottom:12px">
+      <div class="dash-kpi goal-card" style="flex:2;min-width:280px">
         <b style="display:flex;align-items:center;gap:6px">🏠 เป้ารายได้ค่าคอมเช่า <span style="color:var(--muted);font-size:11px;font-weight:400">${rentPct}%</span></b>
         <div class="val" style="font-size:16px;margin-top:4px">฿${fmtBaht(rc.total)} <span style="font-size:11px;color:var(--muted);font-weight:400">/ ${fmtBaht(goal.rentalCommTarget)}</span></div>
         ${bar(rentPct, rentPctInclPipe, rentPct>=100?"ok":rentPct<50?"warn":"")}
@@ -3891,6 +4046,9 @@ function renderDashGoals(){
       </div>
     </div>
 
+    ${todaysTask?`<div style="background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--brand);border-radius:8px;padding:10px 12px;margin:8px 0;font-size:12.5px">
+      <div style="color:var(--muted);font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">งานสำคัญวันนี้</div>${todaysTask}
+    </div>`:""}
     <div class="mkt-src" style="font-size:11px">
       <b>SSOT:</b>
       รายได้เช่ารับจริง = <code>DB.rentalCommissions</code> status=รับครบ/บางส่วน · actualDate ∈ เดือน · ใช้ <code>actualReceived</code> ·
@@ -6473,6 +6631,8 @@ try{ migrateMatchingV2(); }catch(e){}
 try{ backfillIds(); }catch(e){}
 try{ migrateRemoveRentalSample(); }catch(e){}
 renderAll();
+/* Section 1.4 · Goal Focus Popup · trigger once per session after initial render */
+try{ setTimeout(_maybeOpenGoalPopup, 800); }catch(e){}
 /* Fix A: cloudInitSync FIRST (before any migration that could save() and race-overwrite cloud) · use IIFE with timeout so boot never hangs */
 (async () => {
   try{
