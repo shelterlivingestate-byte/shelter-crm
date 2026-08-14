@@ -699,6 +699,18 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
         <button class="btn sm" onclick="runSaveDiagnostic()" style="margin-left:8px">ตรวจสถานะ save</button>
         <pre id="diagOut" style="margin-top:8px;padding:8px;background:var(--plane);border-radius:6px;font-size:11px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-word;display:none"></pre>
       </div>
+      <div style="margin-top:10px;padding:10px;border:2px solid #06c755;border-radius:8px;background:rgba(6,199,85,.06)">
+        <b style="font-size:12px;color:#06c755">🚀 ย้ายรูปไป Google Drive (แก้ localStorage เต็มถาวร)</b>
+        <div style="font-size:11px;color:var(--muted);margin:4px 0 8px">รูป base64 → ย้ายขึ้น Google Drive (ใช้ 200GB ที่ซื้อ) · localStorage เก็บแค่ URL · ประหยัด 99% · ต้องตั้ง n8n workflow ก่อน (ดู <code>docs/GOOGLE_DRIVE_SETUP.md</code>)</div>
+        <label style="font-size:11px;color:var(--muted)">Drive Webhook URL (จาก n8n):</label>
+        <input id="driveUrl" placeholder="https://n8n.shelterlivingestate.tech/webhook/drive-upload" style="width:100%;font-family:inherit;font-size:11.5px;padding:7px;border:1px solid var(--border);border-radius:6px;background:var(--surface-1);color:var(--ink);margin-top:2px" value="">
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          <button class="btn sm" onclick="saveDriveUrl()">บันทึก URL</button>
+          <button class="btn sm primary" onclick="migratePhotosToDrive()">🚀 ย้ายรูปเก่าไป Drive</button>
+        </div>
+        <div id="driveStatus" class="ai-status" style="margin-top:6px"></div>
+        <div id="driveMigOut" style="margin-top:6px;font-size:11px"></div>
+      </div>
       <div style="margin-top:10px;padding:10px;border:1px solid var(--warn);border-radius:8px;background:rgba(255,180,50,.06)">
         <b style="font-size:12px;color:var(--warn)">🗑 บีบข้อมูล (localStorage เต็ม?)</b>
         <div style="font-size:11px;color:var(--muted);margin:4px 0 8px">ปลดล็อกพื้นที่เพื่อบันทึกต่อได้ · Supabase Cloud มีข้อมูลครบอยู่แล้ว · Export ก่อนบีบเพื่อความปลอดภัย</div>
@@ -1934,7 +1946,61 @@ function parseLegacyOwnerCSV(txt){ const lines=_s(txt).split(/\r?\n/).filter(l=>
 function previewLegacyImport(){ const txt=($("#legacyOwnerCSV")||{}).value||""; const p=parseLegacyOwnerCSV(txt); const box=$("#legacyImportPreview"); const st=$("#legacyImportStatus"); if(!p.rows.length){ if(st){st.textContent="ไม่พบข้อมูล — วาง CSV/TSV ที่มี header ก่อน";st.className="ai-status err";} if(box)box.innerHTML=""; return; } let dup=0,neu=0; const rowsHtml=p.rows.map(r=>{ const m=findOwnerMatch(r); if(m){dup++;} else {neu++;} const tag=m?('<span class="tag amber">↔ '+m.by+' → '+m.owner.name+'</span>'):'<span class="tag green">＋ ใหม่</span>'; return '<div style="padding:5px 0;border-bottom:1px dashed var(--grid)">'+tag+' <b>'+_s(r.name)+'</b> · '+_s(r.phone)+' · '+_s(r.line)+' · '+_s(r.email)+'</div>'; }).join(""); if(st){st.textContent="พรีวิว: "+p.rows.length+" แถว · ใหม่ "+neu+" · ซ้ำกับที่มี "+dup;st.className="ai-status ok";} if(box)box.innerHTML=rowsHtml; }
 function confirmLegacyImport(){ const txt=($("#legacyOwnerCSV")||{}).value||""; const p=parseLegacyOwnerCSV(txt); const st=$("#legacyImportStatus"); if(!p.rows.length){ if(st){st.textContent="ไม่พบข้อมูล";st.className="ai-status err";} return; } let created=0,merged=0; p.rows.forEach(r=>{ const res=upsertOwnerFromCandidate({name:r.name,phone:r.phone,line:r.line,email:r.email,notes:r.notes,source:"legacy"}); if(res.created)created++; else merged++; }); const l=resolveOwnerLinks(true); try{save();}catch(e){} try{renderAll();}catch(e){} if(st){st.textContent="✅ นำเข้าแล้ว · ใหม่ "+created+" · รวมเข้า Owner เดิม "+merged+" · Remap ทรัพย์ "+l.linked+"/สร้างเพิ่ม "+l.created;st.className="ai-status ok";} try{$("#ownerMasterStat").textContent="Owner ทั้งหมด "+((DB.owners||[]).length)+" ราย";}catch(e){} }
 /* ---- n8n Webhook sync (parallel path, does not touch existing GAS/Supabase) ---- */
-const N8N_URL_KEY="shelter_n8n_url", N8N_AUTO_KEY="shelter_n8n_auto"; let n8nSyncT=null;
+const N8N_URL_KEY="shelter_n8n_url", N8N_AUTO_KEY="shelter_n8n_auto", DRIVE_URL_KEY="shelter_drive_webhook_url"; let n8nSyncT=null;
+function driveWebhookUrl(){ try{return (localStorage.getItem(DRIVE_URL_KEY)||"").trim();}catch(e){return "";} }
+function saveDriveUrl(){ const u=(($("#driveUrl")||{}).value||"").trim(); try{localStorage.setItem(DRIVE_URL_KEY,u);}catch(e){} const s=$("#driveStatus"); if(u&&!/^https?:\/\//.test(u)){ if(s){s.textContent="ต้องเป็น URL http/https";s.className="ai-status err";} return; } if(s){s.textContent=u?"บันทึกลิงก์แล้ว ✓":"ล้างลิงก์แล้ว";s.className="ai-status ok";} }
+/* Upload one base64 photo to Google Drive via n8n webhook · returns permanent Drive URL */
+async function uploadPhotoToDrive(propCode, filename, base64){
+  const url=driveWebhookUrl();
+  if(!url) throw new Error("ยังไม่ตั้ง Drive Webhook URL");
+  if(!base64||!base64.startsWith("data:")) throw new Error("รูปไม่ใช่ base64 · อาจย้ายไปแล้ว");
+  const res=await fetch(url, {
+    method:"POST",
+    headers:{"content-type":"application/json"},
+    body:JSON.stringify({propCode:propCode||"UNKNOWN", filename:filename||("photo_"+Date.now()+".jpg"), base64})
+  });
+  if(!res.ok) throw new Error("Upload fail HTTP "+res.status);
+  const j=await res.json();
+  if(!j||!j.url) throw new Error("Response ไม่มี url");
+  return j.url; /* n8n workflow returns {url: "https://drive.google.com/uc?id=..." or /file/d/..."} */
+}
+/* Migrate photos of all properties: base64 → Drive URL · frees localStorage massively */
+async function migratePhotosToDrive(){
+  const out=$("#driveMigOut"); if(out)out.innerHTML="กำลังเตรียม...";
+  const url=driveWebhookUrl();
+  if(!url){ if(out)out.innerHTML='<span style="color:var(--crit)">⚠ ตั้ง Drive Webhook URL ก่อน</span>'; return; }
+  /* Count base64 photos */
+  let total=0, done=0, failed=0, bytesFreed=0;
+  const targets=[];
+  (DB.props||[]).forEach(p=>{
+    if(!Array.isArray(p.photos))return;
+    p.photos.forEach((ph, idx)=>{ if(typeof ph==="string" && ph.startsWith("data:")){ total++; targets.push({p, idx, size:ph.length}); } });
+  });
+  if(!total){ if(out)out.innerHTML='<span style="color:var(--muted)">ไม่มีรูป base64 (อาจย้ายไปแล้วหมด)</span>'; return; }
+  if(!confirm("ย้าย "+total+" รูป (จาก "+targets.length+" ทรัพย์) ไป Google Drive\n\n· ใช้เวลาประมาณ "+Math.ceil(total*2)+"-"+Math.ceil(total*4)+" วินาที (แต่ละรูป ~2-4 วิ)\n· รูปจะย้ายจริง · localStorage จะเบาลง\n· ควรทำในช่วงที่ไม่ได้ใช้งานอย่างอื่น\n\nเริ่ม?")) return;
+  const startTs=Date.now();
+  for(const t of targets){
+    try{
+      if(out)out.innerHTML=`กำลังย้าย ${done+1}/${total} · ${esc(t.p.code||t.p.title||"?")} · สำเร็จ ${done} · ล้มเหลว ${failed}`;
+      const filename=(t.p.code||"prop")+"_"+t.idx+"_"+Date.now()+".jpg";
+      const newUrl=await uploadPhotoToDrive(t.p.code||t.p.id, filename, t.p.photos[t.idx]);
+      bytesFreed+=t.size;
+      t.p.photos[t.idx]=newUrl;
+      done++;
+      /* Save incrementally every 5 photos so browser can recover if fails */
+      if(done%5===0){ try{ save(); }catch(e){} }
+    }catch(e){
+      failed++;
+      if(out)out.innerHTML+=`<br><span style="color:var(--crit)">✗ ${esc(t.p.code||"?")}: ${esc(e.message||e)}</span>`;
+      /* Stop on first fail after 3 failures — likely misconfigured */
+      if(failed>=3){ if(out)out.innerHTML+='<br><b style="color:var(--crit)">ล้มเหลว 3 ครั้ง · หยุด · ตรวจ n8n workflow ก่อน</b>'; break; }
+    }
+  }
+  try{ save(); }catch(e){}
+  try{ renderAll(); }catch(e){}
+  const elapsed=((Date.now()-startTs)/1000).toFixed(1);
+  if(out)out.innerHTML=`<span style="color:var(--ok)">✓ เสร็จ · ย้าย ${done}/${total} รูป · ล้มเหลว ${failed} · เวลา ${elapsed}s · localStorage ประหยัด ~${(bytesFreed/1048576).toFixed(2)} MB</span>`;
+}
 function n8nUrl(){ try{return (localStorage.getItem(N8N_URL_KEY)||"").trim();}catch(e){return "";} }
 function n8nAutoOn(){ try{return localStorage.getItem(N8N_AUTO_KEY)==="1";}catch(e){return false;} }
 function saveN8NUrl(){ const u=(($("#n8nUrl")||{}).value||"").trim(); try{localStorage.setItem(N8N_URL_KEY,u);}catch(e){} const s=$("#n8nStatus"); if(!/^https?:\/\//.test(u)){ if(s){s.textContent="ต้องเป็น URL http/https";s.className="ai-status err";} return; } if(s){s.textContent="บันทึกลิงก์แล้ว ✓";s.className="ai-status ok";} }
@@ -2148,7 +2214,7 @@ async function cloudInitSync(){ if(!sbReady())return; try{ const row=await cloud
     else if(sbAutoOn()){ cloudPush(true); } }catch(e){} }
 function openBackup(){ const arr=listBackups(); const box=$("#backupList");
   try{ const u=localStorage.getItem(GS_KEY); if(u&&$("#gsUrl"))$("#gsUrl").value=u; const cb=$("#gsAuto"); if(cb)cb.checked=gsAutoOn();
-    const c=sbCfg(); if($("#sbUrl"))$("#sbUrl").value=c.url; if($("#sbKey"))$("#sbKey").value=c.key; const sa=$("#sbAuto"); if(sa)sa.checked=sbAutoOn(); const sp=$("#sbPoll"); if(sp)sp.checked=sbPollOn(); const nu=n8nUrl(); if($("#n8nUrl"))$("#n8nUrl").value=nu; const na=$("#n8nAuto"); if(na)na.checked=n8nAutoOn(); try{$("#ownerMasterStat").textContent="Owner ในระบบ "+((DB.owners||[]).length)+" ราย · ทรัพย์ "+((DB.props||[]).length)+" หลัง";}catch(e){} }catch(e){}
+    const c=sbCfg(); if($("#sbUrl"))$("#sbUrl").value=c.url; if($("#sbKey"))$("#sbKey").value=c.key; const sa=$("#sbAuto"); if(sa)sa.checked=sbAutoOn(); const sp=$("#sbPoll"); if(sp)sp.checked=sbPollOn(); const nu=n8nUrl(); if($("#n8nUrl"))$("#n8nUrl").value=nu; const na=$("#n8nAuto"); if(na)na.checked=n8nAutoOn(); const du=driveWebhookUrl(); if($("#driveUrl"))$("#driveUrl").value=du; try{$("#ownerMasterStat").textContent="Owner ในระบบ "+((DB.owners||[]).length)+" ราย · ทรัพย์ "+((DB.props||[]).length)+" หลัง";}catch(e){} }catch(e){}
   box.innerHTML=arr.length?arr.map((b,i)=>`<div class="bk-row"><div><b>${esc(b.day)}</b><small style="display:block;color:var(--muted)">${esc(new Date(b.ts).toLocaleString("th-TH"))} · ${(b.size/1048576).toFixed(2)} MB</small></div><button class="btn sm primary" onclick="restoreBackup(${i})">กู้คืน</button></div>`).join(""):'<div class="empty" style="padding:18px">ยังไม่มีสำรองอัตโนมัติ — ระบบจะเก็บให้เมื่อมีการบันทึกข้อมูล</div>';
   try{ const st=getSettings(); if($("#setVat"))$("#setVat").value=st.vatPct; if($("#setWht"))$("#setWht").value=st.whtPct; renderAudit(); }catch(e){}
   /* Reports Merge Step B: init bulk-import hint when opening data-management modal */
