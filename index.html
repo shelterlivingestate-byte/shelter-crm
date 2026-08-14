@@ -2902,8 +2902,9 @@ function computeRentalCommission(c, rc){ rc=rc||rentalCommOf(c.id)||{}; const st
 function contractDataComplete(c){ return !!(c&&c.startDate&&c.endDate); }
 // ---- Lease Closing form (opens when status → ปล่อยเช่าแล้ว) ----
 let leaseCtx={propId:null,contractId:null};
-const LEASE_BY3={shelter:"Our Agency (เราปล่อยเอง)",owner:"Owner Direct (เจ้าของปล่อยเอง)",other:"Other Agent (Agent อื่น)"};
-function leaseBy3Of(v){ v=v||""; if(v.indexOf("Owner Direct")>=0)return "owner"; if(v.indexOf("Other Agent")>=0)return "other"; return "shelter"; } // Our Agency/Co-Agent/Unknown → shelter
+/* Rental Care spec §2.7 · รวม owner+other เป็น "ปิดเช่าจากช่องทางอื่น" · legacy owner/other ยัง map เข้ากลุ่มนี้ */
+const LEASE_BY3={shelter:"Our Agency (เราปล่อยเอง)",other_channel:"ปิดเช่าจากช่องทางอื่น",owner:"Owner Direct (เจ้าของปล่อยเอง)",other:"Other Agent (Agent อื่น)"};
+function leaseBy3Of(v){ v=v||""; if(v.indexOf("ปิดเช่าจากช่องทางอื่น")>=0)return "other_channel"; if(v.indexOf("Owner Direct")>=0)return "other_channel"; if(v.indexOf("Other Agent")>=0)return "other_channel"; return "shelter"; }
 function openLeaseClose(i){ const p=DB.props[i]; if(!p)return; ensurePropId(p);
   let c=DB.contracts.find(x=>x.propertyId===p.id&&!["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(x.status||""))||null;
   leaseCtx={propId:p.id,contractId:c?c.id:null}; const rc=c?rentalCommOf(c.id):null; const ow=ownerOf(p);
@@ -2913,13 +2914,17 @@ function openLeaseClose(i){ const p=DB.props[i]; if(!p)return; ensurePropId(p);
   const tOpts='<option value="">— เลือกผู้เช่า —</option>'+DB.leads.map(l=>`<option value="${l.id}" ${c&&c.tenantId===l.id?'selected':''}>${esc((l.n||"")+(l.ph?" · "+l.ph:""))}</option>`).join("");
   $("#leaseTitle").textContent="บันทึกข้อมูลการปล่อยเช่า · "+(p.code||p.title||"");
   $("#leaseBody").innerHTML=`<div id="leaseForm">
+   <div style="background:#fff5e6;border:1px solid #f2b955;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12.5px">
+     ⚠ <b>ต้องกรอกแบบฟอร์มนี้ให้ครบก่อน</b> จึงจะบันทึกสถานะ "ปล่อยเช่าแล้ว" ได้ · ปิด popup หรือกด "ยกเลิก" = ยังไม่บันทึก
+   </div>
    <div class="hint" style="margin-top:0">Property ID: ${esc(p.id)} · Owner ID: ${esc(ow.id||"—")} (${esc(ow.name||"-")}) ${c?"· Contract ID: "+esc(c.id):"· (สร้างสัญญาใหม่)"}</div>
    <div style="font-weight:700;font-size:13px;margin:8px 0 4px">1️⃣ ข้อมูลที่จำเป็น</div>
    <div class="fgrid">
-    <label class="fld full">ผู้ที่ปล่อยเช่าได้ *<select id="lsBy3" onchange="leaseOnBy()"><option value="shelter" ${by3==="shelter"?"selected":""}>SHELTER / เราปล่อยเอง</option><option value="owner" ${by3==="owner"?"selected":""}>เจ้าของปล่อยเอง</option><option value="other" ${by3==="other"?"selected":""}>Agent อื่นปล่อย</option></select></label>
-    <label class="fld">วันเริ่มสัญญา *<input id="lsStart" type="date" value="${g('startDate')}" onchange="leaseComputeEnd();leaseCommPreview()"></label>
-    <label class="fld">วันหมดสัญญา *<input id="lsEnd" type="date" value="${g('endDate')}" onchange="this.dataset.auto='';leaseCommPreview()"></label>
-    <label class="fld">ค่าเช่า/เดือน *<input id="lsRent" inputmode="numeric" value="${g('rent')}" oninput="leaseCommPreview()"></label>
+    <label class="fld full">ผู้ที่ปล่อยเช่าได้ *<select id="lsBy3" onchange="leaseOnBy()"><option value="shelter" ${by3==="shelter"?"selected":""}>SHELTER / เราปล่อยเอง</option><option value="other_channel" ${by3==="other_channel"?"selected":""}>ปิดเช่าจากช่องทางอื่น (ไม่ต้องซักผู้ปล่อย)</option></select></label>
+    <label class="fld full" id="lsKnownRow" style="display:none">วันที่เราทราบว่าปล่อยเช่าแล้ว *<input id="lsKnown" type="date" value="${esc(p.knownLeasedDate||todayISO())}"></label>
+    <label class="fld">วันเริ่มสัญญา ${by3==="shelter"?"*":""}<input id="lsStart" type="date" value="${g('startDate')}" onchange="leaseComputeEnd();leaseCommPreview()"></label>
+    <label class="fld">วันหมดสัญญา ${by3==="shelter"?"*":""}<input id="lsEnd" type="date" value="${g('endDate')}" onchange="this.dataset.auto='';leaseCommPreview()"></label>
+    <label class="fld">ค่าเช่า/เดือน ${by3==="shelter"?"*":"(หากทราบ)"}<input id="lsRent" inputmode="numeric" value="${g('rent')}" oninput="leaseCommPreview()"></label>
     <label class="fld">ระยะสัญญา (เดือน)<input id="lsTerm" inputmode="numeric" value="${g('termMonths','12')}" oninput="leaseComputeEnd();leaseCommPreview()"></label>
    </div>
    <div id="lsAgentRow" style="display:none"><label class="fld full">ชื่อ Agent / บริษัท Agent *<input id="lsAgent" value="${g('closingAgentName')}"></label></div>
@@ -2952,7 +2957,15 @@ function openLeaseClose(i){ const p=DB.props[i]; if(!p)return; ensurePropId(p);
   </div>
   <div id="leaseSummary" style="display:none"></div>`;
   leaseOnBy(); leaseCommPreview(); $("#leaseScrim").classList.add("on"); $("#leaseModal").classList.add("on"); }
-function leaseOnBy(){ const v=($("#lsBy3")||{}).value; const isOther=v==="other"; const isShelter=v==="shelter"; const ar=$("#lsAgentRow"); if(ar)ar.style.display=isOther?"":"none"; const cw=$("#lsCommWrap"); if(cw)cw.style.display=isShelter?"":"none"; leaseCommPreview(); }
+function leaseOnBy(){
+  const v=($("#lsBy3")||{}).value;
+  const isShelter=v==="shelter";
+  const isOtherChannel=v==="other_channel";
+  const ar=$("#lsAgentRow"); if(ar)ar.style.display="none"; /* removed · spec §2.7 ห้ามบังคับกรอกว่าใครเป็นผู้ปิดเช่า */
+  const kw=$("#lsKnownRow"); if(kw)kw.style.display=isOtherChannel?"":"none";
+  const cw=$("#lsCommWrap"); if(cw)cw.style.display=isShelter?"":"none";
+  leaseCommPreview();
+}
 function leaseComputeEnd(){ const s=$("#lsStart").value,t=$("#lsTerm").value,e=$("#lsEnd"); if(s&&t&&(!e.value||e.dataset.auto==="1")){ e.value=addMonths(s,t); e.dataset.auto="1"; } }
 function leaseReadForm(){ const V=id=>($("#"+id)?$("#"+id).value:""); const by3=V("lsBy3");
   const c={rent:V("lsRent"),termMonths:V("lsTerm"),leaseClosedByType:LEASE_BY3[by3]||"Our Agency (เราปล่อยเอง)",startDate:V("lsStart"),endDate:V("lsEnd")};
@@ -2962,9 +2975,20 @@ function leaseCommPreview(){ const out=$("#lsCommOut"); if(!out)return; const {b
   if(by3==="owner"||by3==="other"){ out.innerHTML='📌 บันทึกเป็น "โอกาสทางรายได้ที่สูญเสีย"\nค่าคอมที่เราควรได้ (Potential) '+fmtBaht(r.potential)+' → 🔻 มูลค่าโอกาสที่ไม่ได้รับ '+fmtBaht(r.lost)+' (ไม่นับเป็นรายได้จริง)'; return; }
   out.innerHTML="สูตร: Potential "+fmtBaht(r.potential)+" → Gross "+fmtBaht(r.gross)+" − บริษัท "+fmtBaht(r.company)+" − VAT("+r.vatPct+"%) "+fmtBaht(r.vat)+" − WHT("+r.whtPct+"%) "+fmtBaht(r.wht)+"\n= ค่าคอมสุทธิ (Net) "+fmtBaht(r.net); }
 function leaseValidate(){ const {by3,V}=leaseReadForm(); const errs=[];
-  if(!by3)errs.push("เลือกผู้ที่ปล่อยเช่าได้"); if(!V("lsStart"))errs.push("วันเริ่มสัญญา"); if(!V("lsEnd"))errs.push("วันหมดสัญญา"); if(!num(V("lsRent")))errs.push("ค่าเช่า/เดือน");
-  if(V("lsStart")&&V("lsEnd")&&V("lsEnd")<=V("lsStart"))errs.push("วันหมดสัญญาต้องมากกว่าวันเริ่ม");
-  if(by3==="other"&&!V("lsAgent").trim())errs.push("ชื่อ Agent (กรณี Agent อื่นปล่อย)");
+  if(!by3)errs.push("เลือกผู้ที่ปล่อยเช่าได้");
+  if(by3==="shelter"){
+    /* SHELTER ปล่อยเอง → บังคับข้อมูลสัญญาครบ */
+    if(!V("lsStart"))errs.push("วันเริ่มสัญญา");
+    if(!V("lsEnd"))errs.push("วันหมดสัญญา");
+    if(!num(V("lsRent")))errs.push("ค่าเช่า/เดือน");
+    if(V("lsStart")&&V("lsEnd")&&V("lsEnd")<=V("lsStart"))errs.push("วันหมดสัญญาต้องมากกว่าวันเริ่ม");
+  } else if(by3==="other_channel"){
+    /* spec §2.7 · บันทึกเท่าที่เราทราบ · บังคับแค่วันที่ทราบ */
+    if(!V("lsKnown"))errs.push("วันที่เราทราบว่าปล่อยเช่าแล้ว");
+  } else if(by3==="other"){
+    /* legacy · ยัง support ได้ */
+    if(!V("lsAgent")||!V("lsAgent").trim())errs.push("ชื่อ Agent (กรณี Agent อื่นปล่อย)");
+  }
   return errs; }
 function leaseGoSummary(){ const e=$("#leaseErr"); const errs=leaseValidate(); if(errs.length){ if(e)e.innerHTML="⚠️ กรุณากรอก: "+errs.join(", "); return; } if(e)e.innerHTML="";
   const {by3,c,rc,V}=leaseReadForm(); const r=computeRentalCommission(c,rc); const tn=DB.leads.find(x=>x.id===V("lsTenant"));
@@ -2993,8 +3017,12 @@ function saveLeaseClose(){ const p=DB.props.find(x=>x.id===leaseCtx.propId); if(
   const rcPatch={rule:V("lsRule"),ruleValue:num(V("lsRuleVal")),ourSharePct:num(V("lsOurShare")),coAgentPct:num(V("lsCoPct")),companyPct:num(V("lsCompPct")),grossOverride:V("lsGross"),mktExp:num(V("lsMkt")),otherExp:num(V("lsOther")),actualReceived:num(V("lsActual")),actualDate:V("lsActualDate"),status:(by3==="owner"||by3==="other")?"ไม่ได้รับ":V("lsPayStatus")};
   Object.keys(rcPatch).forEach(k=>auditLog("rentalCommission",rc.id,k,rcB[k],rcPatch[k])); Object.assign(rc,rcPatch);
   auditLog("property",p.id,"status",p.status,"ปล่อยเช่าแล้ว");
-  if(!Array.isArray(p.logs))p.logs=[]; p.logs.unshift({date:nowStamp(),text:"เปลี่ยนสถานะ → ปล่อยเช่าแล้ว (ปล่อยโดย "+({shelter:"SHELTER",owner:"เจ้าของ",other:"Agent อื่น"}[by3])+") โดย JJ"});
+  const _byLabel={shelter:"SHELTER",other_channel:"ช่องทางอื่น",owner:"เจ้าของ",other:"Agent อื่น"}[by3]||"ไม่ระบุ";
+  if(!Array.isArray(p.logs))p.logs=[]; p.logs.unshift({date:nowStamp(),text:"เปลี่ยนสถานะ → ปล่อยเช่าแล้ว (ปล่อยโดย "+_byLabel+") โดย JJ"});
   p.status="ปล่อยเช่าแล้ว"; p.updatedAt=todayISO();
+  /* spec §2.9 · knownLeasedDate = วันที่เราทราบว่าปล่อยเช่าแล้ว */
+  const knownDate=V("lsKnown")||V("lsClose")||todayISO();
+  if(!p.knownLeasedDate) p.knownLeasedDate=knownDate;
   if(c.careActive)try{generateCareChecklist(c.id);}catch(e){}
   save(); leaseCancel(); renderAll(); const di=DB.props.indexOf(p); if($("#detailView").classList.contains("on"))openDetail(di); flashSaved(isNew?"บันทึกการปล่อยเช่าแล้ว ✓":"อัปเดตแล้ว ✓"); }
 function cancelContract(cid){ const c=DB.contracts.find(x=>x.id===cid); if(!c)return; if(!confirm("ยกเลิกสัญญานี้? (เก็บเป็นประวัติ ไม่ลบข้อมูล)"))return; auditLog("contract",c.id,"status",c.status,"สิ้นสุดสัญญา"); c.status="สิ้นสุดสัญญา"; c.updatedAt=todayISO(); const p=DB.props.find(x=>x.id===c.propertyId); if(p){ if(!Array.isArray(p.logs))p.logs=[]; p.logs.unshift({date:nowStamp(),text:"ยกเลิก/สิ้นสุดสัญญาเช่า (เก็บประวัติ) โดย JJ"}); } save(); renderAll(); if(p&&$("#detailView").classList.contains("on"))openDetail(DB.props.indexOf(p)); flashSaved("ยกเลิกสัญญาแล้ว (เก็บประวัติ) ✓"); }
