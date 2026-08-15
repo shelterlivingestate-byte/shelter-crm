@@ -426,6 +426,17 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
 .owner-line a{color:var(--brand);text-decoration:none}
 .copy-photo{width:100%;max-height:170px;object-fit:cover;border-radius:10px;margin-bottom:12px;border:1px solid var(--border)}
 .form-heading{font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--brand);text-transform:uppercase;padding:10px 0 2px;border-top:1px solid var(--border);margin-top:6px}
+/* Aug-15 · Advanced fields hidden by default · toggled by button */
+.fld-advanced{display:none}
+.fld-advanced.on{display:block}
+#advancedToggleBtn{background:var(--plane);border:1px dashed var(--border);color:var(--muted);padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;margin:6px 0}
+#advancedToggleBtn:hover{color:var(--ink);border-color:var(--ink-2)}
+.timeline-panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0;font-size:12px;line-height:1.65}
+.timeline-panel .tl-row{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px dashed rgba(0,0,0,.05)}
+.timeline-panel .tl-row:last-child{border-bottom:none}
+.timeline-panel .tl-lbl{color:var(--muted);flex:1;min-width:0}
+.timeline-panel .tl-val{color:var(--ink);text-align:right;font-weight:600;white-space:nowrap}
+.timeline-panel .tl-val.pending{color:var(--warn);font-weight:400}
 .pj-cell{max-width:230px;font-size:11.5px;line-height:1.55}
 .pj-cell .pj-k{color:var(--muted);font-weight:600}
 .pj-cell .pj-fac{color:var(--ink-2);margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -1600,26 +1611,32 @@ const SCHEMA={
     {k:"loc",l:"ทำเล",type:"text",full:1},{k:"spec",l:"ห้อง / พื้นที่",type:"text"},{k:"price",l:"ราคา",type:"text"},
     {k:"status",l:"สถานะ",type:"select",opts:["ใหม่","ว่าง","มีนัดชม","กำลังเจรจา","จองแล้ว","ปล่อยเช่าแล้ว","ปิดการขาย","ไม่ว่าง","คลังเก็บ"]},{k:"grade",l:"เกรดทรัพย์",type:"select",opts:["","A","B","C"]},
     {k:"tags",l:"แท็ก/จุดเด่นเพื่อจับคู่ (เช่น ใกล้โรงเรียน, ใกล้ BTS, เงียบสงบ, เลี้ยงสัตว์ได้, ทิศเหนือ)",type:"text",full:1},
-    /* Rental Care Timeline · spec §2.9 · หมุดเวลาฝั่งเราเท่านั้น · ไม่ถาม Owner */
-    {k:"intakeDate",l:"วันที่รับ New Listing เข้าพอร์ต (YYYY-MM-DD)",type:"text"},
-    {k:"availableDate",l:"วันที่บ้านว่าง/พร้อมเข้าอยู่ (YYYY-MM-DD)",type:"text"},
-    {k:"dataReadyDate",l:"วันที่ข้อมูลทรัพย์พร้อม (YYYY-MM-DD)",type:"text"},
-    {k:"photosReadyDate",l:"วันที่รูปภาพพร้อม (YYYY-MM-DD)",type:"text"},
-    {k:"marketingStart",l:"วันที่เริ่มทำการตลาดจริง (YYYY-MM-DD)",type:"text"},
-    {k:"knownLeasedDate",l:"วันที่ทราบว่าปล่อยเช่าแล้ว (YYYY-MM-DD · ไม่ต้องเป็นวันปิดจริง)",type:"text"},
-    {k:"marketingPausedDate",l:"วันที่พัก/ยกเลิกทำตลาด (YYYY-MM-DD)",type:"text"},
-    {k:"lastOwnerUpdate",l:"อัปเดต Owner ล่าสุด (YYYY-MM-DD)",type:"text"},
+    /* Aug-15 · Timeline auto · ระบบคำนวณจาก event/data · ผู้ใช้ไม่ต้องกรอก
+     * intakeDate = createdAt (auto)
+     * availableDate = user input · แสดงเฉพาะกรณีบ้านยังไม่ว่าง (Advanced)
+     * dataReadyDate = auto · เมื่อ Required Checklist ครบ (title/cat/loc/price/ownerName)
+     * photosReadyDate = auto · เมื่อ photos.length ≥ 3
+     * marketingStart = auto · earliest publishedAt ของ mkt channel · หรือวันที่แรกที่ p.channels มี link
+     * knownLeasedDate = ไม่รับกรอก · เข้าผ่าน "ปล่อยเช่าแล้ว" popup เท่านั้น
+     * marketingPausedDate = auto · เมื่อ status เปลี่ยนเป็น "คลังเก็บ" หรือ "ไม่ว่าง"
+     * lastOwnerUpdate = auto · จาก ownerLog ล่าสุดที่ผูก property
+     * ทุก field ยัง writable ได้จาก Advanced Override (spec §1 · แก้ย้อนหลังได้พร้อมประวัติ) */
+    {k:"availableDate",l:"วันที่บ้านว่าง/พร้อมเข้าอยู่ (ถ้าไม่ใช่วันนี้)",type:"text",_advanced:1},
     {type:"heading",k:"_hp",l:"🏢 โครงการ (เชื่อมฐานข้อมูล)"},
     {k:"projectId",l:"เลือกโครงการ",type:"projectselect",full:1},
     {type:"heading",k:"_hgeo",l:"📍 พิกัด & เรดาร์คู่แข่ง (Competitor Radar)"},
-    {k:"lat",l:"Latitude (พิกัด — คัดลอกจาก Google Maps เช่น 13.7920)",type:"text"},{k:"lng",l:"Longitude (พิกัด เช่น 100.6100)",type:"text"},
+    /* Aug-15 §4 · Google Maps Link ช่องเดียว · lat/lng auto-derive · legacy lat/lng ยังอ่านได้ */
+    {k:"mapUrl",l:"Google Maps Link (วางลิงก์ · ระบบดึงพิกัดให้)",type:"text",full:1},
+    {k:"lat",l:"Latitude (auto จาก Maps Link · แก้เองได้ Advanced)",type:"text",_advanced:1},{k:"lng",l:"Longitude (auto)",type:"text",_advanced:1},
     {type:"geohelp",k:"_geo",l:""},
-    {k:"compRadius",l:"รัศมีค้นหาคู่แข่ง (กม. — ว่าง = 3)",type:"number"},
-    {k:"compMode",l:"โหมดเปรียบเทียบคู่แข่ง",type:"select",opts:["อัตโนมัติ (ขยายรัศมีเอง)","โครงการเดียวกันเท่านั้น","ตามรัศมีที่กำหนด","โซน/ทำเลเดียวกัน","ทรัพย์ลักษณะใกล้เคียง"]},
-    {k:"compPriceMin",l:"ช่วงราคาคู่แข่ง — ต่ำสุด (บาท)",type:"number"},{k:"compPriceMax",l:"ช่วงราคาคู่แข่ง — สูงสุด (บาท)",type:"number"},
-    {k:"compLandMin",l:"เนื้อที่ดินคู่แข่ง — ต่ำสุด (ตร.ว.)",type:"number"},{k:"compLandMax",l:"เนื้อที่ดินคู่แข่ง — สูงสุด (ตร.ว.)",type:"number"},
-    {k:"compUsableMin",l:"พื้นที่ใช้สอยคู่แข่ง — ต่ำสุด (ตร.ม.)",type:"number"},{k:"compUsableMax",l:"พื้นที่ใช้สอยคู่แข่ง — สูงสุด (ตร.ม.)",type:"number"},
-    {k:"compBedMin",l:"ห้องนอนคู่แข่ง — ต่ำสุด",type:"number"},{k:"compBedMax",l:"ห้องนอนคู่แข่ง — สูงสุด",type:"number"},
+    /* Aug-15 §5 · Competitor Radar auto · เกณฑ์จาก Property Master · manual = Advanced */
+    {k:"compAuto",l:"โหมดคู่แข่ง",type:"select",opts:["Auto (ระบบสร้างเกณฑ์อัตโนมัติ)","Manual Override"]},
+    {k:"compRadius",l:"รัศมี (กม.) · ว่าง = auto",type:"number",_advanced:1},
+    {k:"compMode",l:"โหมดค้นหา (advanced)",type:"select",opts:["อัตโนมัติ (ขยายรัศมีเอง)","โครงการเดียวกันเท่านั้น","ตามรัศมีที่กำหนด","โซน/ทำเลเดียวกัน","ทรัพย์ลักษณะใกล้เคียง"],_advanced:1},
+    {k:"compPriceMin",l:"ราคาต่ำสุด (advanced)",type:"number",_advanced:1},{k:"compPriceMax",l:"ราคาสูงสุด (advanced)",type:"number",_advanced:1},
+    {k:"compLandMin",l:"ที่ดินต่ำสุด (advanced)",type:"number",_advanced:1},{k:"compLandMax",l:"ที่ดินสูงสุด (advanced)",type:"number",_advanced:1},
+    {k:"compUsableMin",l:"พื้นที่ใช้สอยต่ำสุด (advanced)",type:"number",_advanced:1},{k:"compUsableMax",l:"พื้นที่ใช้สอยสูงสุด (advanced)",type:"number",_advanced:1},
+    {k:"compBedMin",l:"ห้องนอนต่ำสุด (advanced)",type:"number",_advanced:1},{k:"compBedMax",l:"ห้องนอนสูงสุด (advanced)",type:"number",_advanced:1},
     {type:"heading",k:"_hs",l:"🎯 ข้อมูลการขาย (เฉพาะทรัพย์ขาย)",grp:"buy"},
     {k:"minPriceOwner",l:"ราคาต่ำสุดที่ Owner รับได้",type:"text",grp:"buy"},{k:"transferFee",l:"ค่าโอน",type:"text",grp:"buy"},
     {k:"targetBuyer",l:"Target Buyer",type:"text",full:1,grp:"buy"},{k:"usp",l:"USP / จุดขาย",type:"text",full:1,grp:"buy"},
@@ -1649,18 +1666,19 @@ const SCHEMA={
     {k:"ch_web",l:"Website ของเรา (ลิงก์)",type:"text",full:1},
     {k:"ch_copy",l:"Copywriting / เอกสาร (ลิงก์)",type:"text",full:1},
     {k:"driveFolder",l:"โฟลเดอร์รูปใน Drive (ลิงก์)",type:"text",full:1},
-    {type:"heading",k:"_hpub",l:"🌐 หน้าแชร์สาธารณะ (Public Share)"},
+    {type:"heading",k:"_hpub",l:"🌐 หน้าแชร์สาธารณะ (Public Share) · ข้อมูลจริงดึงจาก Property Master · แก้เนื้อหาผ่าน Advanced"},
+    /* Aug-15 §7, §8 · minimal core · content auto-generated · legacy fields → advanced */
     {k:"pubStatus",l:"สถานะเผยแพร่",type:"select",opts:["Draft","Published","Unpublished"]},
-    {k:"pubHeadline",l:"พาดหัวสาธารณะ (ว่างได้ = ใช้ชื่อทรัพย์)",type:"text",full:1},
-    {k:"pubDesc",l:"คำอธิบายสาธารณะ (ว่างได้)",type:"textarea",full:1},
-    {k:"pubHighlights",l:"จุดเด่นสาธารณะ (บรรทัดละข้อ)",type:"textarea",full:1},
-    {k:"pubLocDisplay",l:"ทำเลที่แสดง (เช่น ย่านรัชดา)",type:"text",full:1},
-    {k:"hideAddress",l:"ซ่อนบ้านเลขที่/ที่อยู่จริง",type:"select",opts:["Yes","No"]},
+    {k:"hideAddress",l:"ซ่อนบ้านเลขที่/ที่อยู่จริง (Default เปิด)",type:"select",opts:["Yes","No"]},
     {k:"showPrice",l:"แสดงราคา",type:"select",opts:["Yes","No"]},
-    {k:"showMap",l:"แสดงแผนที่",type:"select",opts:["Yes","No"]},
-    {k:"mapUrl",l:"ลิงก์ Google Maps (ฝังแผนที่)",type:"text",full:1},
-    {k:"contactCTA",l:"ข้อความปุ่มติดต่อ (ว่างได้)",type:"text",full:1},
-    {k:"shareLink",l:"ลิงก์สาธารณะ (วางหลังอัปขึ้น Netlify)",type:"text",full:1},
+    {k:"showMap",l:"แสดงแผนที่ (โดยประมาณ)",type:"select",opts:["No","Yes"]},
+    /* Advanced Override (rendered but collapsed by _advanced flag) */
+    {k:"pubHeadline",l:"Override พาดหัว (ว่างได้ · auto จาก Master)",type:"text",full:1,_advanced:1},
+    {k:"pubDesc",l:"Override คำอธิบาย (ว่างได้ · auto)",type:"textarea",full:1,_advanced:1},
+    {k:"pubHighlights",l:"Override จุดเด่น (บรรทัดละข้อ · auto)",type:"textarea",full:1,_advanced:1},
+    {k:"pubLocDisplay",l:"Override ทำเลที่แสดง (auto จาก Project + Area)",type:"text",full:1,_advanced:1},
+    {k:"contactCTA",l:"Override CTA (auto: สอบถามข้อมูลและนัดชม)",type:"text",full:1,_advanced:1},
+    {k:"shareLink",l:"Public URL (ระบบสร้างจาก Property ID)",type:"text",full:1,_advanced:1},
     {type:"heading",k:"_hr1",l:"💰 ค่าเช่า & ค่าใช้จ่าย (เฉพาะเช่า)",grp:"rent"},
     {k:"r_deposit",l:"เงินประกัน (เดือน)",type:"text",grp:"rent"},{k:"r_advance",l:"ค่าเช่าล่วงหน้า (เดือน)",type:"text",grp:"rent"},
     {k:"r_common",l:"รวมค่าส่วนกลาง?",type:"select",opts:["","รวม","ไม่รวม"],grp:"rent"},{k:"r_water",l:"ค่าน้ำ",type:"text",grp:"rent"},
@@ -2594,10 +2612,13 @@ if(!window._ssBound){ window._ssBound=true; document.addEventListener("click",e=
 
 function fieldHTML(f,val){
   const dg=f.grp?` data-grp="${f.grp}"`:"";
+  /* Aug-15 · _advanced fields hidden by default · toggled by "แสดง Advanced" button */
+  const advCls=f._advanced?" fld-advanced":"";
+  const advStyle=f._advanced?' style="display:none"':"";
   if(f.type==="heading") return `<div class="fld full form-heading"${dg}>${f.l}</div>`;
   if(f.type==="geohelp") return `<div class="fld full"${dg}><button type="button" class="btn sm" onclick="openMapsPick()">📍 เปิด Google Maps เพื่อคัดลอกพิกัด</button><div class="hint" style="margin-top:5px">เปิดแผนที่ → กดค้างที่ตำแหน่งบ้าน → ตัวเลขคู่ที่ขึ้น (เช่น 13.7920, 100.6100) คือ Latitude, Longitude → คัดลอกมาวางในช่องด้านบน</div></div>`;
   if(f.type==="journeycheck") return `<div class="fld full"${dg}><div style="font-weight:650;font-size:12.5px;color:var(--ink-2);margin-bottom:6px">${f.l}</div><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="jchk"><input type="checkbox" id="jcBuyer" onchange="applyFormGroups('leads')"> 🛒 ต้องการซื้อ (Buyer)</label><label class="jchk"><input type="checkbox" id="jcRenter" onchange="applyFormGroups('leads')"> 🏠 ต้องการเช่า (Renter)</label></div></div>`;
-  const cls="fld"+(f.full?" full":"");
+  const cls="fld"+(f.full?" full":"")+advCls;
   const req=f.req?" required":""; const star=f.req?' *':'';
   /* Universal Searchable Select — all 7 reference types share ssFieldHTML() (single source, single UX) */
   if(f.type==="projectselect")   return ssFieldHTML(f,val,"project",  cls, dg, req, '<button type="button" class="ai-link" onclick="quickAddProject()" style="margin-left:6px;font-size:11px">+ เพิ่มโครงการใหม่</button>');
@@ -2621,6 +2642,159 @@ function fieldHTML(f,val){
   }
   return `<label class="${cls}"${dg}>${f.l}${star}<input type="${t}" name="${f.k}" value="${esc(val)}"${req}></label>`;
 }
+/* ================================================================
+ * Property Timeline auto · spec §1, §3
+ * ผู้ใช้ไม่ต้องกรอกวันเอง · ระบบคำนวณจาก event/data
+ * ================================================================ */
+const PROP_PHOTO_MIN=3; /* config §1 · เกณฑ์ "รูปพร้อม" */
+function propRequiredChecklist(p){
+  const missing=[];
+  if(!(p.title||"").trim()) missing.push("ชื่อทรัพย์");
+  if(!(p.cat||"").trim()) missing.push("ประเภททรัพย์");
+  if(!(p.loc||"").trim()&&!(p.projectId||"").trim()) missing.push("ทำเลหรือโครงการ");
+  if(!(p.price||"").trim()) missing.push("ราคา");
+  if(!(p.ownerName||"").trim()&&!(p.ownerId||"").trim()) missing.push("ชื่อ/ID เจ้าของ");
+  return missing;
+}
+/* Auto-compute Timeline fields from p current state · idempotent · called from saveForm(props) */
+function propAutoComputeTimeline(p){
+  if(!p)return;
+  /* 1. intakeDate = createdAt (server-timestamp on create · never updatedAt) */
+  if(!p.intakeDate && p.createdAt) p.intakeDate=String(p.createdAt).slice(0,10);
+  /* 2. dataReadyDate = first time Required Checklist complete */
+  if(!p.dataReadyDate && !propRequiredChecklist(p).length) p.dataReadyDate=todayISO();
+  /* 3. photosReadyDate = first time photos ≥ PROP_PHOTO_MIN */
+  if(!p.photosReadyDate && Array.isArray(p.photos) && p.photos.length>=PROP_PHOTO_MIN) p.photosReadyDate=todayISO();
+  /* 3b. photosLastUpdated = whenever photos change */
+  if(Array.isArray(p.photos) && p.photos.length) p.photosLastUpdated=todayISO();
+  /* 4. marketingStart = earliest published channel · fallback to today when channels first added */
+  if(!p.marketingStart && p.channels && Object.keys(p.channels).filter(k=>k!=="copy").length){
+    /* earliest publishedAt from mkt records for this property */
+    const mkts=(DB.mkt||[]).filter(m=>m&&m.propertyId===p.id&&m.publishedAt).sort((a,b)=>String(a.publishedAt).localeCompare(String(b.publishedAt)));
+    p.marketingStart=(mkts[0]&&mkts[0].publishedAt)||todayISO();
+  }
+  /* 5. marketingPausedDate · auto-set when status = คลังเก็บ/ไม่ว่าง · clear when re-marketing */
+  if(["คลังเก็บ","ไม่ว่าง"].includes(p.status||"") && !p.marketingPausedDate) p.marketingPausedDate=todayISO();
+  if(!["คลังเก็บ","ไม่ว่าง"].includes(p.status||"")&&p.marketingPausedDate&&p.status==="ว่าง") p.marketingPausedDate=""; /* re-market · clear */
+  /* 6. lastOwnerUpdate · derive from ownerLog latest */
+  const ol=(DB.ownerLog||[]).filter(o=>o&&o.propertyId===p.id).sort((a,b)=>String(b.date||b.createdAt||"").localeCompare(String(a.date||a.createdAt||"")));
+  if(ol[0]) p.lastOwnerUpdate=String(ol[0].date||ol[0].createdAt||"").slice(0,10);
+}
+/* Auto-extract lat/lng from Google Maps URL · spec §4 */
+function propExtractLatLng(url){
+  if(!url) return null;
+  const s=String(url);
+  /* Pattern 1: @lat,lng */
+  let m=s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return {lat:+m[1], lng:+m[2]};
+  /* Pattern 2: !3d + !4d */
+  m=s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if(m) return {lat:+m[1], lng:+m[2]};
+  /* Pattern 3: q=lat,lng or ll=lat,lng */
+  m=s.match(/[?&](?:q|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m) return {lat:+m[1], lng:+m[2]};
+  return null;
+}
+function propSyncMapCoords(p){
+  if(!p||!p.mapUrl) return;
+  const c=propExtractLatLng(p.mapUrl);
+  if(!c) return;
+  if(c.lat<-90||c.lat>90||c.lng<-180||c.lng>180) return; /* validate */
+  if(c.lat===0&&c.lng===0) return; /* spec §4 · ห้ามบันทึก 0,0 */
+  p.lat=String(c.lat); p.lng=String(c.lng);
+}
+/* Competitor Auto criteria · spec §5 */
+const COMP_DEFAULTS={
+  "คอนโด":{radius:2, priceP:15, usableP:15, bedD:1, useLand:false},
+  "บ้านเดี่ยว":{radius:3, priceP:15, landP:20, usableP:20, bedD:1, useLand:true},
+  "ทาวน์โฮม":{radius:3, priceP:15, landP:20, usableP:20, bedD:1, useLand:true},
+  "ทาวน์เฮ้าส์":{radius:3, priceP:15, landP:20, usableP:20, bedD:1, useLand:true},
+  "ที่ดิน":{radius:4, priceP:15, landP:20, useLand:true, useBed:false},
+  "อาคารพาณิชย์":{radius:3, priceP:15, landP:25, usableP:25, useBed:false},
+  "Home Office":{radius:3, priceP:15, landP:20, usableP:20, bedD:1}
+};
+function propAutoCompetitorCriteria(p){
+  if(!p) return null;
+  if(String(p.compAuto||"").indexOf("Manual")>=0) return null; /* user override */
+  const cat=p.cat||"คอนโด";
+  const cfg=COMP_DEFAULTS[cat]||COMP_DEFAULTS["คอนโด"];
+  const price=+String(p.price||"").replace(/[^0-9.]/g,"")||0;
+  const spec=String(p.spec||"");
+  const bedMatch=spec.match(/(\d+)\s*(?:นอน|bed)/i);
+  const bed=bedMatch?+bedMatch[1]:0;
+  const usableMatch=spec.match(/(\d+(?:\.\d+)?)\s*ตร\.ม/);
+  const usable=usableMatch?+usableMatch[1]:0;
+  const landMatch=spec.match(/(\d+(?:\.\d+)?)\s*วา/);
+  const land=landMatch?+landMatch[1]:0;
+  return {
+    cat, radius:cfg.radius, sameProjectFirst:true,
+    priceMin: price?Math.round(price*(100-cfg.priceP)/100):null,
+    priceMax: price?Math.round(price*(100+cfg.priceP)/100):null,
+    bedMin: (cfg.useBed!==false&&bed)?Math.max(0,bed-(cfg.bedD||1)):null,
+    bedMax: (cfg.useBed!==false&&bed)?(bed+(cfg.bedD||1)):null,
+    usableMin: (cfg.usableP&&usable)?Math.round(usable*(100-cfg.usableP)/100):null,
+    usableMax: (cfg.usableP&&usable)?Math.round(usable*(100+cfg.usableP)/100):null,
+    landMin: (cfg.useLand&&cfg.landP&&land)?Math.round(land*(100-cfg.landP)/100):null,
+    landMax: (cfg.useLand&&cfg.landP&&land)?Math.round(land*(100+cfg.landP)/100):null,
+    source:"auto · Property Master · "+cat
+  };
+}
+/* Public Listing auto-content · spec §7 · Master → Presentation */
+function propPublicAutoContent(p){
+  if(!p) return {headline:"—",description:"—",highlights:[],location:"—",cta:"สอบถามข้อมูลและนัดชม"};
+  const deal=p.deal==="ขาย"?"ขาย":(p.deal==="เช่า"?"ให้เช่า":"");
+  const bed=(p.spec||"").match(/(\d+)\s*(?:นอน|bed)/i);
+  const proj=(p.projectId&&(DB.projects||[]).find(x=>x.id===p.projectId))||null;
+  const projName=proj?(proj.name||proj.title||""):p.projectName||"";
+  const headline=(p.pubHeadline||"").trim() || [deal, p.cat, bed?(bed[1]+" นอน"):"", projName, p.loc].filter(Boolean).join(" ").trim();
+  const description=(p.pubDesc||"").trim() || [p.spec, p.tags].filter(x=>x&&String(x).trim()).join(" · ");
+  const highlightsRaw=(p.pubHighlights||"").trim();
+  const highlights=highlightsRaw?highlightsRaw.split(/\n+/).filter(Boolean):[(p.tags||"").split(/,|·/).map(t=>t.trim()).filter(Boolean)].flat();
+  const location=(p.pubLocDisplay||"").trim() || projName || (p.loc||"").split("·")[0].trim() || "—";
+  const cta=(p.contactCTA||"").trim() || "สอบถามข้อมูลและนัดชม";
+  return {headline:headline||"—",description:description||"—",highlights,location,cta};
+}
+
+/* Timeline panel HTML · read-only display · spec §3 */
+function renderPropTimelinePanel(p){
+  if(!p) return "";
+  const items=[
+    ["รับเข้าพอร์ต", p.intakeDate||p.createdAt, "server timestamp · auto"],
+    ["ข้อมูลพร้อม", p.dataReadyDate, propRequiredChecklist(p).length?("รอ: "+propRequiredChecklist(p).join(", ")):"auto"],
+    ["รูปพร้อม", p.photosReadyDate, "auto · ต้องมีรูป ≥ "+PROP_PHOTO_MIN],
+    ["เริ่มตลาด", p.marketingStart, "auto · จาก mkt.publishedAt หรือ p.channels"],
+    ["Owner Update ล่าสุด", p.lastOwnerUpdate, "auto · จาก DB.ownerLog"],
+    ["พัก/ยกเลิกตลาด", p.marketingPausedDate, "auto · เมื่อ status = คลังเก็บ/ไม่ว่าง"],
+    ["ทราบว่าปล่อยแล้ว", p.knownLeasedDate, "ผ่าน Popup ปล่อยเช่าแล้วเท่านั้น"]
+  ];
+  /* Compute durations */
+  const _d=(a,b)=>{ if(!a||!b)return null; const dt1=new Date(a),dt2=new Date(b); if(isNaN(dt1)||isNaN(dt2))return null; const d=Math.floor((dt2-dt1)/86400000); return d<0?null:d; };
+  const durs=[
+    ["ระยะเตรียมข้อมูล", _d(p.intakeDate,p.dataReadyDate)],
+    ["ระยะเตรียมรูป", _d(p.intakeDate,p.photosReadyDate)],
+    ["ระยะก่อนตลาด", _d(p.intakeDate,p.marketingStart)],
+    ["ระยะทำตลาด", _d(p.marketingStart,p.knownLeasedDate)],
+    ["ระยะรวมในพอร์ต", _d(p.intakeDate,p.knownLeasedDate)]
+  ];
+  const row=(l,v,hint)=>`<div class="tl-row"><span class="tl-lbl">${esc(l)}${hint?'<span style="font-size:10px;color:var(--muted);margin-left:4px">('+esc(hint)+')</span>':""}</span><span class="tl-val${v?"":" pending"}">${v?fmtThaiDate(v):"รอข้อมูล"}</span></div>`;
+  const drow=(l,d)=>`<div class="tl-row"><span class="tl-lbl">${esc(l)}</span><span class="tl-val${d==null?" pending":""}">${d!=null?d+" วัน":"—"}</span></div>`;
+  return `<div class="timeline-panel">
+    <b style="font-size:12px;color:var(--brand);display:block;margin-bottom:6px">📅 Timeline ความพร้อมและการตลาด (auto · read-only)</b>
+    ${items.map(x=>row(x[0],x[1],x[2])).join("")}
+    <div style="border-top:1px dashed var(--border);margin-top:6px;padding-top:6px">
+      ${durs.map(x=>drow(x[0],x[1])).join("")}
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:4px">แก้ย้อนหลังผ่าน Advanced Override ด้านล่าง · เก็บประวัติทุกครั้ง</div>
+  </div>`;
+}
+
+function toggleAdvanced(btn){
+  const advanced=document.querySelectorAll('#modalForm .fld-advanced');
+  const show=!btn.classList.contains("on");
+  btn.classList.toggle("on", show);
+  advanced.forEach(el=>{ el.style.display=show?"":"none"; el.classList.toggle("on", show); });
+  btn.textContent=show?"▴ ซ่อน Advanced Override":"▾ แสดง Advanced Override (สำหรับผู้ใช้ที่รู้)";
+}
 /* On-change hook: convert Thai input → ISO stored in data-iso (form submit reads data-iso) */
 function _thaiDateInputChange(inp){
   const raw=(inp.value||"").trim(); if(!raw){ inp.dataset.iso=""; inp.setCustomValidity(""); return; }
@@ -2635,12 +2809,14 @@ function openForm(entity,index){
   formCtx={entity,index:(index==null?null:index)};
   const rec=index==null?{}:arr(entity)[index];
   $("#modalTitle").textContent=(index==null?"เพิ่ม":"แก้ไข")+" "+s.title;
-  $("#formFields").innerHTML=s.fields.map(f=>{
+  const hasAdvanced=s.fields.some(f=>f._advanced);
+  const timelinePanel=(entity==="props"&&index!=null)?renderPropTimelinePanel(rec):"";
+  $("#formFields").innerHTML=timelinePanel+s.fields.map(f=>{
     let v=rec[f.k];
     if(entity==="deals"&&f.k==="stage") v=pipeStages[rec.stage!=null?rec.stage:0];
     if(v==null&&f.type==="select") v=f.opts[0];
     return fieldHTML(f,v==null?"":v);
-  }).join("");
+  }).join("")+(hasAdvanced?'<button type="button" id="advancedToggleBtn" onclick="toggleAdvanced(this)">▾ แสดง Advanced Override (สำหรับผู้ใช้ที่รู้)</button>':"");
   // Photo section + remark log (properties only)
   formPhotos = (entity==="props" && index!=null && Array.isArray(rec.photos)) ? rec.photos.slice() : [];
   formLogs = (entity==="props" && index!=null && Array.isArray(rec.logs)) ? rec.logs.slice() : [];
@@ -2753,6 +2929,13 @@ function saveForm(ev){
     obj.channels=ch;
     if(obj.driveFolder!=null)obj.driveFolder=(obj.driveFolder||"").trim();
     obj.updatedAt=todayISO();
+    /* Aug-15 · Property auto-compute (map coords + timeline + createdAt seed) */
+    if(index==null && !obj.createdAt) obj.createdAt=todayISO(); /* server-timestamp seed for intakeDate */
+    /* Merge onto prev record for auto-compute · so we have full picture */
+    const prev=index==null?{}:(arr("props")[index]||{});
+    const merged=Object.assign({}, prev, obj);
+    try{ propSyncMapCoords(merged); obj.lat=merged.lat; obj.lng=merged.lng; }catch(e){}
+    try{ propAutoComputeTimeline(merged); ["intakeDate","dataReadyDate","photosReadyDate","photosLastUpdated","marketingStart","marketingPausedDate","lastOwnerUpdate"].forEach(k=>{ if(merged[k]!=null&&obj[k]==null) obj[k]=merged[k]; }); }catch(e){}
   }
   /* Monthly Goals · spec §2, §9 · ห้ามซ้ำ (year+month+advisorId) · แก้ Record เดิม · Created/Updated timestamps */
   if(entity==="goals"){
