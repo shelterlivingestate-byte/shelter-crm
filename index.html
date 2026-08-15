@@ -2613,7 +2613,22 @@ function fieldHTML(f,val){
   }
   if(f.type==="textarea") return `<label class="${cls}"${dg}>${f.l}${star}<textarea name="${f.k}"${req}>${esc(val)}</textarea></label>`;
   const t=f.type==="number"?"number":"text";
+  /* Aug-15 · Thai date UX · text fields flagged as date show DD/MM/BBBB · store ISO on save */
+  if(_looksLikeDateField(f)){
+    const iso=val||""; const disp=iso?fmtThaiDate(iso):"";
+    const lblClean=String(f.l||"").replace(/\s*\(YYYY-MM-DD[^)]*\)\s*/,"").replace(/YYYY-MM-DD/g,"วว/ดด/ปปปป");
+    return `<label class="${cls}"${dg}>${lblClean}${star}<input type="text" name="${f.k}" data-thai-date="1" data-iso="${esc(iso)}" value="${esc(disp)}" placeholder="วว/ดด/ปปปป" inputmode="numeric" pattern="\\d{1,2}[\\/\\-.]\\d{1,2}[\\/\\-.]\\d{4}" onchange="_thaiDateInputChange(this)"${req}></label>`;
+  }
   return `<label class="${cls}"${dg}>${f.l}${star}<input type="${t}" name="${f.k}" value="${esc(val)}"${req}></label>`;
+}
+/* On-change hook: convert Thai input → ISO stored in data-iso (form submit reads data-iso) */
+function _thaiDateInputChange(inp){
+  const raw=(inp.value||"").trim(); if(!raw){ inp.dataset.iso=""; inp.setCustomValidity(""); return; }
+  const iso=parseThaiDateInput(raw);
+  if(!iso){ inp.setCustomValidity("รูปแบบวันที่ไม่ถูกต้อง · ใช้ วว/ดด/ปปปป เช่น 15/08/2569"); inp.reportValidity(); return; }
+  inp.dataset.iso=iso; inp.setCustomValidity("");
+  /* Also normalise display */
+  inp.value=fmtThaiDate(iso);
 }
 function openForm(entity,index){
   const s=SCHEMA[entity]; if(!s)return;
@@ -2683,7 +2698,23 @@ function saveForm(ev){
   ev.preventDefault();
   const {entity,index}=formCtx; const s=SCHEMA[entity];
   const fd=new FormData(ev.target); const obj={};
-  s.fields.forEach(f=>{ if(f.type==="heading"||f.type==="geohelp")return; let v=fd.get(f.k); if(f.type==="number")v=num(v); obj[f.k]=v; });
+  s.fields.forEach(f=>{
+    if(f.type==="heading"||f.type==="geohelp")return;
+    let v=fd.get(f.k);
+    /* Aug-15 · Thai date fields · read data-iso preferred (form input shows Thai · data-iso holds ISO) */
+    if(_looksLikeDateField(f)){
+      const inp=document.querySelector('#modalForm [name="'+f.k+'"]');
+      if(inp && inp.dataset && inp.dataset.iso!=null){
+        v=inp.dataset.iso;
+      } else {
+        /* Fallback · user typed but didn't blur · try to parse whatever's in value */
+        const parsed=toISODate(v);
+        if(parsed) v=parsed;
+      }
+    }
+    if(f.type==="number")v=num(v);
+    obj[f.k]=v;
+  });
   if(entity==="deals"){ obj.stage=Math.max(0,pipeStages.indexOf(obj.stage));
     if(obj.customerId){ const l=DB.leads.find(x=>x.id===obj.customerId); if(l){ if(!(obj.n||"").trim())obj.n=l.n; obj.custId=obj.customerId; obj.matchStatus="linked"; } }
     else if((obj.n||"").trim()){ obj.matchStatus="unmatched"; } }
@@ -2864,10 +2895,112 @@ function go(id){
 $("#cta").onclick=()=>{ const o=OS.find(x=>x.id===activeView); if(activeView==="customers"){openCustomerForm();return;} if(!o.key)return; if(o.key==="props")openPropForm(o.deal); else if(o.key==="leads")openLeadForm(o.ltype); else openForm(o.key); };
 
 /* ================= RENDERERS ================= */
-function renderAll(){ try{migrateRemoveRentalSample();}catch(e){} try{migrateLeadStagesV2();}catch(e){} try{migrateOwners();}catch(e){} try{migrateRentalCare();}catch(e){} try{migrateMarketingSync();}catch(e){} renderDashboard();try{renderMindset();}catch(e){}renderAlerts();renderLeads();try{renderCustomers();}catch(e){}renderProjects();renderProps();try{renderPropMkt();}catch(e){}renderConsult();try{renderMkt();}catch(e){}try{renderMarketing();}catch(e){}renderPipe();renderCare();renderKB(currentKBFilter);try{renderRentCare();}catch(e){}try{renderFinance();}catch(e){}try{renderOwnerCRM();}catch(e){}try{renderAppointments();}catch(e){}try{renderReports();}catch(e){}try{syncBottomNav();}catch(e){} }
+function renderAll(){ try{migrateRemoveRentalSample();}catch(e){} try{migrateLeadStagesV2();}catch(e){} try{migrateOwners();}catch(e){} try{migrateRentalCare();}catch(e){} try{migrateMarketingSync();}catch(e){} renderDashboard();try{renderMindset();}catch(e){}renderAlerts();renderLeads();try{renderCustomers();}catch(e){}renderProjects();renderProps();try{renderPropMkt();}catch(e){}renderConsult();try{renderMkt();}catch(e){}try{renderMarketing();}catch(e){}renderPipe();renderCare();renderKB(currentKBFilter);try{renderRentCare();}catch(e){}try{renderFinance();}catch(e){}try{renderOwnerCRM();}catch(e){}try{renderAppointments();}catch(e){}try{renderReports();}catch(e){}try{syncBottomNav();}catch(e){} try{_applyThaiDateDisplay();}catch(e){} }
+/* Also run Thai date converter after any DOM mutation from user interactions (Tab switch, drill-down, etc.) · MutationObserver debounced */
+try{ if(!window._thaiDateObserver){ let _tdTimer=null; window._thaiDateObserver=new MutationObserver(()=>{ clearTimeout(_tdTimer); _tdTimer=setTimeout(()=>{ try{_applyThaiDateDisplay();}catch(e){} }, 120); }); window.addEventListener("load",function(){ try{ window._thaiDateObserver.observe(document.body,{childList:true,subtree:true,characterData:false}); }catch(e){} }); } }catch(e){}
 
 /* ===== ACTION CENTER / SMART ALERTS ===== */
 function todayISO(){return new Date().toISOString().slice(0,10);}
+/* ================================================================
+ * Thai Date Utilities · Aug-15 · spec: UI = DD/MM/BBBB · DB = ISO ค.ศ.
+ * ================================================================ */
+/* Format ISO date/datetime → Thai "DD/MM/BBBB" · returns "—" for empty/invalid */
+function fmtThaiDate(iso){
+  if(iso==null || iso==="" || iso==="—") return "—";
+  const s=String(iso).trim();
+  /* Accept both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS" · timezone-safe (no Date parse for date-only) */
+  const m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(!m) return s; /* not a recognisable ISO date · return as-is */
+  const y=+m[1], mo=+m[2], d=+m[3];
+  if(!y||!mo||!d||y<1900||y>2300||mo<1||mo>12||d<1||d>31) return s;
+  return String(d).padStart(2,"0")+"/"+String(mo).padStart(2,"0")+"/"+(y+543);
+}
+/* Format ISO datetime → "DD/MM/BBBB HH:MM น." */
+function fmtThaiDateTime(iso){
+  if(iso==null || iso==="" || iso==="—") return "—";
+  const s=String(iso).trim();
+  const m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{2})/);
+  if(m){ return fmtThaiDate(s)+" "+String(+m[4]).padStart(2,"0")+":"+m[5]+" น."; }
+  return fmtThaiDate(s);
+}
+/* Thai month + Buddhist year label · e.g. "สิงหาคม 2569" · reuses existing const */
+function fmtThaiMonthYear(iso){
+  if(iso==null || iso==="") return "—";
+  const s=String(iso).trim();
+  const m=s.match(/^(\d{4})-(\d{1,2})/);
+  if(!m) return s;
+  const y=+m[1], mo=+m[2];
+  if(!y||!mo||mo<1||mo>12) return s;
+  const names=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  return names[mo-1]+" "+(y+543);
+}
+/* Parse Thai "DD/MM/BBBB" or "DD/MM/YYYY" input → ISO "YYYY-MM-DD" · empty = "" */
+function parseThaiDateInput(str){
+  if(!str) return "";
+  const s=String(str).trim();
+  if(!s) return "";
+  /* Already ISO? preserve */
+  const iso=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(iso){ return iso[1]+"-"+String(+iso[2]).padStart(2,"0")+"-"+String(+iso[3]).padStart(2,"0"); }
+  /* DD/MM/BBBB or DD/MM/YYYY (also accepts -, . as separators) */
+  const m=s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if(!m) return "";
+  const d=+m[1], mo=+m[2]; let y=+m[3];
+  if(y>2300) y-=543; /* BBBB → YYYY */
+  if(!y||!mo||!d||mo<1||mo>12||d<1||d>31) return "";
+  /* Days-in-month validation (leap-year aware) */
+  const dim=new Date(y, mo, 0).getDate();
+  if(d>dim) return "";
+  return y+"-"+String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+}
+/* Safe ISO converter · accepts anything · returns ISO or "" */
+function toISODate(input){ if(!input) return ""; if(/^\d{4}-\d{1,2}-\d{1,2}/.test(String(input))) return String(input).slice(0,10); return parseThaiDateInput(input); }
+/* Detect if a field key looks like a date field (used by fieldHTML + saveForm) */
+function _looksLikeDateField(f){
+  if(!f) return false;
+  if(f.type==="text" && f.l && /YYYY-MM-DD|วว\/ดด\/ปปปป|วัน\/เดือน\/ปี/.test(f.l)) return true;
+  const k=String(f.k||"").toLowerCase();
+  if(f.type==="text" && (k.endsWith("date")||k==="due"||k==="when"||k==="publishedat"||k==="lastupdatedat"||k==="endedat"||k==="movein"||k==="marketingstart"||k==="lastownerupdate"||k==="intakedate"||k==="availabledate"||k==="datareadydate"||k==="photosreadydate"||k==="knownleaseddate"||k==="marketingpauseddate"||k==="expectedat"||k==="actualdate"||k==="closedate"||k==="signdate"||k==="handoverdate"||k==="startdate"||k==="enddate")) return true;
+  return false;
+}
+
+/* DOM post-processor · walks visible text nodes + converts ISO date strings → Thai DD/MM/BBBB
+   Skips: script/style/code/pre/input/textarea/select · runs after renderAll · idempotent (converted text no longer matches ISO regex) */
+const _THAI_DATE_SKIP_TAGS=new Set(["SCRIPT","STYLE","CODE","PRE","INPUT","TEXTAREA","SELECT","OPTION"]);
+function _applyThaiDateDisplay(){
+  try{
+    const root=document.body; if(!root) return;
+    const walker=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode:function(n){
+        const p=n.parentNode; if(!p) return NodeFilter.FILTER_REJECT;
+        if(_THAI_DATE_SKIP_TAGS.has((p.tagName||"").toUpperCase())) return NodeFilter.FILTER_REJECT;
+        /* Skip if any ancestor is code/pre (technical IDs) */
+        let cur=p; while(cur && cur!==root){ const t=(cur.tagName||"").toUpperCase(); if(t==="CODE"||t==="PRE") return NodeFilter.FILTER_REJECT; cur=cur.parentNode; }
+        if(!/\b(19|20|21)\d{2}-\d{1,2}-\d{1,2}\b/.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    const nodes=[]; let n; while((n=walker.nextNode())) nodes.push(n);
+    nodes.forEach(node=>{
+      const orig=node.nodeValue;
+      const conv=orig.replace(/\b((?:19|20|21)\d{2})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|[+\-]\d{2}:?\d{2})?)?\b/g,function(_,y,mo,d,hh,mm){
+        const yn=+y; if(yn<1900||yn>2100) return _;
+        const mon=+mo; const day=+d; if(mon<1||mon>12||day<1||day>31) return _;
+        const base=String(day).padStart(2,"0")+"/"+String(mon).padStart(2,"0")+"/"+(yn+543);
+        return hh?(base+" "+String(+hh).padStart(2,"0")+":"+mm+" น."):base;
+      });
+      if(conv!==orig) node.nodeValue=conv;
+    });
+    /* Also convert value attribute of text inputs marked as date fields (data-thai-date="1") · one-way display only */
+    document.querySelectorAll('input[type="text"][data-thai-date="1"]:not([data-thai-init="1"])').forEach(inp=>{
+      const iso=inp.value; const thai=fmtThaiDate(iso);
+      if(thai && thai!=="—" && thai!==iso){ inp.dataset.thaiDate="1"; inp.dataset.thaiInit="1";
+        /* Store ISO in hidden data · show Thai to user */
+        inp.dataset.iso=iso; inp.value=thai;
+      }
+    });
+  }catch(e){ try{console.warn("[thai-date] apply failed:",e.message);}catch(x){} }
+}
 function daysSince(d){ if(!d)return null; const t=Date.parse(String(d).replace(" ","T")); if(isNaN(t))return null; return Math.floor((Date.now()-t)/86400000); }
 /* ===== AI OPERATIONS CENTER (Action Center v1) — aggregate only, never auto-execute ===== */
 const AOC_SNOOZE_KEY="shelteros_aoc_snooze_v1";
