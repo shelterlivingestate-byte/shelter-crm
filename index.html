@@ -3193,16 +3193,18 @@ function openLeaseClose(i){ const p=DB.props[i]; if(!p)return; ensurePropId(p);
     <label class="fld">ระยะสัญญา (เดือน)<input id="lsTerm" inputmode="numeric" value="${g('termMonths','12')}" oninput="leaseComputeEnd();leaseCommPreview()"></label>
    </div>
    <div id="lsAgentRow" style="display:none"><label class="fld full">ชื่อ Agent / บริษัท Agent *<input id="lsAgent" value="${g('closingAgentName')}"></label></div>
-   <div style="font-weight:700;font-size:13px;margin:10px 0 4px">2️⃣ ข้อมูลเพิ่มเติม</div>
-   <div class="fgrid">
-    <label class="fld full">ผู้เช่า (Tenant)<select id="lsTenant">${tOpts}</select></label>
-    <label class="fld">วันที่ปิดดีล<input id="lsClose" type="date" value="${g('closeDate',todayISO())}"></label>
-    <label class="fld">วันที่ผู้เช่าเข้าอยู่<input id="lsHand" type="date" value="${g('handoverDate')}"></label>
-    <label class="fld">เงินประกัน<input id="lsDep" inputmode="numeric" value="${g('deposit')}"></label>
-    <label class="fld">ค่าเช่าล่วงหน้า<input id="lsAdv" inputmode="numeric" value="${g('advance')}"></label>
-    <label class="fld">วันครบกำหนดชำระ (วันที่)<input id="lsDue" inputmode="numeric" value="${g('dueDay','5')}"></label>
-    <label class="fld full">ผู้รับผิดชอบหลังเช่า<select id="lsAfter">${sel(c&&c.afterSalesResponsibility,["SHELTER ดูแลเต็มรูปแบบ","SHELTER ดูแลบางส่วน","Co-Agent ดูแล","เจ้าของดูแลเอง","ไม่มีบริการหลังเช่า"])}</select></label>
-    <label class="fld full">หมายเหตุ<input id="lsNote" value="${g('note')}"></label>
+   <div id="lsSec2Wrap">
+     <div style="font-weight:700;font-size:13px;margin:10px 0 4px">2️⃣ ข้อมูลเพิ่มเติม (SHELTER contract เท่านั้น)</div>
+     <div class="fgrid">
+      <label class="fld full">ผู้เช่า (Tenant)<select id="lsTenant">${tOpts}</select></label>
+      <label class="fld">วันที่ปิดดีล<input id="lsClose" type="date" value="${g('closeDate',todayISO())}"></label>
+      <label class="fld">วันที่ผู้เช่าเข้าอยู่<input id="lsHand" type="date" value="${g('handoverDate')}"></label>
+      <label class="fld">เงินประกัน<input id="lsDep" inputmode="numeric" value="${g('deposit')}"></label>
+      <label class="fld">ค่าเช่าล่วงหน้า<input id="lsAdv" inputmode="numeric" value="${g('advance')}"></label>
+      <label class="fld">วันครบกำหนดชำระ (วันที่)<input id="lsDue" inputmode="numeric" value="${g('dueDay','5')}"></label>
+      <label class="fld full">ผู้รับผิดชอบหลังเช่า<select id="lsAfter">${sel(c&&c.afterSalesResponsibility,["SHELTER ดูแลเต็มรูปแบบ","SHELTER ดูแลบางส่วน","Co-Agent ดูแล","เจ้าของดูแลเอง","ไม่มีบริการหลังเช่า"])}</select></label>
+      <label class="fld full">หมายเหตุ<input id="lsNote" value="${g('note')}"></label>
+     </div>
    </div>
    <div id="lsCommWrap" style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
      <b style="font-size:13px">3️⃣ ค่าคอมมิชชั่น</b>
@@ -3226,8 +3228,10 @@ function leaseOnBy(){
   const v=($("#lsBy3")||{}).value;
   const isShelter=v==="shelter";
   const isOtherChannel=v==="other_channel";
-  const ar=$("#lsAgentRow"); if(ar)ar.style.display="none"; /* removed · spec §2.7 ห้ามบังคับกรอกว่าใครเป็นผู้ปิดเช่า */
+  const ar=$("#lsAgentRow"); if(ar)ar.style.display="none";
   const kw=$("#lsKnownRow"); if(kw)kw.style.display=isOtherChannel?"":"none";
+  /* Bug fix Aug 15 §A: Section 2 (Tenant/Deposit/Handover/etc.) SHELTER-only */
+  const s2=$("#lsSec2Wrap"); if(s2)s2.style.display=isShelter?"":"none";
   const cw=$("#lsCommWrap"); if(cw)cw.style.display=isShelter?"":"none";
   leaseCommPreview();
 }
@@ -3271,13 +3275,36 @@ function leaseGoSummary(){ const e=$("#leaseErr"); const errs=leaseValidate(); i
 function leaseBack(){ $("#leaseSummary").style.display="none"; $("#leaseForm").style.display="block"; }
 function leaseCancel(){ $("#leaseScrim").classList.remove("on"); $("#leaseModal").classList.remove("on"); }
 function saveLeaseClose(){ const p=DB.props.find(x=>x.id===leaseCtx.propId); if(!p)return; const V=id=>($("#"+id)?$("#"+id).value:""); const by3=V("lsBy3");
+  const isShelter=by3==="shelter";
   let c=leaseCtx.contractId?DB.contracts.find(x=>x.id===leaseCtx.contractId):null; const isNew=!c; const before=c?JSON.parse(JSON.stringify(c)):{};
   if(!c){ c={id:uid(),propertyId:p.id,status:"Active",createdAt:todayISO()}; DB.contracts.push(c); }
-  const patch={tenantId:V("lsTenant"),rent:num(V("lsRent")),termMonths:num(V("lsTerm")),startDate:V("lsStart"),endDate:V("lsEnd"),closeDate:V("lsClose"),signDate:V("lsSign"),handoverDate:V("lsHand"),dueDay:num(V("lsDue")),deposit:num(V("lsDep")),advance:num(V("lsAdv")),leaseClosedByType:LEASE_BY3[by3]||"Our Agency (เราปล่อยเอง)",closingAgentName:V("lsAgent"),coAgentName:V("lsCoAgent"),afterSalesResponsibility:V("lsAfter"),careOverride:V("lsOverride2"),note:V("lsNote"),updatedBy:"JJ",updatedAt:todayISO()};
+  /* Bug fix Aug 15 §A/§B: skip Section 2 fields when other_channel · not a SHELTER contract */
+  const patch={
+    rent:num(V("lsRent")), termMonths:num(V("lsTerm")),
+    startDate:V("lsStart"), endDate:V("lsEnd"),
+    leaseClosedByType:LEASE_BY3[by3]||"Our Agency (เราปล่อยเอง)",
+    /* managedByShelter: authoritative flag · used by "สัญญา ACTIVE" KPI */
+    managedByShelter:isShelter,
+    updatedBy:"JJ", updatedAt:todayISO()
+  };
+  if(isShelter){
+    /* Section 2 + 3 fields only when SHELTER */
+    patch.tenantId=V("lsTenant"); patch.closeDate=V("lsClose"); patch.signDate=V("lsSign"); patch.handoverDate=V("lsHand");
+    patch.dueDay=num(V("lsDue")); patch.deposit=num(V("lsDep")); patch.advance=num(V("lsAdv"));
+    patch.closingAgentName=V("lsAgent"); patch.coAgentName=V("lsCoAgent");
+    patch.afterSalesResponsibility=V("lsAfter"); patch.careOverride=V("lsOverride2");
+    patch.note=V("lsNote");
+  } else {
+    /* Other channel · just note + preserve nothing extra · never create Tenant/Deal */
+    patch.note=V("lsNote")||before.note||"";
+    /* Set knownLeasedDate on property (spec §2.7 · timeline tracking) */
+    const kn=V("lsKnown"); if(kn && !p.knownLeasedDate) p.knownLeasedDate=kn;
+  }
   Object.keys(patch).forEach(k=>auditLog("contract",c.id,k,before[k],patch[k])); Object.assign(c,patch);
   if(!c.status||c.status==="ใหม่")c.status="Active"; c.dataComplete=contractDataComplete(c);
   const cb=c.leaseClosedByType||"",af=c.afterSalesResponsibility||"";
-  c.careActive=!!(((cb.indexOf("Our Agency")>=0||cb.indexOf("Co-Agent")>=0)&&(af.indexOf("เต็มรูปแบบ")>=0||af.indexOf("บางส่วน")>=0))||c.careOverride==="ใช่");
+  /* careActive only when SHELTER + SHELTER-managed after-sales */
+  c.careActive=isShelter && !!(((cb.indexOf("Our Agency")>=0||cb.indexOf("Co-Agent")>=0)&&(af.indexOf("เต็มรูปแบบ")>=0||af.indexOf("บางส่วน")>=0))||c.careOverride==="ใช่");
   let rc=rentalCommOf(c.id); if(!rc){ rc={id:uid(),contractId:c.id,createdAt:todayISO()}; DB.rentalCommissions.push(rc); } const rcB=JSON.parse(JSON.stringify(rc));
   const rcPatch={rule:V("lsRule"),ruleValue:num(V("lsRuleVal")),ourSharePct:num(V("lsOurShare")),coAgentPct:num(V("lsCoPct")),companyPct:num(V("lsCompPct")),grossOverride:V("lsGross"),mktExp:num(V("lsMkt")),otherExp:num(V("lsOther")),actualReceived:num(V("lsActual")),actualDate:V("lsActualDate"),status:(by3==="owner"||by3==="other")?"ไม่ได้รับ":V("lsPayStatus")};
   Object.keys(rcPatch).forEach(k=>auditLog("rentalCommission",rc.id,k,rcB[k],rcPatch[k])); Object.assign(rc,rcPatch);
@@ -4780,39 +4807,80 @@ function rmpFilterByScope(items){
 function _median(arr){ if(!arr.length)return null; const s=arr.slice().sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length%2?s[m]:Math.round((s[m-1]+s[m])/2); }
 function _avg(arr){ if(!arr.length)return null; return Math.round(arr.reduce((s,v)=>s+v,0)/arr.length); }
 
+/* Backfill managedByShelter · runs once from renderDashRental · idempotent */
+function _backfillManagedByShelter(){
+  try{
+    let changed=0;
+    (DB.contracts||[]).forEach(c=>{
+      if(!c)return;
+      if(c.managedByShelter!==undefined)return; /* already set */
+      const g=(typeof leaseBy3Of==="function")?leaseBy3Of(c.leaseClosedByType||""):"shelter";
+      c.managedByShelter=(g==="shelter");
+      changed++;
+    });
+    if(changed){ try{save();}catch(e){} try{console.log("[backfill] managedByShelter set on "+changed+" contracts");}catch(e){} }
+    return changed;
+  }catch(e){ return 0; }
+}
+/* Bug fix Aug 15 §B/§D · authoritative check: is this a SHELTER-managed active contract? */
+function isShelterActiveContract(c){
+  if(!c||!c.id) return false;
+  if(["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status||"")) return false;
+  const g=(typeof leaseBy3Of==="function")?leaseBy3Of(c.leaseClosedByType||""):"shelter";
+  if(g!=="shelter") return false;
+  /* managedByShelter flag: authoritative (auto-set by leaseBy3Of via backfill) */
+  if(c.managedByShelter===false) return false;
+  return true;
+}
+
 function renderDashRental(){ const el=$("#dash-rental"); if(!el)return;
   const cs=DB.contracts;
   if(!cs.length){ el.innerHTML=dashEmpty("ยังไม่มีสัญญาเช่า","rentcare"); return; }
-  const active=cs.filter(c=>!["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status||""));
+  /* Backfill on every render (idempotent · skips already-set) */
+  _backfillManagedByShelter();
+  /* Bug fix Aug 15 §D · SEPARATE Active KPI (SHELTER-only) vs Watchlist (all channels) */
+  const activeAll=cs.filter(c=>!["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status||"")); /* for Watchlist 30/60/90 */
+  const activeShelter=cs.filter(isShelterActiveContract); /* for "สัญญา ACTIVE" KPI */
   const daysLeft=c=>c.endDate?Math.floor((new Date(c.endDate).getTime()-Date.now())/86400000):null;
-  const soon30=active.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=30; }).length;
-  const soon60=active.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=60; }).length;
-  const soon90=active.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=90; }).length;
-  /* Part 5: use existing leaseClosedByType (5 options) via leaseBy3Of() helper (existing) → 3 groups */
+  /* Watchlist counts ALL channels (per spec §D · other-channel needs expiry tracking too) */
+  const soon30=activeAll.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=30; }).length;
+  const soon60=activeAll.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=60; }).length;
+  const soon90=activeAll.filter(c=>{ const d=daysLeft(c); return d!==null&&d>=0&&d<=90; }).length;
   const grp=c=>{ try{return typeof leaseBy3Of==="function"?leaseBy3Of(c.leaseClosedByType||""):"shelter";}catch(e){return "shelter";} };
   const byUs=cs.filter(c=>grp(c)==="shelter").length;
+  const byOtherChannel=cs.filter(c=>grp(c)==="other_channel").length;
   const byOwner=cs.filter(c=>grp(c)==="owner").length;
   const byOther=cs.filter(c=>grp(c)==="other").length;
-  /* Part 5: lost opportunity $ via existing computeRentalCommission (uses settings.vatPct/whtPct) */
-  let commReceived=0,commPending=0,lostOwner=0,lostOther=0;
-  try{ cs.forEach(c=>{ if(typeof computeRentalCommission!=="function")return; const rc=(typeof rentalCommOf==="function"?rentalCommOf(c.id):null); const r=computeRentalCommission(c,rc); commReceived+=num(rc&&rc.actualReceived); if(r.gross>0)commPending+=Math.max(0,r.net-num(rc&&rc.actualReceived)); if(r.lostSource==="owner")lostOwner+=r.lost; else if(r.lostSource==="other")lostOther+=r.lost; }); }catch(e){}
-  const renewed=cs.filter(c=>(c.status||"")==="ต่อสัญญาแล้ว").length;
-  const totRent=active.reduce((s,c)=>s+bn(c.rent||0),0);
+  let commReceived=0,commPending=0,lostOwner=0,lostOther=0,lostOtherChannel=0;
+  try{ cs.forEach(c=>{ if(typeof computeRentalCommission!=="function")return; const rc=(typeof rentalCommOf==="function"?rentalCommOf(c.id):null); const r=computeRentalCommission(c,rc); commReceived+=num(rc&&rc.actualReceived); if(r.gross>0)commPending+=Math.max(0,r.net-num(rc&&rc.actualReceived));
+    const g=grp(c);
+    if(g==="owner") lostOwner+=r.lost;
+    else if(g==="other") lostOther+=r.lost;
+    else if(g==="other_channel") lostOtherChannel+=r.lost;
+  }); }catch(e){}
+  const renewed=activeShelter.filter(c=>(c.status||"")==="ต่อสัญญาแล้ว").length;
+  const totRentShelter=activeShelter.reduce((s,c)=>s+bn(c.rent||0),0);
+  const totRentWatchAll=activeAll.reduce((s,c)=>s+bn(c.rent||0),0);
   el.innerHTML=`<div class="dash-kpi-row">
-    <div class="dash-kpi click" onclick="go('rentcare')"><b>สัญญา Active</b><div class="val">${active.length}</div><div class="sub">ต่อสัญญาแล้ว ${renewed}</div></div>
-    <div class="dash-kpi"><b>ค่าเช่ารวม/เดือน</b><div class="val">฿${fmtBaht(totRent)}</div></div>
+    <div class="dash-kpi click" onclick="go('rentcare')"><b>สัญญา ACTIVE (SHELTER)</b><div class="val" style="color:var(--ok)">${activeShelter.length}</div><div class="sub">ต่อสัญญาแล้ว ${renewed}</div></div>
+    <div class="dash-kpi"><b>ค่าเช่ารวม/เดือน (SHELTER)</b><div class="val">฿${fmtBaht(totRentShelter)}</div></div>
     <div class="dash-kpi"><b>ค่าคอมรับแล้ว</b><div class="val">฿${fmtBaht(commReceived)}</div><div class="sub">รอรับ ฿${fmtBaht(commPending)}</div></div>
-    <div class="dash-kpi"><b>ใกล้หมด &le;30 วัน</b><div class="val" style="color:${soon30?'var(--warn)':'var(--ink)'}">${soon30}</div></div>
+    <div class="dash-kpi"><b>ใกล้หมด &le;30 วัน (ทุกช่องทาง)</b><div class="val" style="color:${soon30?'var(--warn)':'var(--ink)'}">${soon30}</div></div>
     <div class="dash-kpi"><b>&le;60 วัน</b><div class="val">${soon60}</div></div>
     <div class="dash-kpi"><b>&le;90 วัน</b><div class="val">${soon90}</div></div>
   </div>
-  <div style="margin-top:12px"><b style="font-size:12.5px">แหล่งที่ปล่อย · มูลค่าโอกาส</b>
+  <div style="background:#fff8e1;border-left:3px solid var(--warn);padding:8px 10px;border-radius:6px;font-size:11.5px;margin-top:8px;line-height:1.55">
+    <b>Watchlist ≠ Active Contract:</b> ตัวเลขใกล้หมด 30/60/90 นับ<b>ทุกช่องทาง</b>ที่มี endDate ในระบบ (รวมช่องทางอื่นเพื่อติดตาม Owner) ·
+    ส่วน <b>สัญญา ACTIVE</b> นับ<b>เฉพาะ SHELTER ปล่อย + Contract ที่เราดูแลจริง</b>
+  </div>
+  <div style="margin-top:12px"><b style="font-size:12.5px">แหล่งที่ปล่อย · มูลค่าโอกาส (${cs.length} รายการทั้งหมด)</b>
     <div class="dash-kpi-row" style="margin-top:6px">
-      <div class="dash-kpi"><b>เราปล่อย (Our Agency + Co-Agent)</b><div class="val">${byUs}</div><div class="sub">รับคอมแล้ว ฿${fmtBaht(commReceived)}</div></div>
-      <div class="dash-kpi"><b>Owner Direct</b><div class="val">${byOwner}</div><div class="sub" style="color:${lostOwner?'var(--warn)':'var(--muted)'}">โอกาส ฿${fmtBaht(lostOwner)}</div></div>
-      <div class="dash-kpi"><b>Other Agent</b><div class="val">${byOther}</div><div class="sub" style="color:${lostOther?'var(--warn)':'var(--muted)'}">โอกาส ฿${fmtBaht(lostOther)}</div></div>
+      <div class="dash-kpi"><b>SHELTER ปล่อย (Active)</b><div class="val" style="color:var(--ok)">${activeShelter.length}</div><div class="sub">รับคอมแล้ว ฿${fmtBaht(commReceived)}</div></div>
+      <div class="dash-kpi"><b>ปิดเช่าจากช่องทางอื่น</b><div class="val" style="color:#f97316">${byOtherChannel}</div><div class="sub" style="color:${lostOtherChannel?'var(--warn)':'var(--muted)'}">โอกาส ฿${fmtBaht(lostOtherChannel)}</div></div>
+      ${byOwner?`<div class="dash-kpi"><b>Owner Direct (legacy)</b><div class="val">${byOwner}</div><div class="sub" style="color:${lostOwner?'var(--warn)':'var(--muted)'}">โอกาส ฿${fmtBaht(lostOwner)}</div></div>`:""}
+      ${byOther?`<div class="dash-kpi"><b>Other Agent (legacy)</b><div class="val">${byOther}</div><div class="sub" style="color:${lostOther?'var(--warn)':'var(--muted)'}">โอกาส ฿${fmtBaht(lostOther)}</div></div>`:""}
     </div>
-  </div>`+dashSrc("คำนวณจาก: <code>DB.contracts</code> + <code>DB.rentalCommissions</code> · <code>leaseClosedByType</code> (5 options) → 3 groups ผ่าน <code>leaseBy3Of()</code> · lost opportunity จาก <code>computeRentalCommission().lost</code> · VAT/WHT จาก <code>settings.vatPct/whtPct</code>")
+  </div>`+dashSrc("สัญญา ACTIVE: <code>isShelterActiveContract(c)</code> = <code>leaseBy3Of()='shelter'</code> AND <code>c.managedByShelter!==false</code> AND status not ended · Watchlist 30/60/90: activeAll (ทุกช่องทาง) เพื่อติดตาม Owner · แหล่งข้อมูล: DB.contracts + DB.rentalCommissions · Backfill managedByShelter บน render (idempotent)")
   + renderRentalMarketSection(); }
 
 /* Rental Market Performance section · appended below Watchlist */
