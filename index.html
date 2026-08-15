@@ -4695,6 +4695,91 @@ function renderDashOwner(){ const el=$("#dash-owner"); if(!el)return;
     <div class="dash-kpi"><b>ข้อมูลครบ</b><div class="val">${cPct}<small>%</small></div><div class="sub">${complete}/${owners.length}</div></div>
   </div>`+dashSrc("คำนวณจาก: <code>DB.owners</code> + <code>DB.props.ownerId</code> · ข้อมูลครบ = ชื่อ + เบอร์ + (LINE หรือ email)"); }
 
+/* ================================================================
+ * Rental Market Performance · สถิติการปล่อยเช่า · spec Aug-15
+ * SSOT: DB.contracts + DB.props + leaseBy3Of() (ปิดเช่าจากช่องทางอื่น flow)
+ * ไม่สร้าง store แยก · reuse Property.intakeDate + knownLeasedDate
+ * ห้ามเรียก other-channel เป็น "สัญญา" · ใช้ "รายการที่ปล่อยเช่าได้"
+ * ================================================================ */
+const RMP_BANDS=[
+  {min:0, max:9999, label:"ต่ำกว่า 10,000"},
+  {min:10000, max:20000, label:"10,000–20,000"},
+  {min:20001, max:30000, label:"20,001–30,000"},
+  {min:30001, max:50000, label:"30,001–50,000"},
+  {min:50001, max:100000, label:"50,001–100,000"},
+  {min:100001, max:Infinity, label:"มากกว่า 100,000"}
+];
+function rmpBand(rent){ const r=+rent||0; return RMP_BANDS.find(b=>r>=b.min && r<=b.max); }
+let _rmpScope={year:new Date().getFullYear(), month:new Date().getMonth()+1, view:"month"};
+let _rmpDrilldown=null;
+function setRmpScope(k,v){ _rmpScope[k]=(k==="view"||k==="drilldownKey")?v:num(v); _rmpDrilldown=null; try{renderDashRental();}catch(e){} }
+function rmpToggleDrilldown(key){ _rmpDrilldown=(_rmpDrilldown===key)?null:key; try{renderDashRental();}catch(e){} }
+
+/* Classify each rental item · returns array of {c, p, group, refDate, refDateType, refIncomplete, rent, projectId} */
+function rmpCollectItems(){
+  const items=[];
+  (DB.contracts||[]).forEach(c=>{
+    if(!c)return;
+    const p=(DB.props||[]).find(x=>x&&x.id===c.propertyId)||null;
+    const group=(typeof leaseBy3Of==="function")?leaseBy3Of(c.leaseClosedByType||""):"shelter";
+    const isShelter=group==="shelter";
+    /* Month classification per spec */
+    let refDate="", refDateType="", refIncomplete=false;
+    if(isShelter){
+      if(c.closeDate){refDate=c.closeDate; refDateType="closeDate";}
+      else if(c.startDate){refDate=c.startDate; refDateType="startDate";}
+      else {refDate=c.createdAt||""; refDateType="createdAt"; refIncomplete=true;}
+    } else {
+      if(p&&p.knownLeasedDate){refDate=p.knownLeasedDate; refDateType="knownLeasedDate";}
+      else if(c.closeDate){refDate=c.closeDate; refDateType="closeDate";}
+      else {refDate=c.createdAt||""; refDateType="createdAt"; refIncomplete=true;}
+    }
+    /* Portfolio days: refDate − intakeDate */
+    let portfolioDays=null;
+    if(p&&p.intakeDate&&refDate){
+      const a=new Date(p.intakeDate), b=new Date(refDate);
+      if(!isNaN(a)&&!isNaN(b)) portfolioDays=Math.max(0, Math.floor((b-a)/86400000));
+    }
+    /* Rent · fallback: contract.rent → property.rentPrice parsed */
+    let rent=+c.rent||0;
+    if(!rent && p){ const s=String(p.rentPrice||p.price||"").replace(/[^0-9.]/g,""); rent=+s||0; }
+    /* Actual commission received (SHELTER only · other-channel has 0) */
+    let commReceived=0, lostOpportunity=0;
+    try{
+      const rc=(typeof rentalCommOf==="function")?rentalCommOf(c.id):null;
+      if(rc){ commReceived=+rc.actualReceived||0; }
+      if(!isShelter && typeof computeRentalCommission==="function"){
+        const r=computeRentalCommission(c, rc);
+        if(r.lost) lostOpportunity=+r.lost||0;
+      }
+    }catch(e){}
+    items.push({c, p, group, isShelter, refDate, refDateType, refIncomplete, rent, portfolioDays, commReceived, lostOpportunity, projectId:(p&&p.projectId)||"", projectName:(p&&p.projectName)||(p&&p.title)||"—"});
+  });
+  return items;
+}
+
+/* Filter by scope · reference: _rmpScope */
+function rmpFilterByScope(items){
+  const {year,month,view}=_rmpScope;
+  return items.filter(it=>{
+    if(!it.refDate)return view==="all";
+    const d=new Date(it.refDate); if(isNaN(d))return view==="all";
+    if(view==="all")return true;
+    if(view==="year")return d.getFullYear()===year;
+    if(view==="quarter"){
+      if(d.getFullYear()!==year)return false;
+      const q=Math.floor((month-1)/3);
+      const dq=Math.floor(d.getMonth()/3);
+      return dq===q;
+    }
+    /* month */
+    return d.getFullYear()===year && (d.getMonth()+1)===month;
+  });
+}
+
+function _median(arr){ if(!arr.length)return null; const s=arr.slice().sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length%2?s[m]:Math.round((s[m-1]+s[m])/2); }
+function _avg(arr){ if(!arr.length)return null; return Math.round(arr.reduce((s,v)=>s+v,0)/arr.length); }
+
 function renderDashRental(){ const el=$("#dash-rental"); if(!el)return;
   const cs=DB.contracts;
   if(!cs.length){ el.innerHTML=dashEmpty("ยังไม่มีสัญญาเช่า","rentcare"); return; }
@@ -4727,7 +4812,177 @@ function renderDashRental(){ const el=$("#dash-rental"); if(!el)return;
       <div class="dash-kpi"><b>Owner Direct</b><div class="val">${byOwner}</div><div class="sub" style="color:${lostOwner?'var(--warn)':'var(--muted)'}">โอกาส ฿${fmtBaht(lostOwner)}</div></div>
       <div class="dash-kpi"><b>Other Agent</b><div class="val">${byOther}</div><div class="sub" style="color:${lostOther?'var(--warn)':'var(--muted)'}">โอกาส ฿${fmtBaht(lostOther)}</div></div>
     </div>
-  </div>`+dashSrc("คำนวณจาก: <code>DB.contracts</code> + <code>DB.rentalCommissions</code> · <code>leaseClosedByType</code> (5 options) → 3 groups ผ่าน <code>leaseBy3Of()</code> · lost opportunity จาก <code>computeRentalCommission().lost</code> · VAT/WHT จาก <code>settings.vatPct/whtPct</code>"); }
+  </div>`+dashSrc("คำนวณจาก: <code>DB.contracts</code> + <code>DB.rentalCommissions</code> · <code>leaseClosedByType</code> (5 options) → 3 groups ผ่าน <code>leaseBy3Of()</code> · lost opportunity จาก <code>computeRentalCommission().lost</code> · VAT/WHT จาก <code>settings.vatPct/whtPct</code>")
+  + renderRentalMarketSection(); }
+
+/* Rental Market Performance section · appended below Watchlist */
+function renderRentalMarketSection(){
+  const all=rmpCollectItems();
+  const items=rmpFilterByScope(all);
+  const {year,month,view}=_rmpScope;
+  const scopeLabel=view==="all"?"ทั้งหมด":view==="year"?("ปี "+(year+543)):view==="quarter"?("Q"+(Math.floor((month-1)/3)+1)+" "+(year+543)):(_TH_MONTHS_FULL[month-1]+" "+(year+543));
+  /* Filter controls */
+  const yearOpts=[year-1,year,year+1].map(v=>`<option value="${v}"${v===year?" selected":""}>${v+543}</option>`).join("");
+  const monthOpts=_TH_MONTHS_SHORT.map((n,i)=>`<option value="${i+1}"${(i+1)===month?" selected":""}>${n}</option>`).join("");
+  const viewOpts=[["month","เดือน"],["quarter","ไตรมาส"],["year","ปี"],["all","ทั้งหมด"]].map(([v,l])=>`<option value="${v}"${view===v?" selected":""}>${l}</option>`).join("");
+  const toolbar=`
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0">
+      <label style="font-size:11px;color:var(--muted)">มุมมอง</label><select onchange="setRmpScope('view',this.value)" style="font-size:11.5px;padding:4px 6px">${viewOpts}</select>
+      ${view!=="all"?`<select onchange="setRmpScope('month',this.value)" style="font-size:11.5px;padding:4px 6px"${view==="year"?" disabled":""}>${monthOpts}</select>`:""}
+      ${view!=="all"?`<select onchange="setRmpScope('year',this.value)" style="font-size:11.5px;padding:4px 6px">${yearOpts}</select>`:""}
+      <span style="font-size:11px;color:var(--muted)">· ${esc(scopeLabel)} · <b style="color:var(--ink)">${items.length}</b> รายการ</span>
+    </div>`;
+  if(!items.length){
+    return `<div style="margin-top:16px"><div class="sec-title" style="margin-top:0"><span class="os-mini">📊</span>Rental Market Performance · สถิติการปล่อยเช่า</div>${toolbar}<div class="dash-empty" style="margin-top:6px"><div class="dash-empty-icon">📊</div><div><b>ยังไม่มีข้อมูลรายการที่ปล่อยเช่าได้ในช่วงนี้</b><div style="color:var(--muted);font-size:11px;margin-top:2px">เปลี่ยนมุมมอง หรือเลือกเดือน/ปีอื่น</div></div></div></div>`;
+  }
+  /* Split shelter vs other */
+  const shelter=items.filter(x=>x.isShelter);
+  const other=items.filter(x=>!x.isShelter);
+  const sumRent=arr=>arr.reduce((s,x)=>s+(+x.rent||0),0);
+  const totalRent=sumRent(items), shelterRent=sumRent(shelter), otherRent=sumRent(other);
+  const shelterComm=shelter.reduce((s,x)=>s+x.commReceived,0);
+  const otherLost=other.reduce((s,x)=>s+x.lostOpportunity,0);
+  const refIncompleteCount=items.filter(x=>x.refIncomplete).length;
+
+  /* Compute band stats */
+  const bandRows=RMP_BANDS.map(b=>{
+    const inBand=items.filter(x=>{const r=+x.rent||0; return r>=b.min && r<=b.max;});
+    const sh=inBand.filter(x=>x.isShelter), ot=inBand.filter(x=>!x.isShelter);
+    const rents=inBand.map(x=>+x.rent||0).filter(r=>r>0);
+    const portDays=inBand.map(x=>x.portfolioDays).filter(d=>d!=null);
+    return {b, inBand, sh, ot, shRent:sumRent(sh), otRent:sumRent(ot), avgRent:_avg(rents), medRent:_median(rents), avgPD:_avg(portDays), medPD:_median(portDays)};
+  });
+  const maxBandCount=Math.max(1, ...bandRows.map(r=>r.inBand.length));
+  const topCount=bandRows.reduce((m,r)=>Math.max(m, r.inBand.length),0);
+  const topBands=bandRows.filter(r=>r.inBand.length===topCount && topCount>0);
+
+  const rowCard=(r)=>{
+    const key="band:"+r.b.label; const open=_rmpDrilldown===key;
+    const pct=Math.round(r.inBand.length/maxBandCount*100);
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;background:var(--panel);cursor:pointer" onclick="rmpToggleDrilldown('${esc(key)}')">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px">
+        <b>${esc(r.b.label)} บาท</b>
+        <span><b style="color:var(--ink)">${r.inBand.length}</b> รายการ · SHELTER <b style="color:var(--ok)">${r.sh.length}</b> · ช่องทางอื่น <b style="color:#f97316">${r.ot.length}</b> ${open?"▲":"▼"}</span>
+      </div>
+      <div style="display:flex;height:6px;margin-top:6px;border-radius:3px;overflow:hidden;background:var(--plane)">
+        <div style="width:${r.inBand.length?Math.round(r.sh.length/r.inBand.length*pct):0}%;background:var(--ok)"></div>
+        <div style="width:${r.inBand.length?Math.round(r.ot.length/r.inBand.length*pct):0}%;background:#f97316"></div>
+      </div>
+      <div style="font-size:10.5px;color:var(--muted);margin-top:4px">
+        รวม ฿${fmtBaht(r.shRent+r.otRent)} · SHELTER ฿${fmtBaht(r.shRent)} · ช่องทางอื่น ฿${fmtBaht(r.otRent)} · avg ฿${r.avgRent!=null?fmtBaht(r.avgRent):"—"} · median ฿${r.medRent!=null?fmtBaht(r.medRent):"—"} · portfolio avg ${r.avgPD!=null?r.avgPD+"d":"—"} · median ${r.medPD!=null?r.medPD+"d":"—"}
+      </div>
+      ${open?rmpDrilldownList(r.inBand):""}
+    </div>`;
+  };
+
+  /* Compute project stats */
+  const projMap=new Map();
+  items.forEach(x=>{
+    const key=x.projectId||"__none__";
+    if(!projMap.has(key)) projMap.set(key,{projectId:x.projectId, projectName:x.projectName, items:[]});
+    projMap.get(key).items.push(x);
+  });
+  const projArr=Array.from(projMap.values()).map(g=>{
+    const sh=g.items.filter(x=>x.isShelter), ot=g.items.filter(x=>!x.isShelter);
+    const rents=g.items.map(x=>+x.rent||0).filter(r=>r>0);
+    const portDays=g.items.map(x=>x.portfolioDays).filter(d=>d!=null);
+    const bandCounts={}; g.items.forEach(x=>{ const b=rmpBand(+x.rent||0); if(b){bandCounts[b.label]=(bandCounts[b.label]||0)+1;} });
+    const topBand=Object.entries(bandCounts).sort((a,b)=>b[1]-a[1])[0];
+    return {...g, sh, ot, shRent:sumRent(sh), otRent:sumRent(ot), avgRent:_avg(rents), medRent:_median(rents), avgPD:_avg(portDays), medPD:_median(portDays), topBand:topBand?topBand[0]:null, comm:sh.reduce((s,x)=>s+x.commReceived,0), lost:ot.reduce((s,x)=>s+x.lostOpportunity,0)};
+  });
+  projArr.sort((a,b)=>b.items.length-a.items.length || (b.shRent+b.otRent)-(a.shRent+a.otRent));
+
+  const projCard=(p)=>{
+    const key="proj:"+(p.projectId||"__none__"); const open=_rmpDrilldown===key;
+    const insufficient=p.items.length<3;
+    const isNone=!p.projectId;
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;background:var(--panel);cursor:pointer" onclick="rmpToggleDrilldown('${esc(key)}')">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px">
+        <div style="flex:1;min-width:0">
+          <b>${esc(p.projectName||"—")}</b>
+          ${isNone?'<span style="font-size:10px;color:var(--warn);background:var(--warn-soft,#fff5e6);padding:1px 5px;border-radius:3px;margin-left:4px">ยังไม่ได้เชื่อม Project ID</span>':`<code style="font-size:10px;color:var(--muted)">${esc(p.projectId)}</code>`}
+        </div>
+        <span><b>${p.items.length}</b> · SH <b style="color:var(--ok)">${p.sh.length}</b> · อื่น <b style="color:#f97316">${p.ot.length}</b> ${open?"▲":"▼"}</span>
+      </div>
+      <div style="font-size:10.5px;color:var(--muted);margin-top:4px">
+        รวม ฿${fmtBaht(p.shRent+p.otRent)}/เดือน · SHELTER ฿${fmtBaht(p.shRent)} · อื่น ฿${fmtBaht(p.otRent)} · avg ฿${p.avgRent!=null?fmtBaht(p.avgRent):"—"} · median ฿${p.medRent!=null?fmtBaht(p.medRent):"—"} · ช่วงเด่น ${esc(p.topBand||"—")} · portfolio avg ${p.avgPD!=null?p.avgPD+"d":"—"} · median ${p.medPD!=null?p.medPD+"d":"—"} · คอมรับ ฿${fmtBaht(p.comm)} · โอกาสสูญ ฿${fmtBaht(p.lost)}
+        ${insufficient?'<span style="color:var(--warn);margin-left:6px">· ข้อมูลยังไม่เพียงพอสำหรับสรุปแนวโน้ม</span>':""}
+      </div>
+      ${open?rmpDrilldownList(p.items):""}
+    </div>`;
+  };
+
+  /* Insight text */
+  const allPD=items.map(x=>x.portfolioDays).filter(d=>d!=null);
+  const insightPD=_median(allPD);
+  const topProj=projArr[0];
+  const insightBand=topBands.length===1?topBands[0].b.label:(topBands.length?topBands.map(b=>b.b.label).join(", "):null);
+  let insight=`${scopeLabel} มีทรัพย์ปล่อยเช่าได้ ${items.length} รายการ · SHELTER ปล่อย ${shelter.length} รายการ ค่าเช่ารวม ฿${fmtBaht(shelterRent)}/เดือน · ช่องทางอื่นปล่อย ${other.length} รายการ ค่าเช่ารวม ฿${fmtBaht(otherRent)}/เดือน`;
+  if(insightBand) insight+=` · ช่วงราคา ${insightBand} บาท มีจำนวนปล่อยมากที่สุด`;
+  if(topProj && topProj.items.length>=2) insight+=` · โครงการ ${topProj.projectName} ปล่อยได้มากที่สุด ${topProj.items.length} รายการ`;
+  if(insightPD!=null) insight+=` · ระยะเวลารวมในพอร์ตค่ามัธยฐาน ${insightPD} วัน`;
+  if(items.length<3) insight="ข้อมูลยังไม่เพียงพอสำหรับสรุปแนวโน้ม · ตัวอย่างเพียง "+items.length+" รายการ";
+
+  return `<div style="margin-top:20px;padding-top:16px;border-top:2px dashed var(--border)">
+    <div class="sec-title" style="margin-top:0"><span class="os-mini">📊</span>Rental Market Performance · สถิติการปล่อยเช่า</div>
+    ${toolbar}
+    <div class="dash-kpi-row" style="margin-bottom:8px">
+      <div class="dash-kpi"><b>รายการปล่อยเช่าได้</b><div class="val">${items.length}</div><div class="sub">SHELTER <b style="color:var(--ok)">${shelter.length}</b> · ช่องทางอื่น <b style="color:#f97316">${other.length}</b></div></div>
+      <div class="dash-kpi"><b>ค่าเช่ารวม/เดือน</b><div class="val">฿${fmtBaht(totalRent)}</div><div class="sub">SHELTER ฿${fmtBaht(shelterRent)} · อื่น ฿${fmtBaht(otherRent)}</div></div>
+      <div class="dash-kpi"><b>คอมรับจริง (SHELTER)</b><div class="val" style="color:var(--ok)">฿${fmtBaht(shelterComm)}</div></div>
+      <div class="dash-kpi"><b>มูลค่าโอกาสสูญ</b><div class="val" style="color:#f97316">฿${fmtBaht(otherLost)}</div></div>
+    </div>
+    ${refIncompleteCount?`<div style="font-size:11px;color:var(--warn);margin-bottom:8px">⚠ ${refIncompleteCount} รายการใช้ createdAt เป็นวันอ้างอิง · วันที่อ้างอิงไม่ครบ</div>`:""}
+    <div style="background:var(--brand-soft);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;line-height:1.6">
+      <b style="color:var(--brand);font-size:11px;letter-spacing:.5px;text-transform:uppercase">💡 Insight</b><br>${esc(insight)}
+    </div>
+    <div style="margin-bottom:12px">
+      <b style="font-size:12.5px">ช่วงค่าเช่าที่ปล่อยออกมากที่สุด</b>
+      ${topBands.length&&topCount?`<div style="font-size:11px;color:var(--ok);margin:4px 0 6px">🏆 ${topBands.map(r=>esc(r.b.label)+" บาท").join(" + ")} ปล่อยได้มากที่สุด ${topCount} รายการ</div>`:""}
+      <div>${bandRows.map(rowCard).join("")}</div>
+    </div>
+    <div>
+      <b style="font-size:12.5px">โครงการที่ปล่อยเช่าได้ · ${esc(scopeLabel)}</b>
+      <div style="font-size:10.5px;color:var(--muted);margin:2px 0 6px">เรียงจาก: จำนวนรายการ → ค่าเช่ารวม · จัดกลุ่มด้วย Project ID จริง (ไม่ใช่ชื่อ)</div>
+      <div>${projArr.slice(0,15).map(projCard).join("")}</div>
+      ${projArr.length>15?`<div style="font-size:11px;color:var(--muted);margin-top:6px">· และอีก ${projArr.length-15} โครงการ</div>`:""}
+    </div>
+    <div style="font-size:10.5px;color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px dashed var(--border)">
+      <b>SSOT:</b> <code>DB.contracts</code> + <code>DB.props</code> + <code>leaseBy3Of()</code> ·
+      <b>เดือน:</b> SHELTER = closeDate→startDate→createdAt · ช่องทางอื่น = knownLeasedDate→createdAt ·
+      <b>ระยะรวมในพอร์ต:</b> refDate − intakeDate ·
+      <b>ค่าคอม:</b> rentalCommissions.actualReceived (SHELTER) + computeRentalCommission.lost (อื่น) ·
+      คลิกแท่ง/ช่วง/โครงการ เพื่อดูรายการต้นทาง
+    </div>
+  </div>`;
+}
+
+function rmpDrilldownList(items){
+  const row=x=>{
+    const b=rmpBand(+x.rent||0);
+    const propCode=(x.p&&x.p.code)||(x.p&&x.p.title)||"—";
+    const propIdx=x.p?DB.props.indexOf(x.p):-1;
+    return `<tr>
+      <td><code>${esc((x.p&&x.p.id)||"")}</code></td>
+      <td>${esc(propCode)}</td>
+      <td>${esc(x.projectName)}${!x.projectId?' <span style="color:var(--warn);font-size:9px">(ไม่มี Project ID)</span>':""}</td>
+      <td><span style="color:${x.isShelter?'var(--ok)':'#f97316'};font-weight:700">${x.isShelter?"SHELTER":"อื่น"}</span></td>
+      <td>${esc(x.refDate||"—")} <span style="color:var(--muted);font-size:9px">(${esc(x.refDateType)})</span></td>
+      <td>${esc((x.p&&x.p.intakeDate)||"—")}</td>
+      <td style="text-align:right">฿${fmtBaht(x.rent)}</td>
+      <td>${esc(b?b.label:"—")}</td>
+      <td style="text-align:right">${x.portfolioDays!=null?x.portfolioDays+"d":"—"}</td>
+      <td>${x.isShelter?`<code>${esc(x.c.id||"")}</code>`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="text-align:right;color:var(--ok)">${x.commReceived?"฿"+fmtBaht(x.commReceived):"—"}</td>
+      <td style="text-align:right;color:#f97316">${x.lostOpportunity?"฿"+fmtBaht(x.lostOpportunity):"—"}</td>
+      <td>${propIdx>=0?`<button class="btn sm" onclick="event.stopPropagation();openDetail(${propIdx})">เปิด</button>`:""}</td>
+    </tr>`;
+  };
+  return `<div style="overflow-x:auto;margin-top:8px;max-height:320px;overflow-y:auto"><table style="width:100%;font-size:10.5px;border-collapse:collapse">
+    <thead style="position:sticky;top:0;background:var(--plane)"><tr style="text-align:left;border-bottom:1px solid var(--border)">
+      <th style="padding:4px 6px">Property ID</th><th style="padding:4px 6px">Code</th><th style="padding:4px 6px">โครงการ</th><th style="padding:4px 6px">ช่องทาง</th><th style="padding:4px 6px">วันอ้างอิง</th><th style="padding:4px 6px">Intake</th><th style="padding:4px 6px;text-align:right">ค่าเช่า</th><th style="padding:4px 6px">ช่วง</th><th style="padding:4px 6px;text-align:right">Portfolio</th><th style="padding:4px 6px">Contract ID</th><th style="padding:4px 6px;text-align:right">คอมรับ</th><th style="padding:4px 6px;text-align:right">โอกาสสูญ</th><th></th>
+    </tr></thead><tbody>${items.map(row).join("")}</tbody></table></div>`;
+}
 
 function renderDashTrends(){ const el=$("#dash-trends"); if(!el)return;
   const inc=DB.income;
