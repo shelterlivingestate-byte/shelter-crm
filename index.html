@@ -6080,53 +6080,102 @@ function monthRange(a,b){ const out=[]; let cur=a,g=0; while(cur<=b&&g<60){ out.
 function daysBetween(fromISO,toISO){ if(!toISO)return null; const a=Date.parse(String(fromISO)), b=Date.parse(String(toISO)); if(isNaN(a)||isNaN(b))return null; return Math.round((b-a)/86400000); }
 function fmtMoney(n){ n=num(n); return n.toLocaleString("en-US"); }
 function dueDateOf(c,ym){ return ym+"-"+String(Math.min(28,num(c.dueDay)||1)).padStart(2,"0"); }
+/* ================================================================
+ * Rental Care · Eligibility Gate · Aug-15 cleanup
+ * SSOT rule: หนี้/งวด/งาน สร้างได้เฉพาะเมื่อ:
+ *   1. SHELTER managed contract (isShelterActiveContract === true)
+ *   2. tenantId present (มี Tenant จริง)
+ *   3. careActive === true (รับดูแลหลังเช่า)
+ * ห้ามสร้างงวดสำหรับ other_channel · ห้ามสร้างงวดถ้าไม่มี Tenant
+ * ================================================================ */
+function isRentCareEligible(c){
+  if(!c||!c.id) return false;
+  if(!(typeof isShelterActiveContract==="function"?isShelterActiveContract(c):false)) return false;
+  if(!c.tenantId) return false;
+  if(!c.careActive) return false;
+  return true;
+}
+
+/* Backfill: mark existing auto-generated ledger/task entries as orphan for non-eligible contracts.
+   Idempotent · ไม่ลบข้อมูล · แค่ flag _orphan=true เพื่อไม่ให้เข้าผลรวม · rollback ได้ */
+function migrateRentalOrphans(){
+  try{
+    if(localStorage.getItem("shelter_rental_orphan_v1")==="1")return 0;
+    let ledgerOrphaned=0, taskOrphaned=0;
+    (DB.rentLedger||[]).forEach(l=>{
+      const c=(DB.contracts||[]).find(x=>x.id===l.contractId);
+      if(!c || !isRentCareEligible(c)){ if(!l._orphan){ l._orphan=true; l._orphanReason=c?(c.managedByShelter?(c.tenantId?"no careActive":"no tenantId"):"not shelter"):"contract missing"; ledgerOrphaned++; } }
+    });
+    (DB.rentTasks||[]).forEach(t=>{
+      if(!t.auto)return; /* keep manual tasks · only auto-generated get marked */
+      const c=(DB.contracts||[]).find(x=>x.id===t.contractId);
+      if(!c || !isRentCareEligible(c)){ if(!t._orphan){ t._orphan=true; t._orphanReason=c?(c.managedByShelter?(c.tenantId?"no careActive":"no tenantId"):"not shelter"):"contract missing"; taskOrphaned++; } }
+    });
+    try{localStorage.setItem("shelter_rental_orphan_v1","1");}catch(e){}
+    if(ledgerOrphaned||taskOrphaned){ try{console.log("[migrate] orphan flagged · ledger="+ledgerOrphaned+" · tasks="+taskOrphaned);}catch(e){} save(); }
+    return ledgerOrphaned+taskOrphaned;
+  }catch(e){ return 0; }
+}
+
 /* ---- automation: ledger generation + expiry tasks + status ---- */
-function ensureLedger(c){ if(!c.startDate)return false; let ch=false;
-  const start=c.startDate.slice(0,7), next=addMonth(ymNow(),1);
+function ensureLedger(c){
+  if(!isRentCareEligible(c))return false; /* Aug-15: gate · no ledger for non-eligible */
+  if(!c.startDate)return false; let ch=false;
+  const start=c.startDate.slice(0,7), next=ymNow(); /* Aug-15: current month only · no auto forward */
   let months=monthRange(start<=next?start:next,next); if(months.length>18)months=months.slice(-18);
-  months.forEach(m=>{ if(!DB.rentLedger.find(r=>r.contractId===c.id&&r.month===m)){
+  months.forEach(m=>{ if(!DB.rentLedger.find(r=>r.contractId===c.id&&r.month===m&&!r._orphan)){
     DB.rentLedger.push({id:uid(),contractId:c.id,month:m,rentDue:num(c.rent),rentPaid:0,rentPaidDate:"",water:num(c.waterRate)||0,elec:num(c.elecRate)||0,net:num(c.netFee)||0,common:num(c.commonFee)||0,other:0,utilPaid:0,payoutOwner:0,payoutDate:"",note:""}); ch=true; } });
   return ch; }
 function runRentalAutomation(){ const today=todayISO(); let ch=false;
+  migrateRentalOrphans(); /* first-run backfill */
   DB.contracts.forEach(c=>{ if(!c.id){c.id=uid();ch=true;}
     if(["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status))return;
-    if(ensureLedger(c))ch=true;
+    /* Ledger auto-gen ONLY for eligible (SHELTER + tenant + care) */
+    if(isRentCareEligible(c)){
+      if(ensureLedger(c))ch=true;
+    }
+    /* Expiry status update · applies to ALL channels (Watchlist per spec §D) */
     const dl=daysBetween(today,c.endDate);
     if(dl!=null&&dl<=30&&dl>=0&&c.status==="Active"){ c.status="ใกล้หมดสัญญา"; ch=true; }
-    if(dl!=null&&dl<=30&&dl>=-1){ if(!DB.rentTasks.find(t=>t.contractId===c.id&&t.tag==="renew_ask")){
+    /* Renewal task ONLY for eligible (spec §3 · งานวันนี้ ต้องไม่มาจากแค่มีสัญญา) */
+    if(isRentCareEligible(c) && dl!=null&&dl<=30&&dl>=-1){ if(!DB.rentTasks.find(t=>t.contractId===c.id&&t.tag==="renew_ask"&&!t._orphan)){
       DB.rentTasks.push({id:uid(),contractId:c.id,tag:"renew_ask",title:"สอบถามผู้เช่าเรื่องต่อสัญญา",due:c.endDate,kind:"สัญญา",status:"open",auto:true,createdAt:today}); ch=true; } }
   });
   if(ch)save(); }
-/* ---- reminders (computed live, ไม่เก็บซ้ำ) ---- */
+/* ---- reminders (computed live · Aug-15: skip orphans + non-eligible) ---- */
 function computeRentReminders(){ const today=todayISO(); const R=[];
   DB.contracts.forEach(c=>{ if(["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status))return; const lbl=contractLabel(c);
-    // rent + utility per unpaid ledger
-    DB.rentLedger.filter(r=>r.contractId===c.id).forEach(r=>{ if(r.month>ymNow())return;
-      const due=dueDateOf(c,r.month), dl=daysBetween(today,due);
-      const rentFull=num(r.rentPaid)>=num(r.rentDue)&&num(r.rentDue)>0;
-      if(!rentFull){ if(dl!=null&&dl<0)R.push({lv:1,ic:"💸",t:lbl,r:"ค่าเช่าเดือน "+r.month+" เกินกำหนด "+(-dl)+" วัน",kind:"ค่าเช่า",cid:c.id});
-        else if(dl!=null&&dl<=3)R.push({lv:2,ic:"💰",t:lbl,r:"ค่าเช่าเดือน "+r.month+" ครบกำหนดใน "+dl+" วัน",kind:"ค่าเช่า",cid:c.id}); }
-      const util=num(r.water)+num(r.elec)+num(r.net)+num(r.common)+num(r.other);
-      if(util>0&&num(r.utilPaid)<util){ if(dl!=null&&dl<0)R.push({lv:1,ic:"⚡",t:lbl,r:"ค่าน้ำ/ไฟ/ส่วนกลาง เดือน "+r.month+" ยังไม่ชำระ ("+fmtMoney(util-num(r.utilPaid))+" บาท)",kind:"สาธารณูปโภค",cid:c.id});
-        else if(dl!=null&&dl<=3)R.push({lv:2,ic:"⚡",t:lbl,r:"ค่าน้ำ/ไฟ เดือน "+r.month+" ใกล้ครบกำหนด",kind:"สาธารณูปโภค",cid:c.id}); } });
-    // expiry
+    // Rent/utility reminders ONLY for eligible (SHELTER + tenant + care)
+    if(isRentCareEligible(c)){
+      DB.rentLedger.filter(r=>r.contractId===c.id && !r._orphan).forEach(r=>{ if(r.month>ymNow())return;
+        const due=dueDateOf(c,r.month), dl=daysBetween(today,due);
+        const rentFull=num(r.rentPaid)>=num(r.rentDue)&&num(r.rentDue)>0;
+        if(!rentFull){ if(dl!=null&&dl<0)R.push({lv:1,ic:"💸",t:lbl,r:"ค่าเช่าเดือน "+r.month+" เกินกำหนด "+(-dl)+" วัน",kind:"ค่าเช่า",cid:c.id});
+          else if(dl!=null&&dl<=3)R.push({lv:2,ic:"💰",t:lbl,r:"ค่าเช่าเดือน "+r.month+" ครบกำหนดใน "+dl+" วัน",kind:"ค่าเช่า",cid:c.id}); }
+        const util=num(r.water)+num(r.elec)+num(r.net)+num(r.common)+num(r.other);
+        if(util>0&&num(r.utilPaid)<util){ if(dl!=null&&dl<0)R.push({lv:1,ic:"⚡",t:lbl,r:"ค่าน้ำ/ไฟ/ส่วนกลาง เดือน "+r.month+" ยังไม่ชำระ ("+fmtMoney(util-num(r.utilPaid))+" บาท)",kind:"สาธารณูปโภค",cid:c.id});
+          else if(dl!=null&&dl<=3)R.push({lv:2,ic:"⚡",t:lbl,r:"ค่าน้ำ/ไฟ เดือน "+r.month+" ใกล้ครบกำหนด",kind:"สาธารณูปโภค",cid:c.id}); } });
+    }
+    // Expiry watchlist · ALL channels (spec §12 · ไม่กลายเป็นงานอัตโนมัติ · แค่แจ้งเตือน)
     const dl=daysBetween(today,c.endDate);
     if(dl!=null&&dl>=0&&dl<=90){ const lv=dl<=15?1:2; R.push({lv,ic:"📆",t:lbl,r:"สัญญาจะหมดใน "+dl+" วัน ("+c.endDate+")",kind:"สัญญา",cid:c.id}); }
     else if(dl!=null&&dl<0){ R.push({lv:1,ic:"📆",t:lbl,r:"สัญญาหมดแล้ว "+(-dl)+" วัน — ต่อ/คืนบ้าน",kind:"สัญญา",cid:c.id}); }
   });
-  // repairs pending / overdue
+  // Repairs · own store · not gated by care (SHELTER handles maintenance regardless)
   DB.repairs.forEach(rp=>{ const c=contractOf(rp.contractId); const lbl=c?contractLabel(c):"งานซ่อม";
     if(rp.approveStatus==="รออนุมัติ")R.push({lv:2,ic:"🛠",t:lbl,r:"งานซ่อมรออนุมัติจากเจ้าของ: "+(rp.issue||""),kind:"งานซ่อม",cid:rp.contractId});
     if(rp.status!=="เสร็จสิ้น"&&rp.apptDate){ const dl=daysBetween(todayISO(),rp.apptDate); if(dl!=null&&dl<0)R.push({lv:1,ic:"🛠",t:lbl,r:"งานซ่อมเลยวันนัด "+(-dl)+" วัน: "+(rp.issue||""),kind:"งานซ่อม",cid:rp.contractId}); } });
-  // inspections upcoming
+  // Inspections
   DB.inspections.forEach(ins=>{ if(!ins.date)return; const dl=daysBetween(todayISO(),ins.date); const c=contractOf(ins.contractId);
     if(dl!=null&&dl>=0&&dl<=7)R.push({lv:2,ic:"🔍",t:c?contractLabel(c):"ตรวจบ้าน",r:(ins.type||"ตรวจบ้าน")+" วันที่ "+ins.date+" (อีก "+dl+" วัน)",kind:"ตรวจบ้าน",cid:ins.contractId}); });
-  // open auto/manual tasks
-  DB.rentTasks.filter(t=>t.status==="open").forEach(t=>{ const c=contractOf(t.contractId); const dl=t.due?daysBetween(todayISO(),t.due):null;
+  // Open auto/manual tasks · SKIP orphans (auto-generated for non-eligible)
+  DB.rentTasks.filter(t=>t.status==="open" && !t._orphan).forEach(t=>{ const c=contractOf(t.contractId); const dl=t.due?daysBetween(todayISO(),t.due):null;
     R.push({lv:dl!=null&&dl<0?1:2,ic:"✅",t:c?contractLabel(c):"งาน",r:t.title+(t.due?" (กำหนด "+t.due+")":""),kind:"งาน",cid:t.contractId,taskId:t.id}); });
   return R.sort((a,b)=>a.lv-b.lv); }
-/* ---- financial rollups ---- */
-function contractFinance(c){ const rows=DB.rentLedger.filter(r=>r.contractId===c.id);
+/* ---- financial rollups · Aug-15: skip orphans + return zeros for non-eligible ---- */
+function contractFinance(c){
+  if(!isRentCareEligible(c)) return {rentCollected:0,arrears:0,utilDue:0,utilPaid:0,repairOwner:0,payout:0,net:0,notEligible:true};
+  const rows=DB.rentLedger.filter(r=>r.contractId===c.id && !r._orphan);
   const rentCollected=rows.reduce((s,r)=>s+num(r.rentPaid),0);
   const arrears=rows.reduce((s,r)=>s+Math.max(0,num(r.rentDue)-num(r.rentPaid)),0);
   const utilDue=rows.reduce((s,r)=>s+(num(r.water)+num(r.elec)+num(r.net)+num(r.common)+num(r.other)),0);
@@ -6153,24 +6202,37 @@ function renderRentCare(){ const tabsBox=$("#rcTabs"); if(!tabsBox)return;
 function rcGo(t){ rcTab=t; renderRentCare(); }
 function rcAddBtn(entity,label){ return `<button class="btn primary sm" onclick="openForm('${entity}')">+ ${label}</button>`; }
 function rcDashboard(){
-  const active=DB.contracts.filter(c=>!["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status));
-  let rentDue=0,arrears=0,utilUnpaid=0,net=0;
-  active.forEach(c=>{ const f=contractFinance(c); arrears+=f.arrears; net+=f.net; utilUnpaid+=Math.max(0,f.utilDue-f.utilPaid); });
+  /* Aug-15 refactor · Rental Care Dashboard cleaned per spec §11 */
+  const activeAll=DB.contracts.filter(c=>!["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status));
+  const activeShelter=activeAll.filter(c=>typeof isShelterActiveContract==="function"?isShelterActiveContract(c):false);
+  const managedCare=activeAll.filter(isRentCareEligible); /* SHELTER + Tenant + careActive */
+  let arrears=0,utilUnpaid=0;
+  managedCare.forEach(c=>{ const f=contractFinance(c); arrears+=f.arrears; utilUnpaid+=Math.max(0,f.utilDue-f.utilPaid); });
   const rem=computeRentReminders(); const red=rem.filter(r=>r.lv===1).length; const soon=rem.filter(r=>r.lv===2).length;
-  const expiring=active.filter(c=>{const dl=daysBetween(todayISO(),c.endDate);return dl!=null&&dl<=60;}).length;
+  const expiring30=activeAll.filter(c=>{const dl=daysBetween(todayISO(),c.endDate);return dl!=null&&dl<=30&&dl>=0;}).length;
+  const expiring60=activeAll.filter(c=>{const dl=daysBetween(todayISO(),c.endDate);return dl!=null&&dl<=60&&dl>=0;}).length;
+  const expiring90=activeAll.filter(c=>{const dl=daysBetween(todayISO(),c.endDate);return dl!=null&&dl<=90&&dl>=0;}).length;
   const repairsOpen=DB.repairs.filter(r=>r.status!=="เสร็จสิ้น").length;
+  const nonEligibleShelter=activeShelter.length-managedCare.length;
+
   const kpis=`<div class="rc-kpis">
-    <div class="rc-kpi"><div class="lbl">สัญญา Active</div><div class="val">${active.length}</div></div>
-    <div class="rc-kpi"><div class="lbl">ค่าเช่าค้างชำระ</div><div class="val" style="color:var(--crit)">฿${fmtMoney(arrears)}</div></div>
-    <div class="rc-kpi"><div class="lbl">ค่าน้ำ-ไฟค้าง</div><div class="val" style="color:#8a6516">฿${fmtMoney(utilUnpaid)}</div></div>
-    <div class="rc-kpi"><div class="lbl">รายรับสุทธิเจ้าของ</div><div class="val" style="color:var(--good-ink)">฿${fmtMoney(net)}</div></div>
-    <div class="rc-kpi"><div class="lbl">สัญญาใกล้หมด (≤60 วัน)</div><div class="val" style="color:#8a6516">${expiring}</div></div>
-    <div class="rc-kpi"><div class="lbl">งานซ่อมค้าง</div><div class="val">${repairsOpen}</div></div>
-    <div class="rc-kpi"><div class="lbl">แจ้งเตือนด่วน</div><div class="val" style="color:var(--crit)">${red}</div></div>
-    <div class="rc-kpi"><div class="lbl">งานต้องทำเร็ว ๆ นี้</div><div class="val" style="color:#8a6516">${soon}</div></div>
+    <div class="rc-kpi"><div class="lbl">งานวันนี้</div><div class="val" style="color:var(--crit)">${red}</div></div>
+    <div class="rc-kpi"><div class="lbl">งานเกินกำหนด</div><div class="val" style="color:#8a6516">${soon}</div></div>
+    <div class="rc-kpi"><div class="lbl">ค่าเช่าค้างจริง</div><div class="val" style="color:${arrears?'var(--crit)':'var(--muted)'}">฿${fmtMoney(arrears)}</div><div class="lbl" style="font-size:10px;color:var(--muted)">Managed Care · Tenant + เปิดเก็บค่าเช่า</div></div>
+    <div class="rc-kpi"><div class="lbl">งานรอ Owner</div><div class="val">${DB.repairs.filter(r=>r.approveStatus==="รออนุมัติ").length}</div></div>
+    <div class="rc-kpi"><div class="lbl">งานซ่อม</div><div class="val">${repairsOpen}</div></div>
+    <div class="rc-kpi"><div class="lbl">ใกล้หมดสัญญา ≤30/60/90</div><div class="val" style="color:#8a6516">${expiring30}/${expiring60}/${expiring90}</div></div>
   </div>`;
-  const todayList=rem.slice(0,6).map(r=>`<div class="rc-card"><div class="rh"><div><div class="rt">${r.ic} ${esc(r.t)}</div><div class="rm">${esc(r.r)}</div></div><span class="rc-pill ${r.lv===1?'rc-red':'rc-yellow'}">${r.kind}</span></div></div>`).join("")||'<div class="rc-empty">ไม่มีงานเร่งด่วน ✓</div>';
-  return rcCareProps()+kpis+`<div class="rc-sec-title">🔔 งาน/แจ้งเตือนวันนี้</div>`+todayList+(rem.length>6?`<div class="hint">ดูทั้งหมด ${rem.length} รายการในแท็บ "งาน & แจ้งเตือน"</div>`:"");
+
+  const banner=`<div style="background:#f0f9ff;border:1px solid #0284c7;border-left:3px solid #0284c7;padding:10px 12px;border-radius:6px;font-size:11.5px;margin-bottom:10px;line-height:1.6">
+    <b>📋 3 กลุ่มข้อมูล:</b><br>
+    · <b>Managed Care</b> ${managedCare.length} รายการ — สร้างงวด/หนี้/งานได้ (SHELTER + Tenant + เปิดบริการ)<br>
+    · <b>SHELTER Contract อื่น</b> ${nonEligibleShelter} รายการ — มีสัญญา แต่ยังไม่รับดูแล → ไม่สร้างงวด/หนี้<br>
+    · <b>ช่องทางอื่น</b> ${activeAll.length-activeShelter.length} รายการ — Watchlist วันหมดสัญญาเท่านั้น
+  </div>`;
+
+  const todayList=rem.slice(0,6).map(r=>`<div class="rc-card"><div class="rh"><div><div class="rt">${r.ic} ${esc(r.t)}</div><div class="rm">${esc(r.r)}</div></div><span class="rc-pill ${r.lv===1?'rc-red':'rc-yellow'}">${r.kind}</span></div></div>`).join("")||'<div class="rc-empty">ไม่มีงานเร่งด่วน ✓ · (Managed Care · Tenant · Repairs · Expiry)</div>';
+  return rcCareProps()+banner+kpis+`<div class="rc-sec-title">🔔 งาน/แจ้งเตือนวันนี้</div>`+todayList+(rem.length>6?`<div class="hint">ดูทั้งหมด ${rem.length} รายการในแท็บ "งาน & แจ้งเตือน"</div>`:"");
 }
 function rcContracts(){
   const head=`<div class="rc-toolbar"><b style="font-size:13px">สัญญาเช่าทั้งหมด</b><div class="spacer"></div>${rcAddBtn("contracts","เพิ่มสัญญา")}</div>`;
@@ -6192,11 +6254,15 @@ function rcContracts(){
 function openContractEdit(i){ openForm("contracts",i); }
 function delContract(i){ if(confirm("ลบสัญญานี้? (ประวัติ ledger/care ที่ผูกไว้จะยังอยู่)")){ DB.contracts.splice(i,1); save(); renderRentCare(); } }
 function rcLedger(){
-  const active=DB.contracts.filter(c=>!["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status));
-  const head=`<div class="rc-toolbar"><b style="font-size:13px">ค่าเช่า & สาธารณูปโภครายเดือน</b><div class="spacer"></div><button class="btn sm" onclick="runRentalAutomation();renderRentCare();flashSaved('สร้างรายการเดือนล่าสุดแล้ว ✓')">↻ สร้างรายการเดือนนี้</button></div>`;
-  if(!active.length)return head+`<div class="rc-empty">ยังไม่มีสัญญา Active — ระบบจะสร้างรายการรายเดือนอัตโนมัติจากสัญญาที่ Active</div>`;
-  let html=head;
-  active.forEach(c=>{ const rows=DB.rentLedger.filter(r=>r.contractId===c.id).sort((a,b)=>a.month<b.month?1:-1).slice(0,6);
+  /* Aug-15 §8 · แสดงเฉพาะ Managed Care (SHELTER + Tenant + เปิดบริการ) */
+  const eligible=DB.contracts.filter(isRentCareEligible);
+  const head=`<div class="rc-toolbar"><b style="font-size:13px">ค่าเช่า & สาธารณูปโภครายเดือน (Managed Care เท่านั้น)</b><div class="spacer"></div><button class="btn sm" onclick="runRentalAutomation();renderRentCare();flashSaved('สร้างรายการเดือนล่าสุดแล้ว ✓')">↻ สร้างรายการเดือนนี้</button></div>`;
+  const banner=`<div style="background:#fff8e1;border-left:3px solid #f59e0b;padding:8px 10px;border-radius:6px;font-size:11.5px;margin-bottom:8px;line-height:1.55">
+    <b>เกณฑ์แสดงรายการ:</b> SHELTER + มี Tenant + เปิด "รับดูแลหลังเช่า" (careActive) เท่านั้น · ทรัพย์ช่องทางอื่นและสัญญาที่ยังไม่เปิดบริการ<b>ไม่แสดง</b>ที่นี่ (ดูใน Watchlist แทน)
+  </div>`;
+  if(!eligible.length)return head+banner+`<div class="rc-empty">ยังไม่มีสัญญาที่เข้าเงื่อนไข Managed Care · เปิด "รับดูแลหลังเช่า" ใน Contract ก่อน</div>`;
+  let html=head+banner;
+  eligible.forEach(c=>{ const rows=DB.rentLedger.filter(r=>r.contractId===c.id && !r._orphan).sort((a,b)=>a.month<b.month?1:-1).slice(0,6);
     html+=`<div class="rc-sec-title">${esc(contractLabel(c))}</div>`;
     if(!rows.length){ html+=`<div class="rc-empty">ยังไม่มีรายการ</div>`; return; }
     rows.forEach(r=>{ const idx=DB.rentLedger.indexOf(r); const util=num(r.water)+num(r.elec)+num(r.net)+num(r.common)+num(r.other);
