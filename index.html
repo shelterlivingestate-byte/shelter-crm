@@ -2589,7 +2589,11 @@ function ssCloseAll(exceptBtn){ document.querySelectorAll(".ss-wrap").forEach(w=
 function ssFilter(inp){ const wrap=inp.closest(".ss-wrap"); ssRender(wrap, inp.value); }
 function ssRender(wrap, query){ const type=wrap.dataset.type; const listEl=wrap.querySelector(".ss-list"); if(!listEl||!SS_SRC[type])return; const q=(query||"").trim().toLowerCase(); const currentId=wrap.querySelector('input[type=hidden]').value;
   let rows=SS_SRC[type](); if(q){ const hay=SS_HAY[type]; rows=rows.filter(r=>hay(r).includes(q)); } rows=rows.slice(0,150);
-  if(!rows.length){ listEl.innerHTML=`<div class="ss-empty"><b>ไม่พบข้อมูล</b><small>ลองค้นด้วย ID บางส่วน · ชื่อ · เบอร์ · ทำเล</small></div>`; return; }
+  if(!rows.length){
+    /* Aug-18 · Quick-add · project: เปิด "+ เพิ่มโครงการนี้" ที่ใช้ query เป็นชื่อโครงการ */
+    const addBtn=(type==="project"&&q)?`<div style="margin-top:10px"><button type="button" class="btn primary sm" onclick="ssQuickAddProject(this)" data-name="${esc(q)}">+ เพิ่มโครงการ "${esc(q)}" ทันที</button></div>`:"";
+    listEl.innerHTML=`<div class="ss-empty"><b>ไม่พบข้อมูล</b><small>ลองค้นด้วย ID บางส่วน · ชื่อ · เบอร์ · ทำเล</small>${addBtn}</div>`; return;
+  }
   const itemFn=SS_ITEM[type];
   listEl.innerHTML=rows.map(r=>{ const it=itemFn(r); const sel=it.id===currentId?" sel":""; return `<div class="ss-item${sel}" data-id="${esc(it.id)}" onclick="ssPickItem(this)"><span class="ss-id">${esc(it.id).slice(0,10)}</span>${esc(it.label)}${it.sub?`<small class="ss-sub">${esc(it.sub)}</small>`:""}</div>`; }).join("");
 }
@@ -2789,19 +2793,19 @@ function renderPropTimelinePanel(p){
   </div>`;
 }
 
-/* Aug-18 · Auto-fill Property fields from Project Master (spec: ใกล้/จุดเด่น/ทำเล)
- * เรียกจาก projectId onchange · เติมเฉพาะช่องที่ว่าง · ไม่ overwrite user input · แสดง visual hint */
+/* Aug-18 · Auto-fill Property fields from Project Master
+ * เรียกจาก projectId onchange · overwrite ทุกครั้งที่ user เลือกโครงการ (explicit action) · visual pulse */
 function _autofillFromProject(proj){
   if(!proj) return;
   const fill=(name,val)=>{
     const inp=document.querySelector('#modalForm [name="'+name+'"]');
     if(!inp) return false;
-    const cur=(inp.value||"").trim();
-    if(cur) return false; /* preserve user input */
     if(!val||!String(val).trim()) return false;
     inp.value=String(val).trim();
+    /* Also update data-iso for Thai date fields · sync visible value */
+    if(inp.dataset && inp.dataset.thaiDate==="1"){ inp.dataset.iso=inp.value; }
     /* Visual pulse to signal auto-fill */
-    try{ inp.style.transition="background 0.6s"; inp.style.background="#fff6d6"; setTimeout(()=>{ inp.style.background=""; },1200); }catch(e){}
+    try{ inp.style.transition="background 0.6s"; inp.style.background="#fff6d6"; setTimeout(()=>{ inp.style.background=""; },1500); }catch(e){}
     return true;
   };
   const filled=[];
@@ -2814,9 +2818,24 @@ function _autofillFromProject(proj){
   if(proj.highlights) tagParts.push(String(proj.highlights).trim().replace(/\n+/g," · "));
   if(proj.facilities) tagParts.push(String(proj.facilities).trim().replace(/\n+/g," · "));
   if(fill("tags", tagParts.filter(x=>x).join(" · "))) filled.push("แท็ก/จุดเด่น");
-  /* Show one-time toast · non-blocking */
+  /* mapUrl · สร้างจาก proj.lat/lng ถ้ามี · หรือ proj.mapUrl ถ้ามี field นี้ */
+  let mapUrl="";
+  if(proj.mapUrl && String(proj.mapUrl).trim()) mapUrl=String(proj.mapUrl).trim();
+  else if(proj.lat && proj.lng){
+    const lat=parseFloat(proj.lat), lng=parseFloat(proj.lng);
+    if(!isNaN(lat)&&!isNaN(lng)&&!(lat===0&&lng===0)) mapUrl="https://www.google.com/maps?q="+lat+","+lng;
+  }
+  if(fill("mapUrl", mapUrl)){
+    filled.push("พิกัดแมพ");
+    /* auto-fill lat/lng too */
+    if(proj.lat) fill("lat", proj.lat);
+    if(proj.lng) fill("lng", proj.lng);
+    /* Auto-open Advanced Override so user sees the map link ที่เพิ่ง fill (which lives in Advanced) */
+    try{ const btn=$("#advancedToggleBtn"); if(btn && !btn.classList.contains("on")) toggleAdvanced(btn); }catch(e){}
+  }
+  /* Show non-blocking toast */
   if(filled.length){
-    try{ flashSaved("✨ ดึงข้อมูล "+filled.join(", ")+" จาก "+esc(proj.name||"โครงการ")); }catch(e){}
+    try{ flashSaved("✨ ดึง "+filled.join(", ")+" จาก "+(proj.name||"โครงการ")); }catch(e){}
   }
 }
 
@@ -3080,11 +3099,29 @@ function quickAddProject(){
   pendingPropDraft={fd:Object.fromEntries(new FormData($("#modalForm"))),photos:formPhotos.slice(),logs:formLogs.slice(),index:formCtx.index};
   openForm("projects");
 }
+/* Aug-18 · quick-add from Searchable Select empty state · pre-fills project name */
+function ssQuickAddProject(btn){
+  const name=btn.getAttribute("data-name")||"";
+  pendingPropDraft={fd:Object.fromEntries(new FormData($("#modalForm"))),photos:formPhotos.slice(),logs:formLogs.slice(),index:formCtx.index};
+  try{ssCloseAll(null);}catch(e){}
+  openForm("projects");
+  /* Pre-fill project name after form renders */
+  setTimeout(()=>{ const inp=document.querySelector('#modalForm [name="name"]'); if(inp){ inp.value=name; try{inp.focus();}catch(e){} } },80);
+}
 function reopenPropDraft(d,newProjId){
   openForm("props", d.index==null?undefined:d.index);
   Object.entries(d.fd||{}).forEach(([k,v])=>{const inp=document.querySelector(`#modalForm [name="${k}"]`);if(inp)inp.value=v;});
   formPhotos=d.photos||[]; formLogs=d.logs||[]; renderPhotoField("props"); renderLogField("props");
-  if(newProjId){const sel=document.querySelector('#modalForm [name=projectId]');if(sel)sel.value=newProjId;}
+  if(newProjId){
+    const sel=document.querySelector('#modalForm [name=projectId]');
+    if(sel){
+      /* Aug-18 · set + fire change so _autofillFromProject triggers · also update SS button label */
+      sel.value=newProjId;
+      try{ const wrap=sel.closest(".ss-wrap"); if(wrap){ ssSetValue(wrap, newProjId); } else { sel.dispatchEvent(new Event("change",{bubbles:true})); } }catch(e){}
+      /* Fallback: directly call autofill if ssSetValue didn't fire change on some browsers */
+      setTimeout(()=>{ const proj=(DB.projects||[]).find(x=>x&&x.id===newProjId); if(proj) _autofillFromProject(proj); },100);
+    }
+  }
 }
 function delItem(entity,index){ if(confirm("ลบรายการนี้?")){ arr(entity).splice(index,1); save(); renderAll(); } }
 
