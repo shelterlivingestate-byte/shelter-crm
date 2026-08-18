@@ -1608,7 +1608,7 @@ const SCHEMA={
   props:{title:"ทรัพย์ / Property", fields:[
     {k:"title",l:"ชื่อทรัพย์ / ยูนิต",type:"text",req:1},{k:"code",l:"รหัสทรัพย์ (ว่างไว้ = รันอัตโนมัติ JJxxx ต่อจากเลขสูงสุดในระบบ · ขาย/เช่า/ขาย+เช่า ใช้ counter เดียวกัน)",type:"text"},
     {k:"deal",l:"ประเภทดีล",type:"select",opts:["ขาย","เช่า"]},{k:"cat",l:"ประเภททรัพย์",type:"select",opts:["คอนโด","บ้านเดี่ยว","ทาวน์โฮม","ทาวน์เฮ้าส์","Home Office","อาคารพาณิชย์","ที่ดิน"]},
-    {k:"loc",l:"ทำเล",type:"text",full:1},{k:"spec",l:"ห้อง / พื้นที่",type:"text"},{k:"price",l:"ราคา",type:"text"},
+    {k:"loc",l:"ทำเล / ที่ตั้ง",type:"text",full:1},{k:"spec",l:"ห้อง / พื้นที่",type:"text"},{k:"price",l:"ราคา",type:"text"},
     {k:"status",l:"สถานะ",type:"select",opts:["ใหม่","ว่าง","มีนัดชม","กำลังเจรจา","จองแล้ว","ปล่อยเช่าแล้ว","ปิดการขาย","ไม่ว่าง","คลังเก็บ"]},{k:"grade",l:"เกรดทรัพย์",type:"select",opts:["","A","B","C"]},
     {k:"tags",l:"แท็ก/จุดเด่นเพื่อจับคู่ (เช่น ใกล้โรงเรียน, ใกล้ BTS, เงียบสงบ, เลี้ยงสัตว์ได้, ทิศเหนือ)",type:"text",full:1},
     /* Aug-15 · Timeline auto · ระบบคำนวณจาก event/data · ผู้ใช้ไม่ต้องกรอก
@@ -1622,13 +1622,13 @@ const SCHEMA={
      * lastOwnerUpdate = auto · จาก ownerLog ล่าสุดที่ผูก property
      * ทุก field ยัง writable ได้จาก Advanced Override (spec §1 · แก้ย้อนหลังได้พร้อมประวัติ) */
     {k:"availableDate",l:"วันที่บ้านว่าง/พร้อมเข้าอยู่ (ถ้าไม่ใช่วันนี้)",type:"text",_advanced:1},
-    {type:"heading",k:"_hp",l:"🏢 โครงการ (เชื่อมฐานข้อมูล)"},
-    {k:"projectId",l:"เลือกโครงการ",type:"projectselect",full:1},
-    {type:"heading",k:"_hgeo",l:"📍 พิกัด & เรดาร์คู่แข่ง (Competitor Radar)"},
-    /* Aug-15 §4 · Google Maps Link ช่องเดียว · lat/lng auto-derive · legacy lat/lng ยังอ่านได้ */
-    {k:"mapUrl",l:"Google Maps Link (วางลิงก์ · ระบบดึงพิกัดให้)",type:"text",full:1},
+    /* Aug-18 · เหลือ location field เดียว (loc) · projectId + mapUrl → Advanced · data preserved */
+    {type:"heading",k:"_hp",l:"🏢 โครงการ + พิกัด (Advanced)",_advanced:1},
+    {k:"projectId",l:"เลือกโครงการ (ถ้ามี · optional link)",type:"projectselect",full:1,_advanced:1},
+    /* Aug-15 §4 · Google Maps Link · Advanced · auto-derive lat/lng */
+    {k:"mapUrl",l:"Google Maps Link (ถ้ามี · ระบบดึงพิกัดให้)",type:"text",full:1,_advanced:1},
     {k:"lat",l:"Latitude (auto จาก Maps Link · แก้เองได้ Advanced)",type:"text",_advanced:1},{k:"lng",l:"Longitude (auto)",type:"text",_advanced:1},
-    {type:"geohelp",k:"_geo",l:""},
+    {type:"geohelp",k:"_geo",l:"",_advanced:1},
     /* Aug-15 §5 · Competitor Radar auto · เกณฑ์จาก Property Master · manual = Advanced */
     {k:"compAuto",l:"โหมดคู่แข่ง",type:"select",opts:["Auto (ระบบสร้างเกณฑ์อัตโนมัติ)","Manual Override"]},
     {k:"compRadius",l:"รัศมี (กม.) · ว่าง = auto",type:"number",_advanced:1},
@@ -2615,7 +2615,8 @@ function fieldHTML(f,val){
   /* Aug-15 · _advanced fields hidden by default · toggled by "แสดง Advanced" button */
   const advCls=f._advanced?" fld-advanced":"";
   const advStyle=f._advanced?' style="display:none"':"";
-  if(f.type==="heading") return `<div class="fld full form-heading"${dg}>${f.l}</div>`;
+  if(f.type==="heading") return `<div class="fld full form-heading${advCls}"${advStyle}${dg}>${f.l}</div>`;
+  if(f.type==="geohelp"&&f._advanced) return `<div class="fld full fld-advanced" style="display:none"${dg}><button type="button" class="btn sm" onclick="openMapsPick()">📍 เปิด Google Maps เพื่อคัดลอกพิกัด</button><div class="hint" style="margin-top:5px">เปิดแผนที่ → กดค้างที่ตำแหน่งบ้าน → ตัวเลขคู่ที่ขึ้น (เช่น 13.7920, 100.6100) คือ Latitude, Longitude</div></div>`;
   if(f.type==="geohelp") return `<div class="fld full"${dg}><button type="button" class="btn sm" onclick="openMapsPick()">📍 เปิด Google Maps เพื่อคัดลอกพิกัด</button><div class="hint" style="margin-top:5px">เปิดแผนที่ → กดค้างที่ตำแหน่งบ้าน → ตัวเลขคู่ที่ขึ้น (เช่น 13.7920, 100.6100) คือ Latitude, Longitude → คัดลอกมาวางในช่องด้านบน</div></div>`;
   if(f.type==="journeycheck") return `<div class="fld full"${dg}><div style="font-weight:650;font-size:12.5px;color:var(--ink-2);margin-bottom:6px">${f.l}</div><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="jchk"><input type="checkbox" id="jcBuyer" onchange="applyFormGroups('leads')"> 🛒 ต้องการซื้อ (Buyer)</label><label class="jchk"><input type="checkbox" id="jcRenter" onchange="applyFormGroups('leads')"> 🏠 ต้องการเช่า (Renter)</label></div></div>`;
   const cls="fld"+(f.full?" full":"")+advCls;
