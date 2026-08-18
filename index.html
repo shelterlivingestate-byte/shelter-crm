@@ -2789,6 +2789,37 @@ function renderPropTimelinePanel(p){
   </div>`;
 }
 
+/* Aug-18 · Auto-fill Property fields from Project Master (spec: ใกล้/จุดเด่น/ทำเล)
+ * เรียกจาก projectId onchange · เติมเฉพาะช่องที่ว่าง · ไม่ overwrite user input · แสดง visual hint */
+function _autofillFromProject(proj){
+  if(!proj) return;
+  const fill=(name,val)=>{
+    const inp=document.querySelector('#modalForm [name="'+name+'"]');
+    if(!inp) return false;
+    const cur=(inp.value||"").trim();
+    if(cur) return false; /* preserve user input */
+    if(!val||!String(val).trim()) return false;
+    inp.value=String(val).trim();
+    /* Visual pulse to signal auto-fill */
+    try{ inp.style.transition="background 0.6s"; inp.style.background="#fff6d6"; setTimeout(()=>{ inp.style.background=""; },1200); }catch(e){}
+    return true;
+  };
+  const filled=[];
+  /* loc = ทำเล · ประกอบจาก zone + subzone */
+  const locParts=[proj.zone, proj.subzone].filter(x=>x&&String(x).trim());
+  if(fill("loc", locParts.join(" · "))) filled.push("ทำเล");
+  /* tags · ประกอบจาก nearby + highlights + facilities */
+  const tagParts=[];
+  if(proj.nearby) tagParts.push(String(proj.nearby).trim());
+  if(proj.highlights) tagParts.push(String(proj.highlights).trim().replace(/\n+/g," · "));
+  if(proj.facilities) tagParts.push(String(proj.facilities).trim().replace(/\n+/g," · "));
+  if(fill("tags", tagParts.filter(x=>x).join(" · "))) filled.push("แท็ก/จุดเด่น");
+  /* Show one-time toast · non-blocking */
+  if(filled.length){
+    try{ flashSaved("✨ ดึงข้อมูล "+filled.join(", ")+" จาก "+esc(proj.name||"โครงการ")); }catch(e){}
+  }
+}
+
 function toggleAdvanced(btn){
   const advanced=document.querySelectorAll('#modalForm .fld-advanced');
   const show=!btn.classList.contains("on");
@@ -2829,6 +2860,17 @@ function openForm(entity,index){
     [["ch_lv","lv"],["ch_ph","ph"],["ch_fb","fb"],["ch_dd","dd"],["ch_copy","copy"]].forEach(([fn,k])=>{
       const inp=document.querySelector('#modalForm [name="'+fn+'"]'); if(inp)inp.value=ch[k]||"";
     });
+    /* Aug-18 · เมื่อเลือกโครงการ → auto-fill tags/nearby/loc จาก Project Master (ถ้ายังว่าง) */
+    const pidInp=document.querySelector('#modalForm [name="projectId"]');
+    if(pidInp){
+      pidInp.addEventListener("change", function(){
+        const pid=(pidInp.value||"").trim();
+        if(!pid)return;
+        const proj=(DB.projects||[]).find(x=>x&&x.id===pid);
+        if(!proj)return;
+        _autofillFromProject(proj);
+      });
+    }
   }
   // AI Smart Fill panel (paste combined info -> AI splits into fields)
   const ap=$("#aiPanel");
