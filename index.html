@@ -1607,8 +1607,13 @@ const SCHEMA={
     {k:"note",l:"หมายเหตุ (SWOT / คู่แข่ง / ราคาตลาด / Buyer Persona)",type:"textarea",full:1}]},
   props:{title:"ทรัพย์ / Property", fields:[
     {k:"title",l:"ชื่อทรัพย์ / ยูนิต",type:"text",req:1},{k:"code",l:"รหัสทรัพย์ (ว่างไว้ = รันอัตโนมัติ JJxxx ต่อจากเลขสูงสุดในระบบ · ขาย/เช่า/ขาย+เช่า ใช้ counter เดียวกัน)",type:"text"},
-    {k:"deal",l:"ประเภทดีล",type:"select",opts:["ขาย","เช่า"]},{k:"cat",l:"ประเภททรัพย์",type:"select",opts:["คอนโด","บ้านเดี่ยว","ทาวน์โฮม","ทาวน์เฮ้าส์","Home Office","อาคารพาณิชย์","ที่ดิน"]},
-    {k:"loc",l:"ทำเล / ที่ตั้ง",type:"text",full:1},{k:"spec",l:"ห้อง / พื้นที่",type:"text"},{k:"price",l:"ราคา",type:"text"},
+    {k:"deal",l:"ประเภทดีล",type:"select",opts:["ขาย","เช่า"]},{k:"cat",l:"ประเภททรัพย์",type:"select",opts:["บ้านเดี่ยว","ทาวน์โฮม","ทาวน์เฮ้าส์","Home Office","อาคารพาณิชย์","ที่ดิน"]},
+    {k:"loc",l:"ทำเล / ที่ตั้ง",type:"text",full:1},
+    /* Aug-18 · แยก spec เป็น 5 fields · ระบบยังสร้าง spec string ให้ backward-compat */
+    {k:"beds",l:"ห้องนอน",type:"number"},{k:"baths",l:"ห้องน้ำ",type:"number"},{k:"parking",l:"จอดรถ (คัน)",type:"number"},
+    {k:"area",l:"พื้นที่ใช้สอย (ตร.ม.)",type:"number"},{k:"land",l:"พื้นที่ดิน (ตร.ว.)",type:"number"},
+    {k:"spec",l:"สเปกเพิ่มเติม (ระบบสร้างให้อัตโนมัติจากช่องบน · แก้ได้)",type:"text",full:1,_advanced:1},
+    {k:"price",l:"ราคา",type:"text"},
     {k:"status",l:"สถานะ",type:"select",opts:["ใหม่","ว่าง","มีนัดชม","กำลังเจรจา","จองแล้ว","ปล่อยเช่าแล้ว","ปิดการขาย","ไม่ว่าง","คลังเก็บ"]},{k:"grade",l:"เกรดทรัพย์",type:"select",opts:["","A","B","C"]},
     {k:"tags",l:"แท็ก/จุดเด่นเพื่อจับคู่ (เช่น ใกล้โรงเรียน, ใกล้ BTS, เงียบสงบ, เลี้ยงสัตว์ได้, ทิศเหนือ)",type:"text",full:1},
     /* Aug-15 · Timeline auto · ระบบคำนวณจาก event/data · ผู้ใช้ไม่ต้องกรอก
@@ -2862,6 +2867,10 @@ function openForm(entity,index){
   $("#modalTitle").textContent=(index==null?"เพิ่ม":"แก้ไข")+" "+s.title;
   const hasAdvanced=s.fields.some(f=>f._advanced);
   const timelinePanel=(entity==="props"&&index!=null)?renderPropTimelinePanel(rec):"";
+  /* Aug-18 · props backfill: parse spec text → structured beds/baths/area/land if fields empty */
+  if(entity==="props"&&rec&&rec.spec&&(!rec.beds&&!rec.baths&&!rec.area&&!rec.land)){
+    try{ const f=parseSpec(rec.spec); ["beds","baths","area","land","floors"].forEach(k=>{ if(f[k]!=null&&(rec[k]==null||rec[k]==="")) rec[k]=f[k]; }); }catch(e){}
+  }
   $("#formFields").innerHTML=timelinePanel+s.fields.map(f=>{
     let v=rec[f.k];
     if(entity==="deals"&&f.k==="stage") v=pipeStages[rec.stage!=null?rec.stage:0];
@@ -2991,6 +3000,14 @@ function saveForm(ev){
     obj.channels=ch;
     if(obj.driveFolder!=null)obj.driveFolder=(obj.driveFolder||"").trim();
     obj.updatedAt=todayISO();
+    /* Aug-18 · auto-compose spec string from structured fields · overwrites obj.spec if any structured field present */
+    const _sp=[];
+    if(num(obj.beds))_sp.push(num(obj.beds)+" นอน");
+    if(num(obj.baths))_sp.push(num(obj.baths)+" น้ำ");
+    if(num(obj.area))_sp.push(num(obj.area)+" ตร.ม.");
+    if(num(obj.land))_sp.push(num(obj.land)+" วา");
+    if(num(obj.parking))_sp.push("จอด "+num(obj.parking)+" คัน");
+    if(_sp.length) obj.spec=_sp.join(" · ")+(obj.spec&&!/นอน|น้ำ|ตร\.ม|วา|จอด/.test(obj.spec)?" · "+obj.spec:""); /* keep manual notes if not overlapping */
     /* Aug-15 · Property auto-compute (map coords + timeline + createdAt seed) */
     if(index==null && !obj.createdAt) obj.createdAt=todayISO(); /* server-timestamp seed for intakeDate */
     /* Merge onto prev record for auto-compute · so we have full picture */
@@ -6911,8 +6928,9 @@ function parseSpec(spec){ const s=String(spec||""); const f={beds:null,baths:nul
   if(m=s.match(/(\d+(?:\.\d+)?)\s*ชั้น/)) f.floors=+m[1];
   return f; }
 function propFacts(p){ const f=(p.f&&typeof p.f==="object")?p.f:{}; const base=parseSpec(p.spec); const pr=projOf(p);
-  return { beds:f.beds!=null?f.beds:base.beds, baths:f.baths!=null?f.baths:base.baths, area:f.area!=null?f.area:base.area,
-    land:f.land!=null?f.land:base.land, floors:f.floors!=null?f.floors:base.floors,
+  /* Aug-18 · priority: structured top-level p.beds/p.baths/p.area/p.land/p.parking > legacy p.f.* > parseSpec */
+  const pick=(k)=>{ const top=+p[k]; if(!isNaN(top)&&p[k]!=null&&p[k]!=="") return top; if(f[k]!=null) return f[k]; return base[k]; };
+  return { beds:pick("beds"), baths:pick("baths"), area:pick("area"), land:pick("land"), floors:pick("floors"), parking:pick("parking"),
     priceNum:numBaht(p.price), zoneKey:((p.loc||"")+" "+(pr.zone||"")).trim() }; }
 function migrateReq(l){ const split=t=>String(t||"").split(/[,;·\n\/]+/).map(x=>x.trim()).filter(Boolean);
   l.req={ dealType:l.type==="เช่า"?"เช่า":(l.type==="ซื้อ"?"ขาย":""), priceMin:null, priceMax:numBaht(l.budget)||null,
