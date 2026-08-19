@@ -1646,7 +1646,7 @@ const SCHEMA={
     {k:"beds",l:"ห้องนอน",type:"number"},{k:"baths",l:"ห้องน้ำ",type:"number"},{k:"parking",l:"จอดรถ (คัน)",type:"number"},
     {k:"area",l:"พื้นที่ใช้สอย (ตร.ม.)",type:"number"},{k:"land",l:"พื้นที่ดิน (ตร.ว.)",type:"number"},
     {k:"spec",l:"สเปกเพิ่มเติม (ระบบสร้างให้อัตโนมัติจากช่องบน · แก้ได้)",type:"text",full:1,_advanced:1},
-    {k:"price",l:"ราคา",type:"text"},
+    {k:"price",l:"ราคา (บาท)",type:"text"},
     {k:"status",l:"สถานะ",type:"select",opts:["ใหม่","ว่าง","มีนัดชม","กำลังเจรจา","จองแล้ว","ปล่อยเช่าแล้ว","ปิดการขาย","ไม่ว่าง","คลังเก็บ"]},{k:"grade",l:"เกรดทรัพย์",type:"select",opts:["","A","B","C"]},
     {k:"tags",l:"แท็ก/จุดเด่นเพื่อจับคู่ (เช่น ใกล้โรงเรียน, ใกล้ BTS, เงียบสงบ, เลี้ยงสัตว์ได้, ทิศเหนือ)",type:"text",full:1},
     /* Aug-15 · Timeline auto · ระบบคำนวณจาก event/data · ผู้ใช้ไม่ต้องกรอก
@@ -1659,14 +1659,14 @@ const SCHEMA={
      * marketingPausedDate = auto · เมื่อ status เปลี่ยนเป็น "คลังเก็บ" หรือ "ไม่ว่าง"
      * lastOwnerUpdate = auto · จาก ownerLog ล่าสุดที่ผูก property
      * ทุก field ยัง writable ได้จาก Advanced Override (spec §1 · แก้ย้อนหลังได้พร้อมประวัติ) */
-    {k:"availableDate",l:"วันที่บ้านว่าง/พร้อมเข้าอยู่ (ถ้าไม่ใช่วันนี้)",type:"text",_advanced:1},
+    {k:"availableDate",l:"วันที่บ้านว่าง/พร้อมเข้าอยู่ (ถ้าไม่ใช่วันนี้)",type:"text",_advanced:1,grp:"rent"},
     /* Aug-18 · เหลือ location field เดียว (loc) · projectId + mapUrl → Advanced · data preserved */
     {type:"heading",k:"_hp",l:"🏢 โครงการ + พิกัด (Advanced)",_advanced:1},
     {k:"projectId",l:"เลือกโครงการ (ถ้ามี · optional link)",type:"projectselect",full:1,_advanced:1},
     /* Aug-15 §4 · Google Maps Link · Advanced · auto-derive lat/lng */
     {k:"mapUrl",l:"Google Maps Link (ถ้ามี · ระบบดึงพิกัดให้)",type:"text",full:1,_advanced:1},
     {k:"lat",l:"Latitude (auto จาก Maps Link · แก้เองได้ Advanced)",type:"text",_advanced:1},{k:"lng",l:"Longitude (auto)",type:"text",_advanced:1},
-    {type:"geohelp",k:"_geo",l:"",_advanced:1},
+    {type:"geohelp",k:"_geo",l:""},
     /* Aug-15 §5 · Competitor Radar auto · เกณฑ์จาก Property Master · manual = Advanced */
     {k:"compAuto",l:"โหมดคู่แข่ง",type:"select",opts:["Auto (ระบบสร้างเกณฑ์อัตโนมัติ)","Manual Override"]},
     {k:"compRadius",l:"รัศมี (กม.) · ว่าง = auto",type:"number",_advanced:1},
@@ -1676,15 +1676,19 @@ const SCHEMA={
     {k:"compUsableMin",l:"พื้นที่ใช้สอยต่ำสุด (advanced)",type:"number",_advanced:1},{k:"compUsableMax",l:"พื้นที่ใช้สอยสูงสุด (advanced)",type:"number",_advanced:1},
     {k:"compBedMin",l:"ห้องนอนต่ำสุด (advanced)",type:"number",_advanced:1},{k:"compBedMax",l:"ห้องนอนสูงสุด (advanced)",type:"number",_advanced:1},
     {type:"heading",k:"_hs",l:"🎯 ข้อมูลการขาย (เฉพาะทรัพย์ขาย)",grp:"buy"},
-    {k:"minPriceOwner",l:"ราคาต่ำสุดที่ Owner รับได้",type:"text",grp:"buy"},{k:"transferFee",l:"ค่าโอน",type:"text",grp:"buy"},
-    {k:"targetBuyer",l:"Target Buyer",type:"text",full:1,grp:"buy"},{k:"usp",l:"USP / จุดขาย",type:"text",full:1,grp:"buy"},
-    {k:"pros",l:"จุดเด่น",type:"text",full:1,grp:"buy"},{k:"cons",l:"จุดด้อย",type:"text",full:1,grp:"buy"},
+    {k:"minPriceOwner",l:"ราคาต่ำสุดที่ Owner รับได้ (บาท)",type:"text",grp:"buy"},
+    /* Aug-18 · เงื่อนไขค่าโอน (spec: 50/50 / All Included / All Tax Not Included) */
+    {k:"transferFeeType",l:"เงื่อนไขค่าโอน",type:"select",opts:["","50/50 Transfer Fee","All Included","All Tax Not Included"],grp:"buy"},
+    {k:"transferFee",l:"ค่าโอน (จำนวนเงินหรือหมายเหตุ)",type:"text",grp:"buy"},
+    {k:"targetBuyer",l:"Target Buyer",type:"text",full:1,grp:"buy"},
+    /* Aug-18 · usp + pros รวมเป็นช่องเดียว */
+    {k:"usp",l:"USP / จุดเด่น",type:"textarea",full:1,grp:"buy"},
+    {k:"cons",l:"จุดด้อย",type:"text",full:1,grp:"buy"},
     {type:"heading",k:"_ho",l:"👤 ข้อมูลติดต่อเจ้าของ (Owner Master)"},
     {k:"ownerId",l:"เลือกเจ้าของจากฐาน (Owner ID) — ว่างได้ ระบบจับคู่จากชื่อ+เบอร์ให้",type:"ownerselect",full:1},
     {k:"ownerName",l:"ชื่อเจ้าของ",type:"text"},{k:"ownerPhone",l:"เบอร์โทรเจ้าของ",type:"text"},
     {k:"ownerLine",l:"Line เจ้าของ",type:"text"},{k:"ownerReason",l:"เหตุผลในการขาย",type:"text",full:1},
     {k:"ownerTimeline",l:"Timeline เจ้าของ (ต้องการขายภายใน)",type:"text",full:1},
-    {k:"mktBudget",l:"งบการตลาดที่อนุมัติ (บาท)",type:"number"},
     {type:"heading",k:"_hm",l:"📣 ช่องทางการตลาด (วางลิงก์ได้)"},
     {k:"ch_lv",l:"Livinginsider (ลิงก์)",type:"text",full:1},
     {k:"ch_ph",l:"PropertyHub (ลิงก์)",type:"text",full:1},
@@ -1696,13 +1700,9 @@ const SCHEMA={
     {k:"ch_dot",l:"DotProperty (ลิงก์)",type:"text",full:1},
     {k:"ch_fw",l:"FazWaz (ลิงก์)",type:"text",full:1},
     {k:"ch_ba",l:"Baania (ลิงก์)",type:"text",full:1},
-    {k:"ch_tb",l:"TerraBKK (ลิงก์)",type:"text",full:1},
-    {k:"ch_bf",l:"Baan Finder (ลิงก์)",type:"text",full:1},
     {k:"ch_pro",l:"Proppit / PP+ (ลิงก์)",type:"text",full:1},
     {k:"ch_ig",l:"Instagram (ลิงก์)",type:"text",full:1},
-    {k:"ch_lvoom",l:"LINE VOOM (ลิงก์)",type:"text",full:1},
     {k:"ch_web",l:"Website ของเรา (ลิงก์)",type:"text",full:1},
-    {k:"ch_copy",l:"Copywriting / เอกสาร (ลิงก์)",type:"text",full:1},
     {k:"driveFolder",l:"โฟลเดอร์รูปใน Drive (ลิงก์)",type:"text",full:1},
     {type:"heading",k:"_hpub",l:"🌐 หน้าแชร์สาธารณะ (Public Share) · ข้อมูลจริงดึงจาก Property Master · แก้เนื้อหาผ่าน Advanced"},
     /* Aug-15 §7, §8 · minimal core · content auto-generated · legacy fields → advanced */
@@ -1718,12 +1718,16 @@ const SCHEMA={
     {k:"contactCTA",l:"Override CTA (auto: สอบถามข้อมูลและนัดชม)",type:"text",full:1,_advanced:1},
     {k:"shareLink",l:"Public URL (ระบบสร้างจาก Property ID)",type:"text",full:1,_advanced:1},
     {type:"heading",k:"_hr1",l:"💰 ค่าเช่า & ค่าใช้จ่าย (เฉพาะเช่า)",grp:"rent"},
-    {k:"r_deposit",l:"เงินประกัน (เดือน)",type:"text",grp:"rent"},{k:"r_advance",l:"ค่าเช่าล่วงหน้า (เดือน)",type:"text",grp:"rent"},
+    /* Aug-18 · Rent · เพิ่ม default 1 เดือน / 2 เดือน · เก็บเป็น number เดือน */
+    {k:"r_advance",l:"ค่าเช่าล่วงหน้า (เดือน · ปกติ 1)",type:"number",grp:"rent"},
+    {k:"r_deposit",l:"เงินประกัน (เดือน · ปกติ 2)",type:"number",grp:"rent"},
     {k:"r_common",l:"รวมค่าส่วนกลาง?",type:"select",opts:["","รวม","ไม่รวม"],grp:"rent"},{k:"r_water",l:"ค่าน้ำ",type:"text",grp:"rent"},
     {k:"r_elec",l:"ค่าไฟ",type:"text",grp:"rent"},{k:"r_net",l:"อินเทอร์เน็ต",type:"text",grp:"rent"},
     {k:"r_clean",l:"ค่าทำความสะอาด",type:"text",grp:"rent"},{k:"r_other",l:"ค่าใช้จ่ายอื่น",type:"text",grp:"rent"},
     {type:"heading",k:"_hr2",l:"📄 สัญญาเช่า",grp:"rent"},
-    {k:"r_minlease",l:"สัญญาขั้นต่ำ",type:"text",grp:"rent"},{k:"r_available",l:"เริ่มเช่าได้เมื่อ",type:"text",grp:"rent"},
+    /* Aug-18 · Rent · สัญญาขั้นต่ำ เป็น select ตามตัวเลือกที่ user กำหนด */
+    {k:"r_minlease",l:"สัญญาขั้นต่ำ",type:"select",opts:["","1 ปี","2 ปี","3 ปี","อื่น ๆ"],grp:"rent"},
+    {k:"r_available",l:"เริ่มเช่าได้เมื่อ",type:"text",grp:"rent"},
     {k:"r_renew",l:"ต่อสัญญา",type:"text",grp:"rent"},{k:"r_notice",l:"แจ้งย้ายออกล่วงหน้า",type:"text",grp:"rent"},
     {k:"r_increase",l:"ขึ้นค่าเช่าได้? / อัตรา",type:"text",full:1,grp:"rent"},
     {type:"heading",k:"_hr3",l:"📋 กฎการอยู่อาศัย",grp:"rent"},
@@ -1898,13 +1902,12 @@ const SCHEMA={
     {k:"rentalCommTarget",l:"เป้ารายได้ค่าคอมเช่า (บาท) · ค่าเริ่มต้น 100,000",type:"number"},
     {k:"saleClosedTarget",l:"เป้าจำนวนบ้านที่ต้องปิดขาย (หลัง) · ค่าเริ่มต้น 1",type:"number"},
     {k:"note",l:"หมายเหตุ",type:"textarea",full:1}]},
-  liCredits:{title:"LivingInsider Credits (สรุปงวด)", fields:[
-    {k:"periodLabel",l:"งวด (YYYY-MM หรือช่วงเวลา)",type:"text",req:1},
-    {k:"listingsCount",l:"จำนวนครั้งลงประกาศใหม่ (× "+50+" เครดิต หรือตามอัตราปัจจุบัน)",type:"number"},
-    {k:"boostsCount",l:"จำนวนครั้ง Boost (× "+10+" เครดิต หรือตามอัตราปัจจุบัน)",type:"number"},
-    {k:"purchasedCredits",l:"เครดิตที่ซื้อมาในงวดนี้ (ถ้ามี · เพิ่มใน Balance)",type:"number"},
-    {k:"purchaseExpenseId",l:"เชื่อม Expense การซื้อเครดิต (Expense ID · ว่างได้)",type:"text"},
-    {k:"note",l:"หมายเหตุ",type:"textarea",full:1}]},
+  /* Aug-18 · liCredits simplified · เหลือแค่ "งบตลาดต่อแพลตฟอร์มต่องวด" · ไม่แยก property */
+  liCredits:{title:"งบการตลาดรายแพลตฟอร์ม", fields:[
+    {k:"periodLabel",l:"งวด (เช่น 2569-08)",type:"text",req:1},
+    {k:"platform",l:"แพลตฟอร์ม",type:"select",req:1,opts:["LivingInsider","PropertyHub","DDproperty","DotProperty","Hipflat","Thailand Property","FazWaz","Baania","Proppit / PP+","Facebook","Instagram","Website (ของเรา)","อื่น ๆ"]},
+    {k:"amount",l:"จำนวนเงิน (บาท)",type:"number",req:1},
+    {k:"note",l:"หมายเหตุ (ถ้ามี)",type:"textarea",full:1}]},
   competitors:{title:"ประกาศคู่แข่ง (Competitor Listing)", fields:[
     {k:"sourcePropId",l:"ทรัพย์ต้นทางของเรา (Source Property)",type:"propertyselect",req:1,full:1},
     {k:"competitorProjectId",l:"โครงการคู่แข่ง (ถ้ามีในระบบ)",type:"projectselect",full:1},
@@ -2531,12 +2534,8 @@ let formPhotos=[]; let formLogs=[];
 /* --- conversation remark log (properties) --- */
 function nowStamp(){const d=new Date();return d.toLocaleDateString("th-TH",{day:"2-digit",month:"short"})+" "+d.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});}
 function renderLogField(entity){
-  const c=$("#logField");
-  if(entity!=="props"){c.innerHTML="";return;}
-  const items=formLogs.map((lg,i)=>`<div class="log-item"><div class="log-date">${esc(lg.date)}</div><div class="log-text">${esc(lg.text)}</div><button type="button" class="icon-btn del" onclick="removeLog(${i})" title="ลบ"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join("")||'<div style="color:var(--muted);font-size:12px;padding:6px 0">ยังไม่มีบันทึกการคุย — บันทึกทุกครั้งที่คุยกับเจ้าของ/ลูกค้า</div>';
-  c.innerHTML=`<div class="form-heading">💬 บันทึกการคุย (Remark Log)</div>
-    <div class="log-list">${items}</div>
-    <div class="log-add"><input type="text" id="logInput" placeholder="พิมพ์สิ่งที่คุยครั้งนี้…" onkeydown="if(event.key==='Enter'){event.preventDefault();addLog();}"><button type="button" class="btn primary sm" onclick="addLog()">+ บันทึก</button></div>`;
+  /* Aug-18 · Remark Log removed from property form (spec: คงไว้เฉพาะหน้ารายละเอียดทรัพย์) · preserved in Detail view */
+  const c=$("#logField"); if(c) c.innerHTML="";
 }
 function addLog(){const inp=$("#logInput");const t=(inp.value||"").trim();if(!t)return;formLogs.unshift({date:nowStamp(),text:t});renderLogField("props");}
 function removeLog(i){formLogs.splice(i,1);renderLogField("props");}
@@ -2793,6 +2792,17 @@ function propPublicAutoContent(p){
   const description=(p.pubDesc||"").trim() || [p.spec, p.tags].filter(x=>x&&String(x).trim()).join(" · ");
   const highlightsRaw=(p.pubHighlights||"").trim();
   const highlights=highlightsRaw?highlightsRaw.split(/\n+/).filter(Boolean):[(p.tags||"").split(/,|·/).map(t=>t.trim()).filter(Boolean)].flat();
+  /* Aug-18 · Sale-only · include Transfer Fee condition in highlights */
+  if(p.deal==="ขาย"){
+    if(p.transferFeeType&&String(p.transferFeeType).trim()) highlights.push("ค่าโอน: "+p.transferFeeType);
+    if(p.usp&&String(p.usp).trim()&&!highlights.some(h=>h===p.usp)) highlights.push(p.usp);
+  }
+  /* Aug-18 · Rent-only · include lease term + advance/deposit */
+  if(p.deal==="เช่า"){
+    if(p.r_minlease) highlights.push("สัญญาขั้นต่ำ "+p.r_minlease);
+    if(p.r_advance) highlights.push("ค่าเช่าล่วงหน้า "+p.r_advance+" เดือน");
+    if(p.r_deposit) highlights.push("เงินประกัน "+p.r_deposit+" เดือน");
+  }
   const location=(p.pubLocDisplay||"").trim() || projName || (p.loc||"").split("·")[0].trim() || "—";
   const cta=(p.contactCTA||"").trim() || "สอบถามข้อมูลและนัดชม";
   return {headline:headline||"—",description:description||"—",highlights,location,cta};
@@ -6460,10 +6470,16 @@ function mktToolbar(){ const r=mktScopeRange(); const fmt=d=>d?d.toLocaleDateStr
   return `<div class="mkt-toolbar"><label style="font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">ช่วง</label><select onchange="setMktScope('range',this.value)">${["today","week","month","quarter","year","all"].map(v=>`<option value="${v}"${mktScope.range===v?" selected":""}>${{today:"วันนี้",week:"สัปดาห์นี้",month:"เดือนนี้",quarter:"ไตรมาสนี้",year:"ปีนี้",all:"ทั้งหมด"}[v]}</option>`).join("")}</select><label style="font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-left:6px">ประเภท</label><select onchange="setMktScope('type',this.value)"><option value="">ทั้งหมด</option><option value="ขาย"${mktScope.type==="ขาย"?" selected":""}>ขาย</option><option value="เช่า"${mktScope.type==="เช่า"?" selected":""}>เช่า</option></select><span class="mkt-scope">· ${esc(lbl)}</span></div>`;
 }
 
+/* Aug-18 · exclude closed/sold properties from marketing views (spec: ไม่ให้ขึ้นในหน้าการตลาด) */
+function _propMarketable(p){
+  if(!p) return false;
+  const s=String(p.status||"");
+  return !/ปิดการขาย|ขายแล้ว|ปล่อยเช่าแล้ว|คลังเก็บ/.test(s);
+}
 /* Tab 1: ภาพรวม */
 function renderMktOverview(panel){
-  const items=mktScopeFilter();
-  const propsAll=DB.props.filter(p=>!mktScope.type||(p.deal||"")===mktScope.type);
+  const items=mktScopeFilter().filter(m=>{ const p=m.propertyId?DB.props.find(x=>x.id===m.propertyId):null; return !p||_propMarketable(p); });
+  const propsAll=DB.props.filter(p=>_propMarketable(p)&&(!mktScope.type||(p.deal||"")===mktScope.type));
   const propsListed=propsAll.filter(p=>p.channels&&Object.keys(p.channels).filter(k=>k!=="copy").length);
   const propsUnlisted=propsAll.filter(p=>!p.channels||!Object.keys(p.channels).filter(k=>k!=="copy").length);
   /* Phase 2 SSOT metrics · spec §11, §13 */
@@ -6531,7 +6547,7 @@ let mktT3Search="";
 function setMktT3Search(v){ mktT3Search=v.toLowerCase(); renderMarketing(); }
 function renderMktPropChannels(panel){
   const type=mktScope.type;
-  let rows=DB.props.filter(p=>{ if(type&&(p.deal||"")!==type)return false; if(!mktT3Search)return true; return ((p.code||"")+(p.title||"")+(p.loc||"")+(p.id||"")).toLowerCase().includes(mktT3Search); });
+  let rows=DB.props.filter(p=>{ if(!_propMarketable(p))return false; if(type&&(p.deal||"")!==type)return false; if(!mktT3Search)return true; return ((p.code||"")+(p.title||"")+(p.loc||"")+(p.id||"")).toLowerCase().includes(mktT3Search); });
   const tools=mktToolbar()+`<div class="mkt-toolbar" style="top:96px"><input id="mktSearch" placeholder="🔍 Property ID · ชื่อ · ทำเล" value="${esc(mktT3Search)}" oninput="setMktT3Search(this.value)" style="flex:1;min-width:150px"></div>`;
   if(!rows.length){ panel.innerHTML=tools+`<div class="mkt-empty"><div class="ico">🏠</div>ไม่พบทรัพย์ตามตัวกรอง</div>`; return; }
   const items=mktScopeFilter();
@@ -6629,7 +6645,7 @@ function renderMktLICredits(panel){
 
 /* Tab 5: แคมเปญและค่าใช้จ่าย */
 function renderMktCampaigns(panel){
-  const items=mktScopeFilter().filter(m=>bn(m.cost||0)+bn(m.boostCost||0)+bn(m.otherCost||0)>0);
+  const items=mktScopeFilter().filter(m=>{ const p=m.propertyId?DB.props.find(x=>x.id===m.propertyId):null; return (!p||_propMarketable(p))&&(bn(m.cost||0)+bn(m.boostCost||0)+bn(m.otherCost||0)>0); });
   const expenses=DB.expense.filter(e=>{ const cat=e.category||""; if(!/ตลาด|โฆษณา|boost|ถ่ายภาพ|วิดีโอ|โดรน|กราฟิก|คอนเทนต์|ป้าย|จัดบ้าน|Staging|Facebook Ads|Google Ads|market|listing|feature/i.test(cat))return false; return mktInRange(e.date); });
   const totalMkt=items.reduce((s,m)=>s+bn(m.cost||0)+bn(m.boostCost||0)+bn(m.otherCost||0),0);
   const totalExp=expenses.reduce((s,e)=>s+bn(e.amount||0),0);
