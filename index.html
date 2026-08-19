@@ -3723,19 +3723,6 @@ function renderAlertsMinimal(){
     ${doneHTML}
   `;
 }
-    <div class="ac-sec">
-      <div class="ac-sec-h">
-        <b>✓ งานวันนี้</b>
-        <span class="ac-count">${items.length} รายการ</span>
-      </div>
-      ${todoHTML}
-      ${doneHTML}
-      <div class="ac-add">
-        <input id="acAddInp" placeholder="+ เพิ่มงานวันนี้ (Enter เพื่อบันทึก)" onkeydown="if(event.key==='Enter'){event.preventDefault();acAddManualTask();}">
-        <button class="btn primary sm" onclick="acAddManualTask()">เพิ่ม</button>
-      </div>
-    </div>`;
-}
 
 function renderAlerts(){
   /* Aug-18 · always render minimal first · advanced conditional on flag */
