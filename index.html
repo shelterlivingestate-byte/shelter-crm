@@ -6316,23 +6316,22 @@ function lineTextURL(text){return "https://line.me/R/msg/text/?"+encodeURICompon
 function lineChatURL(id){return "https://line.me/R/ti/p/~"+encodeURIComponent(String(id).replace(/^@/,""));}
 function sendApptLine(who){
   const p=(apptIdx!=null)?DB.props[apptIdx]:null;
-  /* Aug-19c · Strip CRM URL + trailing whitespace */
+  /* Strip CRM URL + trailing whitespace */
   let text=$("#apptText").value||"";
   text=text.split("\n").filter(line=>!/^https?:\/\/(crm\.)?shelterlivingestate\.tech\/?\s*$/i.test(line.trim())).join("\n").replace(/\s+$/,"");
   if(navigator.clipboard)navigator.clipboard.writeText(text).catch(()=>{});
-  /* Aug-19c · ยกเลิก lineTextURL (share URL scheme) เพราะ LINE จะแนบ preview card เว็บ CRM
-     ใช้ lineChatURL อย่างเดียว · ถ้าไม่มี LINE ID ให้ user copy แล้ว paste เอง (ไม่เปิด share intent) */
-  let url=null, msg="";
+  /* Aug-19d · Restore direct LINE open · prefer direct chat if LINE ID · fallback to LINE share URL (opens LINE app) */
+  let url, msg;
   if(who==="owner"){
-    if(p&&p.ownerLine&&String(p.ownerLine).trim()){ url=lineChatURL(p.ownerLine); msg="✓ เปิดแชทเจ้าของ · คัดลอกข้อความแล้ว · วางที่แชท LINE"; }
-    else { msg="⚠ ยังไม่มี LINE ของเจ้าของ · คัดลอกข้อความแล้ว · เปิด LINE เอง แล้ววาง"; }
+    if(p&&p.ownerLine&&String(p.ownerLine).trim()){ url=lineChatURL(p.ownerLine); msg="✓ เปิดแชทเจ้าของ · คัดลอกข้อความแล้ว · วางเพื่อส่ง"; }
+    else { url=lineTextURL(text); msg="ไม่มี LINE เจ้าของ · เปิด LINE ให้เลือกผู้รับ (คัดลอกแล้ว)"; }
   } else {
     const cl=($("#apptCustLine").value||"").trim();
-    if(cl){ url=lineChatURL(cl); msg="✓ เปิดแชทลูกค้า · คัดลอกข้อความแล้ว · วางที่แชท LINE"; }
-    else { msg="⚠ ยังไม่มี LINE ของลูกค้า · คัดลอกข้อความแล้ว · เปิด LINE เอง แล้ววาง"; }
+    if(cl){ url=lineChatURL(cl); msg="✓ เปิดแชทลูกค้า · คัดลอกข้อความแล้ว · วางเพื่อส่ง"; }
+    else { url=lineTextURL(text); msg="เปิด LINE ให้เลือกลูกค้า (คัดลอกแล้ว)"; }
   }
-  if(url) window.open(url,"_blank");
-  $("#apptStatus").textContent=msg; $("#apptStatus").className="ai-status "+(url?"ok":"err");
+  window.open(url,"_blank");
+  $("#apptStatus").textContent=msg; $("#apptStatus").className="ai-status ok";
 }
 function addFeedbackProp(i){ const p=DB.props[i]; const t=prompt("Feedback จากผู้ชม / ลูกค้า"); if(!t)return; if(!Array.isArray(p.logs))p.logs=[]; p.logs.unshift({date:nowStamp(),text:"💬 "+t}); p.updatedAt=todayISO(); save(); renderAll(); if($("#detailView").classList.contains("on"))openDetail(i); }
 function openMore(i){
