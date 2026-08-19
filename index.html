@@ -1647,6 +1647,11 @@ const SCHEMA={
     {k:"area",l:"พื้นที่ใช้สอย (ตร.ม.)",type:"number"},{k:"land",l:"พื้นที่ดิน (ตร.ว.)",type:"number"},
     {k:"spec",l:"สเปกเพิ่มเติม (ระบบสร้างให้อัตโนมัติจากช่องบน · แก้ได้)",type:"text",full:1,_advanced:1},
     {k:"price",l:"ราคา (บาท)",type:"text"},
+    /* Aug-18b · ย้ายมาไว้หลังราคา ตามคำสั่ง user · sale-only + rent-only via grp */
+    {k:"transferFeeType",l:"เงื่อนไขค่าโอน",type:"select",opts:["","50/50 Transfer Fee","All Included","All Tax Not Included"],grp:"buy"},
+    {k:"r_advance",l:"ค่าเช่าล่วงหน้า (เดือน · ปกติ 1)",type:"number",grp:"rent"},
+    {k:"r_deposit",l:"เงินประกัน (เดือน · ปกติ 2)",type:"number",grp:"rent"},
+    {k:"r_minlease",l:"สัญญาขั้นต่ำ",type:"select",opts:["","1 ปี","2 ปี","3 ปี","อื่น ๆ"],grp:"rent"},
     {k:"status",l:"สถานะ",type:"select",opts:["ใหม่","ว่าง","มีนัดชม","กำลังเจรจา","จองแล้ว","ปล่อยเช่าแล้ว","ปิดการขาย","ไม่ว่าง","คลังเก็บ"]},{k:"grade",l:"เกรดทรัพย์",type:"select",opts:["","A","B","C"]},
     {k:"tags",l:"แท็ก/จุดเด่นเพื่อจับคู่ (เช่น ใกล้โรงเรียน, ใกล้ BTS, เงียบสงบ, เลี้ยงสัตว์ได้, ทิศเหนือ)",type:"text",full:1},
     /* Aug-15 · Timeline auto · ระบบคำนวณจาก event/data · ผู้ใช้ไม่ต้องกรอก
@@ -1677,8 +1682,7 @@ const SCHEMA={
     {k:"compBedMin",l:"ห้องนอนต่ำสุด (advanced)",type:"number",_advanced:1},{k:"compBedMax",l:"ห้องนอนสูงสุด (advanced)",type:"number",_advanced:1},
     {type:"heading",k:"_hs",l:"🎯 ข้อมูลการขาย (เฉพาะทรัพย์ขาย)",grp:"buy"},
     {k:"minPriceOwner",l:"ราคาต่ำสุดที่ Owner รับได้ (บาท)",type:"text",grp:"buy"},
-    /* Aug-18 · เงื่อนไขค่าโอน (spec: 50/50 / All Included / All Tax Not Included) */
-    {k:"transferFeeType",l:"เงื่อนไขค่าโอน",type:"select",opts:["","50/50 Transfer Fee","All Included","All Tax Not Included"],grp:"buy"},
+    /* transferFeeType ย้ายไปหลัง price แล้ว (Aug-18b) · transferFee (จำนวน) ยังอยู่ที่นี่ */
     {k:"transferFee",l:"ค่าโอน (จำนวนเงินหรือหมายเหตุ)",type:"text",grp:"buy"},
     {k:"targetBuyer",l:"Target Buyer",type:"text",full:1,grp:"buy"},
     /* Aug-18 · usp + pros รวมเป็นช่องเดียว */
@@ -1687,13 +1691,14 @@ const SCHEMA={
     {type:"heading",k:"_ho",l:"👤 ข้อมูลติดต่อเจ้าของ (Owner Master)"},
     {k:"ownerId",l:"เลือกเจ้าของจากฐาน (Owner ID) — ว่างได้ ระบบจับคู่จากชื่อ+เบอร์ให้",type:"ownerselect",full:1},
     {k:"ownerName",l:"ชื่อเจ้าของ",type:"text"},{k:"ownerPhone",l:"เบอร์โทรเจ้าของ",type:"text"},
-    {k:"ownerLine",l:"Line เจ้าของ",type:"text"},{k:"ownerReason",l:"เหตุผลในการขาย",type:"text",full:1},
-    {k:"ownerTimeline",l:"Timeline เจ้าของ (ต้องการขายภายใน)",type:"text",full:1},
+    {k:"ownerLine",l:"Line เจ้าของ",type:"text"},
+    /* Aug-18b · sale-only · ทรัพย์เช่าไม่ต้องกรอกเหตุผลขาย/timeline */
+    {k:"ownerReason",l:"เหตุผลในการขาย",type:"text",full:1,grp:"buy"},
+    {k:"ownerTimeline",l:"Timeline เจ้าของ (ต้องการขายภายใน)",type:"text",full:1,grp:"buy"},
     {type:"heading",k:"_hm",l:"📣 ช่องทางการตลาด (วางลิงก์ได้)"},
     {k:"ch_lv",l:"Livinginsider (ลิงก์)",type:"text",full:1},
     {k:"ch_ph",l:"PropertyHub (ลิงก์)",type:"text",full:1},
     {k:"ch_fb",l:"Facebook (ลิงก์)",type:"text",full:1},
-    {k:"ch_dd",l:"DDproperty / DotProperty (ลิงก์)",type:"text",full:1},
     /* Marketing Merge: 15 platforms total per spec §4 (Part 4 added 4 · Merge adds 7 more) */
     {k:"ch_hip",l:"Hipflat (ลิงก์)",type:"text",full:1},
     {k:"ch_tp",l:"Thailand Property (ลิงก์)",type:"text",full:1},
@@ -1718,15 +1723,12 @@ const SCHEMA={
     {k:"contactCTA",l:"Override CTA (auto: สอบถามข้อมูลและนัดชม)",type:"text",full:1,_advanced:1},
     {k:"shareLink",l:"Public URL (ระบบสร้างจาก Property ID)",type:"text",full:1,_advanced:1},
     {type:"heading",k:"_hr1",l:"💰 ค่าเช่า & ค่าใช้จ่าย (เฉพาะเช่า)",grp:"rent"},
-    /* Aug-18 · Rent · เพิ่ม default 1 เดือน / 2 เดือน · เก็บเป็น number เดือน */
-    {k:"r_advance",l:"ค่าเช่าล่วงหน้า (เดือน · ปกติ 1)",type:"number",grp:"rent"},
-    {k:"r_deposit",l:"เงินประกัน (เดือน · ปกติ 2)",type:"number",grp:"rent"},
+    /* r_advance / r_deposit ย้ายไปหลัง price แล้ว (Aug-18b) */
     {k:"r_common",l:"รวมค่าส่วนกลาง?",type:"select",opts:["","รวม","ไม่รวม"],grp:"rent"},{k:"r_water",l:"ค่าน้ำ",type:"text",grp:"rent"},
     {k:"r_elec",l:"ค่าไฟ",type:"text",grp:"rent"},{k:"r_net",l:"อินเทอร์เน็ต",type:"text",grp:"rent"},
     {k:"r_clean",l:"ค่าทำความสะอาด",type:"text",grp:"rent"},{k:"r_other",l:"ค่าใช้จ่ายอื่น",type:"text",grp:"rent"},
     {type:"heading",k:"_hr2",l:"📄 สัญญาเช่า",grp:"rent"},
-    /* Aug-18 · Rent · สัญญาขั้นต่ำ เป็น select ตามตัวเลือกที่ user กำหนด */
-    {k:"r_minlease",l:"สัญญาขั้นต่ำ",type:"select",opts:["","1 ปี","2 ปี","3 ปี","อื่น ๆ"],grp:"rent"},
+    /* r_minlease ย้ายไปหลัง price แล้ว (Aug-18b) */
     {k:"r_available",l:"เริ่มเช่าได้เมื่อ",type:"text",grp:"rent"},
     {k:"r_renew",l:"ต่อสัญญา",type:"text",grp:"rent"},{k:"r_notice",l:"แจ้งย้ายออกล่วงหน้า",type:"text",grp:"rent"},
     {k:"r_increase",l:"ขึ้นค่าเช่าได้? / อัตรา",type:"text",full:1,grp:"rent"},
