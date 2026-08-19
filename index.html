@@ -800,9 +800,11 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
       <div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap">
         <button class="btn sm" onclick="saveN8NUrl()">บันทึกลิงก์</button>
         <button class="btn sm primary" onclick="syncN8N()">🔗 ส่งเดี๋ยวนี้</button>
+        <button class="btn sm" onclick="diagnoseN8N()">🩺 ตรวจสถานะ</button>
       </div>
       <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;cursor:pointer"><input type="checkbox" id="n8nAuto" onchange="toggleN8NAuto(this)" style="width:17px;height:17px"> ส่งอัตโนมัติทุกครั้งที่เพิ่ม/แก้ข้อมูล</label>
       <div class="ai-status" id="n8nStatus" style="margin-top:8px"></div>
+      <pre id="n8nDiagOut" style="margin-top:6px;padding:8px;background:var(--plane);border-radius:6px;font-size:11px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-word;display:none;font-family:ui-monospace,monospace"></pre>
     </div>
     <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:14px">
       <b style="font-size:13px">👤 Owner Master — Migration & Dedup</b>
@@ -2247,6 +2249,53 @@ function n8nAutoOn(){ try{return localStorage.getItem(N8N_AUTO_KEY)==="1";}catch
 function saveN8NUrl(){ const u=(($("#n8nUrl")||{}).value||"").trim(); try{localStorage.setItem(N8N_URL_KEY,u);}catch(e){} const s=$("#n8nStatus"); if(!/^https?:\/\//.test(u)){ if(s){s.textContent="ต้องเป็น URL http/https";s.className="ai-status err";} return; } if(s){s.textContent="บันทึกลิงก์แล้ว ✓";s.className="ai-status ok";} }
 function toggleN8NAuto(cb){ try{localStorage.setItem(N8N_AUTO_KEY,cb.checked?"1":"0");}catch(e){} const s=$("#n8nStatus"); if(s){s.textContent=cb.checked?"เปิดส่งอัตโนมัติแล้ว ✓":"ปิดส่งอัตโนมัติ";s.className="ai-status ok";} }
 function buildN8NPayload(){ const base=(typeof buildGSPayload==="function")?buildGSPayload():{app:"SHELTER OS",ts:new Date().toISOString(),tables:{}}; base.owners=(DB.owners||[]).map(o=>({id:o.id,name:o.name,phone:o.phone,line:o.line,email:o.email,notes:o.notes})); base.tables=base.tables||{}; base.tables.Owners=base.owners; return base; }
+/* Aug-19e · n8n diagnostic · shows url + config + data payload + test send */
+async function diagnoseN8N(){
+  const out=$("#n8nDiagOut"); if(!out)return; out.style.display="block"; out.textContent="ตรวจสอบ...";
+  const r=[];
+  const line=(k,v)=>r.push(k.padEnd(28)+": "+v);
+  try{
+    const url=n8nUrl();
+    line("Webhook URL", url?url:"❌ (ยังไม่ตั้ง)");
+    line("Auto-sync", n8nAutoOn()?"✅ เปิด":"❌ ปิด");
+    line("URL valid HTTP(S)", url?(/^https?:\/\//.test(url)?"✅":"❌ ไม่ใช่ http/https"):"—");
+    r.push("");
+    r.push("=== Payload ที่จะส่ง ===");
+    const p=buildN8NPayload();
+    line("app", p.app||"(missing)");
+    line("ts", p.ts||"(missing)");
+    if(p.tables){ Object.keys(p.tables).forEach(k=>{
+      const arr=p.tables[k]; const n=Array.isArray(arr)?arr.length:0;
+      line("  "+k, n+" rows");
+    }); }
+    r.push("");
+    if(url){
+      r.push("=== ทดสอบส่งจริง ===");
+      out.textContent=r.join("\n")+"\n(กำลังส่ง...)";
+      const t0=Date.now();
+      try{
+        const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(buildN8NPayload())});
+        line("HTTP status", res.status+" "+(res.ok?"✅":"❌"));
+        line("Response time", (Date.now()-t0)+"ms");
+        let body="";
+        try{ body=await res.text(); body=body.slice(0,200); }catch(e){}
+        if(body) line("Response body", body);
+      }catch(e){
+        line("Fetch error", "❌ "+(e.message||e));
+        r.push("");
+        r.push("อาจเป็น CORS error · ลอง 'ส่งเดี๋ยวนี้' (ใช้ no-cors fallback)");
+      }
+    } else {
+      r.push("⚠ ต้องตั้ง Webhook URL ก่อนถึงจะทดสอบส่งได้");
+      r.push("");
+      r.push("วิธีตั้ง:");
+      r.push("1. เปิด n8n → workflow ที่รับ webhook");
+      r.push("2. Trigger node → copy Production URL");
+      r.push("3. Paste ในช่องข้างบน → 'บันทึกลิงก์'");
+    }
+    out.textContent=r.join("\n");
+  }catch(e){ out.textContent="Error: "+e.message+"\n\n"+r.join("\n"); }
+}
 function postN8N(url){ return fetch(url,{method:"POST",mode:"cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(buildN8NPayload())}).catch(e=>{ return fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(buildN8NPayload())}); }); }
 function syncN8N(){ const url=n8nUrl(); const s=$("#n8nStatus"); if(!/^https?:\/\//.test(url)){ if(s){s.textContent="วางลิงก์ webhook ก่อน";s.className="ai-status err";} return; } if(s){s.textContent="กำลังส่ง…";s.className="ai-status";} postN8N(url).then(()=>{ if(s){s.textContent="ส่งขึ้น n8n แล้ว ✓ "+new Date().toLocaleTimeString("th-TH");s.className="ai-status ok";} }).catch(e=>{ if(s){s.textContent="ผิดพลาด: "+(e&&e.message||e);s.className="ai-status err";} }); }
 function scheduleN8NSync(){ if(!n8nAutoOn())return; const url=n8nUrl(); if(!/^https?:\/\//.test(url))return; clearTimeout(n8nSyncT); n8nSyncT=setTimeout(()=>{ postN8N(url).then(()=>{ const s=$("#n8nStatus"); if(s){s.textContent="ส่งอัตโนมัติแล้ว ✓ "+new Date().toLocaleTimeString("th-TH");s.className="ai-status ok";} }).catch(()=>{}); },4000); }
