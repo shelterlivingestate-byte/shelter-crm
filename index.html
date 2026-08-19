@@ -4770,7 +4770,8 @@ function renderUnmatched(){ const ua=unmatchedAppts(), ud=unmatchedDeals();
     return `<div class="drow" style="align-items:center;gap:6px;flex-wrap:wrap"><span class="dk" style="flex:1">👥 ${esc(gr.by)} — ${gr.leads.length} คน</span><select id="mg-keep-${gr.leads[0].id}" style="max-width:130px">${opts}</select>เก็บ ← ลบ<select id="mg-drop-${gr.leads[0].id}" style="max-width:130px">${opts}</select><button class="btn sm primary" onclick="umMerge('${gr.leads[0].id}')">รวม</button></div>`; }).join(""):'<div class="dempty">— ไม่พบลูกค้าซ้ำ —</div>';
   const odups=ownerDuplicates(), ouns=unlinkedOwnerProps();
   const oDupHtml=odups.length?odups.map(gr=>{ const opts=gr.owners.map(o=>`<option value="${o.id}">${esc((o.name||"เจ้าของ")+" · "+(o.phone||"")+" ("+propsOfOwner(o.id).length+" ทรัพย์)")}</option>`).join("");
-    return `<div class="drow" style="align-items:center;gap:6px;flex-wrap:wrap"><span class="dk" style="flex:1">🏠 ${esc(gr.by)} — ${gr.owners.length}</span><select id="og-keep-${gr.owners[0].id}" style="max-width:130px">${opts}</select>←<select id="og-drop-${gr.owners[0].id}" style="max-width:130px">${opts}</select><button class="btn sm primary" onclick="ogMerge('${gr.owners[0].id}')">รวม</button></div>`; }).join(""):'<div class="dempty">— ไม่พบเจ้าของซ้ำ —</div>';
+    const groupKey="ownerdup:"+gr.owners.map(x=>x.id).sort().join(",");
+    return `<div class="drow" style="align-items:center;gap:6px;flex-wrap:wrap"><span class="dk" style="flex:1">🏠 ${esc(gr.by)} — ${gr.owners.length}</span><select id="og-keep-${gr.owners[0].id}" style="max-width:130px">${opts}</select>←<select id="og-drop-${gr.owners[0].id}" style="max-width:130px">${opts}</select><button class="btn sm primary" onclick="ogMerge('${gr.owners[0].id}')">รวม</button><button class="btn sm" onclick="ogDismiss('${esc(groupKey)}')" title="ยืนยันว่าคนละคน · ไม่ต้องแจ้งเตือนอีก">❌ ไม่ใช่ซ้ำ</button></div>`; }).join(""):'<div class="dempty">— ไม่พบเจ้าของซ้ำ —</div>';
   const oUnHtml=ouns.length?ouns.map(p=>`<div class="drow" style="align-items:center;gap:6px;flex-wrap:wrap"><span class="dk" style="flex:1">🏠 ${esc(p.code||p.title||"ทรัพย์")} — เจ้าของ: ${esc(p.ownerName||"")} ${esc(p.ownerPhone||"")}</span><select id="op-${p.id}" style="max-width:150px"><option value="">— เลือกเจ้าของ —</option>${ownerOpts("")}<option value="__new">➕ สร้างเจ้าของใหม่จากข้อมูลนี้</option></select><button class="btn sm primary" onclick="opAssign('${p.id}')">ผูก</button></div>`).join(""):'<div class="dempty">— ทรัพย์ผูกเจ้าของครบ —</div>';
   $("#umBody").innerHTML=`<div class="hint" style="margin-top:0">ระบบจับคู่/รวมอัตโนมัติเฉพาะที่ตรงและไม่กำกวมเท่านั้น ที่เหลือยืนยันเองด้านล่าง</div>
     <div style="font-weight:700;font-size:13px;margin:12px 0 4px">👥 ลูกค้าที่อาจซ้ำ (${dups.length})</div>${dupHtml}
@@ -4779,6 +4780,17 @@ function renderUnmatched(){ const ua=unmatchedAppts(), ud=unmatchedDeals();
     <div style="font-weight:700;font-size:13px;margin:14px 0 4px">📅 นัดชม (${ua.length})</div>${apptHtml}
     <div style="font-weight:700;font-size:13px;margin:14px 0 4px">💼 ดีล (${ud.length})</div>${dealHtml}`; }
 function ogMerge(gid){ const keep=($("#og-keep-"+gid)||{}).value, drop=($("#og-drop-"+gid)||{}).value; if(!keep||!drop){alert("เลือกก่อน");return;} if(keep===drop){alert("เลือกคนละคน");return;} mergeOwners(keep,drop); }
+/* Aug-19 · Dismiss owner-duplicate group as "not duplicate" · cloud-synced via DB.actionSnooze */
+function ogDismiss(groupKey){
+  if(!confirm("ยืนยันว่าเป็นเจ้าของคนละคนกัน? · ระบบจะไม่แจ้งเตือนกลุ่มนี้อีก"))return;
+  if(!Array.isArray(DB.actionSnooze)) DB.actionSnooze=[];
+  const ex=DB.actionSnooze.find(x=>x&&x.key===groupKey);
+  if(!ex) DB.actionSnooze.push({id:uid(),key:groupKey,value:"dismissed",at:new Date().toISOString()});
+  try{save();}catch(e){}
+  try{renderUnmatched();}catch(e){}
+  try{renderUnmatchedBanner();}catch(e){}
+  try{flashSaved("✓ ยืนยันคนละคนแล้ว");}catch(e){}
+}
 function opAssign(pid){ const v=($("#op-"+pid)||{}).value; if(!v){alert("เลือกเจ้าของก่อน");return;} assignPropOwner(pid,v); }
 function umMerge(gid){ const keep=($("#mg-keep-"+gid)||{}).value, drop=($("#mg-drop-"+gid)||{}).value; if(!keep||!drop){alert("เลือกก่อน");return;} if(keep===drop){alert("เลือกคนละคน");return;} mergeCustomers(keep,drop); }
 /* ===== OWNER MASTER (SSOT) ===== */
@@ -4828,10 +4840,40 @@ function imageCountOf(p){
   return Array.isArray(p.photos)?p.photos.length:0;
 }
 function propsOfOwner(ownerId){ return DB.props.filter(p=>p.ownerId===ownerId); }
-function ownerDuplicates(){ const groups=[]; const byPh={},byName={}; const seen=new Set();
-  DB.owners.forEach(o=>{ const p=normPh(o.phone); if(p&&p.length>=6)(byPh[p]=byPh[p]||[]).push(o); const n=String(o.name||"").trim().toLowerCase(); if(n)(byName[n]=byName[n]||[]).push(o); });
-  Object.entries(byPh).forEach(([k,arr])=>{ if(arr.length>1){ const ids=arr.map(x=>x.id).sort().join(","); if(!seen.has(ids)){seen.add(ids);groups.push({by:"เบอร์ "+k,owners:arr});} } });
-  Object.entries(byName).forEach(([k,arr])=>{ if(arr.length>1){ const ids=arr.map(x=>x.id).sort().join(","); if(!seen.has(ids)){seen.add(ids);groups.push({by:"ชื่อ "+k,owners:arr});} } });
+function ownerDuplicates(){ const groups=[]; const byPh={},byLine={},byEmail={},byName={}; const seen=new Set();
+  /* Aug-19 · dismissed groups (user confirmed "not duplicate") · cloud-synced */
+  const dismissed=new Set(((DB.actionSnooze||[]).filter(x=>x&&x.key&&x.key.indexOf("ownerdup:")===0&&x.value==="dismissed")).map(x=>x.key));
+  const isDismissed=(arr)=>dismissed.has("ownerdup:"+arr.map(x=>x.id).sort().join(","));
+  /* Aug-19 · Fix false-positive: ชื่อเหมือนกันแต่คนละคน (เบอร์/line/email ต่างกัน) ห้าม flag ว่าซ้ำ
+     True duplicates ต้องมี identity overlap: phone/line/email ตรงกัน · หรือ ชื่อเหมือน + ไม่มี conflict อื่นเลย */
+  DB.owners.forEach(o=>{
+    const p=normPh(o.phone); if(p&&p.length>=6)(byPh[p]=byPh[p]||[]).push(o);
+    const li=(o.line||"").trim().toLowerCase(); if(li)(byLine[li]=byLine[li]||[]).push(o);
+    const em=(o.email||"").trim().toLowerCase(); if(em)(byEmail[em]=byEmail[em]||[]).push(o);
+    const n=String(o.name||"").trim().toLowerCase(); if(n)(byName[n]=byName[n]||[]).push(o);
+  });
+  /* Strong duplicates: same phone/line/email */
+  Object.entries(byPh).forEach(([k,arr])=>{ if(arr.length>1){ const ids=arr.map(x=>x.id).sort().join(","); if(!seen.has(ids)&&!isDismissed(arr)){seen.add(ids);groups.push({by:"เบอร์ "+k,owners:arr});} } });
+  Object.entries(byLine).forEach(([k,arr])=>{ if(arr.length>1){ const ids=arr.map(x=>x.id).sort().join(","); if(!seen.has(ids)&&!isDismissed(arr)){seen.add(ids);groups.push({by:"Line "+k,owners:arr});} } });
+  Object.entries(byEmail).forEach(([k,arr])=>{ if(arr.length>1){ const ids=arr.map(x=>x.id).sort().join(","); if(!seen.has(ids)&&!isDismissed(arr)){seen.add(ids);groups.push({by:"Email "+k,owners:arr});} } });
+  /* Name-match: only flag when NO conflicting identity (all pairs must lack phone conflict) */
+  Object.entries(byName).forEach(([k,arr])=>{
+    if(arr.length<2) return;
+    /* Collect distinct phone/line/email per owner (normalized) */
+    const info=arr.map(o=>({o, ph:normPh(o.phone)||"", li:(o.line||"").trim().toLowerCase(), em:(o.email||"").trim().toLowerCase()}));
+    /* Any two owners with DIFFERENT phones (both non-empty) → NOT duplicate group */
+    let hasConflict=false;
+    for(let i=0;i<info.length&&!hasConflict;i++){
+      for(let j=i+1;j<info.length;j++){
+        if(info[i].ph&&info[j].ph&&info[i].ph!==info[j].ph){ hasConflict=true; break; }
+        if(info[i].li&&info[j].li&&info[i].li!==info[j].li){ hasConflict=true; break; }
+        if(info[i].em&&info[j].em&&info[i].em!==info[j].em){ hasConflict=true; break; }
+      }
+    }
+    if(hasConflict) return; /* Different phones/line/email → คนละคนแม้ชื่อซ้ำ */
+    const ids=arr.map(x=>x.id).sort().join(",");
+    if(!seen.has(ids)&&!isDismissed(arr)){ seen.add(ids); groups.push({by:"ชื่อ "+k+" (ไม่มีเบอร์/Line/Email ขัดกัน)",owners:arr}); }
+  });
   return groups; }
 function unlinkedOwnerProps(){ return DB.props.filter(p=>!p.ownerId&&((p.ownerName||"").trim()||(p.ownerPhone||"").trim())); }
 function mergeOwners(keepId,dropId){ if(keepId===dropId)return; const keep=DB.owners.find(x=>x.id===keepId),drop=DB.owners.find(x=>x.id===dropId); if(!keep||!drop)return;
