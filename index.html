@@ -1958,8 +1958,8 @@ const needsTemplate=["งบประมาณสูงสุดที่รั�
 
 /* ================= STATE ================= */
 const KEY="shelteros_crm_v2";
-const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue","activities","propertyImages","liCredits","goals"];
-let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[],activities:[],propertyImages:[],liCredits:[],goals:[]};
+const DBKEYS=["leads","projects","props","cons","mkt","deals","care","contracts","rentLedger","tenantCare","ownerCare","repairs","inspections","rentTasks","finance","income","expense","appointments","ownerLog","competitors","owners","ownerReports","rentalCommissions","settings","auditLog","ownerMergeQueue","activities","propertyImages","liCredits","goals","actionDone","actionSnooze"];
+let DB={leads:[],projects:[],props:[],cons:[],mkt:[],deals:[],care:[],contracts:[],rentLedger:[],tenantCare:[],ownerCare:[],repairs:[],inspections:[],rentTasks:[],finance:[],income:[],expense:[],appointments:[],ownerLog:[],competitors:[],owners:[],ownerReports:[],rentalCommissions:[],settings:[],auditLog:[],ownerMergeQueue:[],activities:[],propertyImages:[],liCredits:[],goals:[],actionDone:[],actionSnooze:[]};
 let kb=[]; let todos=[]; let needsState=needsTemplate.map(()=>false);
 DB.kb=kb;
 const uid=()=>"id"+Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36);
@@ -3341,8 +3341,24 @@ function _applyThaiDateDisplay(){
 function daysSince(d){ if(!d)return null; const t=Date.parse(String(d).replace(" ","T")); if(isNaN(t))return null; return Math.floor((Date.now()-t)/86400000); }
 /* ===== AI OPERATIONS CENTER (Action Center v1) — aggregate only, never auto-execute ===== */
 const AOC_SNOOZE_KEY="shelteros_aoc_snooze_v1";
-function aocSnoozeMap(){ try{return JSON.parse(localStorage.getItem(AOC_SNOOZE_KEY)||"{}");}catch(e){return {};} }
-function aocSetSnooze(m){ try{localStorage.setItem(AOC_SNOOZE_KEY,JSON.stringify(m));}catch(e){} }
+/* Aug-18d · snooze state: DB.actionSnooze (cloud-synced) ∪ legacy localStorage · union so migration is transparent */
+function aocSnoozeMap(){
+  const m={};
+  try{ Object.assign(m, JSON.parse(localStorage.getItem(AOC_SNOOZE_KEY)||"{}")); }catch(e){}
+  (DB.actionSnooze||[]).forEach(r=>{ if(r&&r.key) m[r.key]=r.value||"dismissed"; });
+  return m;
+}
+function aocSetSnooze(m){
+  /* Persist to DB.actionSnooze · save() triggers cloud sync */
+  if(!Array.isArray(DB.actionSnooze)) DB.actionSnooze=[];
+  Object.keys(m||{}).forEach(k=>{
+    const ex=DB.actionSnooze.find(x=>x&&x.key===k);
+    if(ex) ex.value=m[k]; else DB.actionSnooze.push({id:uid(),key:k,value:m[k],at:new Date().toISOString()});
+  });
+  try{ save(); }catch(e){}
+  /* Also mirror to localStorage for read fallback (legacy compat · new devices without cloud pull yet) */
+  try{ localStorage.setItem(AOC_SNOOZE_KEY,JSON.stringify(m)); }catch(e){}
+}
 function aocIsHidden(key){ const v=aocSnoozeMap()[key]; if(!v)return false; if(v==="dismissed")return true; return v>todayISO(); }
 function nextDayISO(){ const d=new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); }
 function clampS(n){ return Math.max(0,Math.min(100,Math.round(n))); }
@@ -3409,10 +3425,14 @@ function toggleAlertsAdvanced(){
   if(btn) btn.textContent=on?"▴ ซ่อนโหมดขั้นสูง":"▾ แสดงโหมดขั้นสูง (AI Summary + KPI + ตัวกรอง)";
   if(on) try{renderAlerts();}catch(e){}
 }
-/* Done tasks tracked in localStorage · key = signal.key + date · resets daily naturally by signal recompute */
-const ALERT_DONE_KEY="shelter_alert_done_v1";
-function alertDoneMap(){ try{return JSON.parse(localStorage.getItem(ALERT_DONE_KEY)||"{}");}catch(e){return {};} }
-function alertSetDone(m){ try{localStorage.setItem(ALERT_DONE_KEY,JSON.stringify(m));}catch(e){} }
+/* Aug-18d · Done state moved from localStorage → DB.actionDone (cloud-synced) so
+   ticking on desktop reflects on mobile after sync · same for snooze in DB.actionSnooze */
+function alertDoneMap(){
+  /* Derive: {key: {at, doneAt, doneBy}} from DB.actionDone array (latest per key wins) */
+  const m={};
+  (DB.actionDone||[]).forEach(r=>{ if(!r||!r.key)return; const prev=m[r.key]; if(!prev||String(r.doneAt||"")>String(prev.doneAt||"")) m[r.key]={at:r.at||r.doneAt||"", doneAt:r.doneAt||""}; });
+  return m;
+}
 function markAlertDone(key,titleTxt){
   const now=new Date();
   const defDate=now.toISOString().slice(0,10);
@@ -3425,17 +3445,30 @@ function markAlertDone(key,titleTxt){
     if(m){ let y=+m[3]; if(y>2300)y-=543; iso=y+"-"+String(+m[2]).padStart(2,"0")+"-"+String(+m[1]).padStart(2,"0")+" "+String(+m[4]).padStart(2,"0")+":"+m[5]; }
     else if(/^\d{4}-\d{2}-\d{2}/.test(dt.trim())) iso=dt.trim();
   }
-  const map=alertDoneMap();
-  map[key]={at:iso, doneAt:new Date().toISOString()};
-  alertSetDone(map);
-  /* Also snooze so it drops from signals next collect */
-  try{ const sm=aocSnoozeMap(); sm[key]="dismissed"; aocSetSnooze(sm); }catch(e){}
+  if(!Array.isArray(DB.actionDone)) DB.actionDone=[];
+  DB.actionDone.push({id:uid(),key:key,title:titleTxt||"",at:iso,doneAt:new Date().toISOString()});
+  if(!Array.isArray(DB.actionSnooze)) DB.actionSnooze=[];
+  const exSn=DB.actionSnooze.find(x=>x&&x.key===key);
+  if(exSn) exSn.value="dismissed"; else DB.actionSnooze.push({id:uid(),key:key,value:"dismissed",at:new Date().toISOString()});
+  /* Manual rentTask · also flip status so cloud sync is unambiguous */
+  if(key&&key.indexOf("manual:")===0){
+    const tid=key.slice(7);
+    const t=(DB.rentTasks||[]).find(x=>x&&x.id===tid);
+    if(t){ t.status="เสร็จสิ้น"; t.doneAt=iso; }
+  }
+  try{ save(); }catch(e){}
   try{ renderAlertsMinimal(); }catch(e){}
   try{ flashSaved("✓ เสร็จแล้ว · "+fmtThaiDate(iso.slice(0,10))+" "+iso.slice(11,16)); }catch(e){}
 }
 function unmarkAlertDone(key){
-  const map=alertDoneMap(); delete map[key]; alertSetDone(map);
-  try{ const sm=aocSnoozeMap(); delete sm[key]; aocSetSnooze(sm); }catch(e){}
+  DB.actionDone=(DB.actionDone||[]).filter(x=>!x||x.key!==key);
+  DB.actionSnooze=(DB.actionSnooze||[]).filter(x=>!x||x.key!==key);
+  if(key&&key.indexOf("manual:")===0){
+    const tid=key.slice(7);
+    const t=(DB.rentTasks||[]).find(x=>x&&x.id===tid);
+    if(t){ t.status="open"; delete t.doneAt; }
+  }
+  try{ save(); }catch(e){}
   try{ renderAll(); }catch(e){}
 }
 /* Manual quick-add task (uses DB.rentTasks with type="manual") */
@@ -3533,6 +3566,13 @@ function acCalGo(dir){
   renderAlertsMinimal();
 }
 function acCalPick(iso){ _acCalDate=iso; renderAlertsMinimal(); }
+function acToggleApptDone(idx){
+  const a=(DB.appointments||[])[idx]; if(!a) return;
+  a.status=(a.status==="ชมแล้ว")?"นัดแล้ว":"ชมแล้ว";
+  if(a.status==="ชมแล้ว") a.doneAt=new Date().toISOString();
+  try{ save(); }catch(e){}
+  try{ renderAlertsMinimal(); }catch(e){}
+}
 function acCalAddTask(){
   const t=prompt("งาน/นัดหมาย สำหรับ "+fmtThaiDate(_acCalDate)+"\n\nพิมพ์รายละเอียด:","");
   if(!t||!t.trim())return;
@@ -3585,14 +3625,16 @@ function renderAlertsMinimal(){
   const recentDoneToday=doneKeys.map(k=>({k, ...doneMap[k]})).filter(x=>x.at&&x.at.slice(0,10)===today).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")));
   const allSignals=collectSignals();
 
+  /* Aug-18d · exclude items already marked done (cloud-synced state) */
+  const doneKeySet=new Set(Object.keys(doneMap));
   /* Owner-side tasks · signals group="owner" + rentTasks that are owner-related */
-  const ownerSignals=allSignals.filter(s=>s.group==="owner").slice(0,8);
+  const ownerSignals=allSignals.filter(s=>s.group==="owner"&&!doneKeySet.has(s.key)).slice(0,8);
   /* Customer-side follow-ups · lead-related signals + top-scoring leads with next action */
-  const custSignals=allSignals.filter(s=>s.refKind==="lead").slice(0,8);
-  /* Also derive next action for top leads that don't already have signals */
+  const custSignals=allSignals.filter(s=>s.refKind==="lead"&&!doneKeySet.has(s.key)).slice(0,8);
+  /* Also derive next action for top leads that don't already have signals · exclude marked-done */
   const activeLeads=(DB.leads||[]).filter(l=>l&&!/ปิดการขาย|ปิดเคส/.test((l.buyerStage||"")+(l.renterStage||""))&&(l.buyerStage||l.renterStage||l.stage)).slice(0,20);
   const custSignalIds=new Set(custSignals.map(s=>s.refId));
-  const journeyHints=activeLeads.filter(l=>!custSignalIds.has(l.id)).slice(0,5).map(l=>{
+  const journeyHints=activeLeads.filter(l=>!custSignalIds.has(l.id)&&!doneKeySet.has("jhint:"+l.id)).slice(0,5).map(l=>{
     const na=leadNextAction(l);
     return {key:"jhint:"+l.id, isJourneyHint:true, icon:na.journey==="เช่า"?"🔑":"🛒", title:l.n||"ลูกค้า", stage:na.stage, journey:na.journey, action:na.action, refKind:"lead", refId:l.id, refIndex:(DB.leads||[]).indexOf(l)};
   });
@@ -3664,12 +3706,32 @@ function renderAlertsMinimal(){
     const isSel=iso===_acCalDate;
     cells.push(`<div class="ac-cal-cell${isToday?' today':''}${isSel?' sel':''}${cnt?' has':''}" onclick="acCalPick('${iso}')">${d}${cnt?`<span class="ac-cal-dot">${cnt}</span>`:""}</div>`);
   }
-  /* Tasks for selected date */
+  /* Tasks for selected date · include both open + done (with strikethrough) */
   const selAppts=(DB.appointments||[]).filter(a=>a&&String(a.date||"").slice(0,10)===_acCalDate);
-  const selTasks=(DB.rentTasks||[]).filter(t=>t&&t.due===_acCalDate&&t.status!=="เสร็จสิ้น");
-  const selHTML=(selAppts.length||selTasks.length)?[
-    ...selAppts.map(a=>`<div class="ac-todo-row"><div style="flex:0 0 46px;color:var(--brand);font-weight:700">${esc(a.time||"—")}</div><div class="ac-body"><div class="t">🏠 ${esc(a.propTitle||a.propCode||"นัด")}</div>${a.text?`<div class="m">${esc(a.text)}</div>`:""}</div></div>`),
-    ...selTasks.map(t=>`<div class="ac-todo-row"><div style="flex:0 0 46px;color:var(--brand);font-weight:700">${esc(t.dueTime||"—")}</div><div class="ac-body"><div class="t">📝 ${esc(t.title)}</div></div></div>`)
+  const selTasksAll=(DB.rentTasks||[]).filter(t=>t&&t.due===_acCalDate);
+  const selHTML=(selAppts.length||selTasksAll.length)?[
+    ...selAppts.map(a=>{
+      const idx=(DB.appointments||[]).indexOf(a);
+      const dn=a.status==="ชมแล้ว"||a.status==="ยกเลิก";
+      return `<div class="ac-todo-row${dn?' done':''}">
+        <div class="ac-chk${dn?' on':''}" onclick="acToggleApptDone(${idx})" title="ติ๊กเสร็จ">✓</div>
+        <div class="ac-body">
+          <div class="t"><span style="color:var(--brand);font-weight:700">${esc(a.time||"—")}</span> · 🏠 ${esc(a.propTitle||a.propCode||"นัด")}</div>
+          ${a.text?`<div class="m">${esc(a.text)}</div>`:""}
+        </div>
+      </div>`;
+    }),
+    ...selTasksAll.map(t=>{
+      const dn=t.status==="เสร็จสิ้น";
+      const key="manual:"+t.id;
+      return `<div class="ac-todo-row${dn?' done':''}">
+        <div class="ac-chk${dn?' on':''}" onclick="${dn?"unmarkAlertDone('"+esc(key)+"')":"markAlertDone('"+esc(key)+"','"+esc((t.title||'').replace(/'/g,'&apos;'))+"')"}" title="ติ๊กเสร็จ">✓</div>
+        <div class="ac-body">
+          <div class="t">${t.dueTime?`<span style="color:var(--brand);font-weight:700">${esc(t.dueTime)}</span> · `:""}📝 ${esc(t.title)}</div>
+          ${dn&&t.doneAt?`<div class="ac-done-mark">✓ ${fmtThaiDate(t.doneAt.slice(0,10))} ${esc(t.doneAt.slice(11,16))}</div>`:""}
+        </div>
+      </div>`;
+    })
   ].join(""):`<div class="ac-empty" style="padding:12px">ไม่มีงาน · <button class="btn primary sm" style="margin-left:6px" onclick="acCalAddTask()">+ เพิ่มงาน</button></div>`;
 
   const notifOn=("Notification" in window)&&Notification.permission==="granted";
