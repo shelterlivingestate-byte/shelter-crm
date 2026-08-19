@@ -431,6 +431,33 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
 .fld-advanced.on{display:block}
 #advancedToggleBtn{background:var(--plane);border:1px dashed var(--border);color:var(--muted);padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;margin:6px 0}
 #advancedToggleBtn:hover{color:var(--ink);border-color:var(--ink-2)}
+/* Aug-18 · Action Center minimal · daily schedule + simple todo */
+.ac-sec{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px}
+.ac-sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:10px}
+.ac-sec-h b{font-size:14px}
+.ac-sec-h .ac-count{color:var(--muted);font-size:11px}
+.ac-sched-row{display:flex;gap:10px;padding:10px 0;border-bottom:1px dashed var(--border);align-items:flex-start}
+.ac-sched-row:last-child{border-bottom:none}
+.ac-time{flex:0 0 62px;font-weight:700;color:var(--brand);font-size:13px}
+.ac-time small{display:block;color:var(--muted);font-weight:400;font-size:10px;margin-top:2px}
+.ac-body{flex:1;min-width:0}
+.ac-body .t{font-size:13px;font-weight:600;line-height:1.35}
+.ac-body .m{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.5}
+.ac-body .m .lb{color:var(--ink-2);font-weight:600}
+.ac-todo-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border);align-items:flex-start}
+.ac-todo-row:last-child{border-bottom:none}
+.ac-todo-row.done{opacity:.55}
+.ac-todo-row.done .t{text-decoration:line-through}
+.ac-chk{flex:0 0 22px;width:22px;height:22px;border:2px solid var(--border);border-radius:6px;cursor:pointer;display:grid;place-items:center;background:var(--panel);color:transparent;transition:.15s;user-select:none;font-size:14px;line-height:1}
+.ac-chk:hover{border-color:var(--brand)}
+.ac-chk.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.ac-todo-actions{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.ac-todo-actions .btn{font-size:10.5px;padding:3px 8px}
+.ac-done-mark{font-size:10.5px;color:var(--ok);margin-top:2px}
+.ac-empty{text-align:center;color:var(--muted);padding:20px;font-size:12px}
+.ac-add{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.ac-add input{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;background:var(--surface-1);color:var(--ink)}
+.ac-add button{padding:8px 12px}
 .timeline-panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0;font-size:12px;line-height:1.65}
 .timeline-panel .tl-row{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px dashed rgba(0,0,0,.05)}
 .timeline-panel .tl-row:last-child{border-bottom:none}
@@ -945,22 +972,28 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
 
     <!-- ACTION CENTER -->
     <section class="view" id="v-alerts">
-      <div class="grid kpis" style="margin-bottom:14px">
-        <div class="card kpi"><div class="lbl">งานต้องทำทั้งหมด</div><div class="val" id="al-total">0</div></div>
-        <div class="card kpi"><div class="lbl"><span class="dot" style="background:var(--crit)"></span>ด่วน (วันนี้)</div><div class="val" id="al-u1" style="color:var(--crit)">0</div></div>
-        <div class="card kpi"><div class="lbl"><span class="dot" style="background:var(--s4)"></span>ควรทำ</div><div class="val" id="al-u2" style="color:var(--s4)">0</div></div>
-        <div class="card kpi"><div class="lbl"><span class="dot" style="background:var(--s1)"></span>เฝ้าระวัง</div><div class="val" id="al-u3" style="color:var(--s1)">0</div></div>
+      <!-- Aug-18 · Minimal Action Center · Daily Schedule + Simple Todo · Advanced under toggle -->
+      <div id="alertsMini"></div>
+      <div style="text-align:center;margin:14px 0">
+        <button class="btn sm" onclick="toggleAlertsAdvanced()" id="alertsAdvBtn" style="font-size:11px;color:var(--muted);background:var(--plane);border:1px dashed var(--border)">▾ แสดงโหมดขั้นสูง (AI Summary + KPI + ตัวกรอง)</button>
       </div>
-      <div class="card" id="aocSummaryCard" style="background:linear-gradient(135deg,var(--brand-soft),transparent);margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-          <b style="font-size:14px">🧠 AI Summary Today</b>
-          <div style="display:flex;gap:6px"><button class="btn sm primary" onclick="aocSummary()">สร้างสรุปวันนี้</button><button class="ai-link" onclick="openAISet()">ตั้งค่า AI</button></div>
+      <div id="alertsAdv" style="display:none">
+        <div class="grid kpis" style="margin-bottom:14px">
+          <div class="card kpi"><div class="lbl">งานต้องทำทั้งหมด</div><div class="val" id="al-total">0</div></div>
+          <div class="card kpi"><div class="lbl"><span class="dot" style="background:var(--crit)"></span>ด่วน (วันนี้)</div><div class="val" id="al-u1" style="color:var(--crit)">0</div></div>
+          <div class="card kpi"><div class="lbl"><span class="dot" style="background:var(--s4)"></span>ควรทำ</div><div class="val" id="al-u2" style="color:var(--s4)">0</div></div>
+          <div class="card kpi"><div class="lbl"><span class="dot" style="background:var(--s1)"></span>เฝ้าระวัง</div><div class="val" id="al-u3" style="color:var(--s1)">0</div></div>
         </div>
-        <div id="aocSummaryOut" class="asst-out" style="margin-top:8px;font-size:13px;min-height:20px"><span style="color:var(--muted)">กด "สร้างสรุปวันนี้" — ทำงานได้แม้ไม่มี AI (ใช้กฎ) · มี AI = สรุปคมขึ้น</span></div>
+        <div class="card" id="aocSummaryCard" style="background:linear-gradient(135deg,var(--brand-soft),transparent);margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <b style="font-size:14px">🧠 AI Summary Today</b>
+            <div style="display:flex;gap:6px"><button class="btn sm primary" onclick="aocSummary()">สร้างสรุปวันนี้</button><button class="ai-link" onclick="openAISet()">ตั้งค่า AI</button></div>
+          </div>
+          <div id="aocSummaryOut" class="asst-out" style="margin-top:8px;font-size:13px;min-height:20px"><span style="color:var(--muted)">กด "สร้างสรุปวันนี้" — ทำงานได้แม้ไม่มี AI (ใช้กฎ) · มี AI = สรุปคมขึ้น</span></div>
+        </div>
+        <div class="schips" id="aocTabs" style="margin-bottom:10px"></div>
+        <div id="alertList"></div>
       </div>
-      <div class="hint" style="margin-bottom:6px">รวมข้อมูลจาก 8 โมดูล (ลูกค้า/เจ้าของ/ทรัพย์/ดีล/สัญญา/เช่า/คู่แข่ง/ตลาด) · จัดลำดับด้วย Priority/Risk/Confidence · ทุกคำแนะนำเป็น "ร่าง" · <b>ไม่ทำอัตโนมัติ — คุณกดยืนยันทุกครั้ง</b></div>
-      <div class="schips" id="aocTabs" style="margin-bottom:10px"></div>
-      <div id="alertList"></div>
     </section>
 
     <!-- OS2 CUSTOMER HUB -->
@@ -3342,7 +3375,167 @@ let _aocCache=[], aocGroup="";
 const AOC_GROUPS=[["","ทั้งหมด"],["urgent","🔴 ด่วน"],["opportunity","⭐ โอกาสปิด"],["risk","⚠️ เสี่ยง"],["owner","👑 เจ้าของ"],["rental","🔑 เช่า"],["watch","🟡 เฝ้าระวัง"]];
 function aocSetGroup(g){ aocGroup=g; renderAlerts(); }
 function scorePill(label,val,color){ return `<span style="font-size:10.5px;font-weight:700;color:${color};background:${color}18;border-radius:6px;padding:2px 6px">${label} ${val}</span>`; }
-function renderAlerts(){ const box=$("#alertList"); if(!box)return; const S=collectSignals(); _aocCache=S;
+/* Aug-18 · Action Center minimal mode · daily schedule + simple todos */
+const ALERTS_MODE_KEY="shelter_alerts_advanced";
+function toggleAlertsAdvanced(){
+  const on=localStorage.getItem(ALERTS_MODE_KEY)!=="1";
+  try{ localStorage.setItem(ALERTS_MODE_KEY, on?"1":"0"); }catch(e){}
+  const adv=$("#alertsAdv"), btn=$("#alertsAdvBtn");
+  if(adv) adv.style.display=on?"":"none";
+  if(btn) btn.textContent=on?"▴ ซ่อนโหมดขั้นสูง":"▾ แสดงโหมดขั้นสูง (AI Summary + KPI + ตัวกรอง)";
+  if(on) try{renderAlerts();}catch(e){}
+}
+/* Done tasks tracked in localStorage · key = signal.key + date · resets daily naturally by signal recompute */
+const ALERT_DONE_KEY="shelter_alert_done_v1";
+function alertDoneMap(){ try{return JSON.parse(localStorage.getItem(ALERT_DONE_KEY)||"{}");}catch(e){return {};} }
+function alertSetDone(m){ try{localStorage.setItem(ALERT_DONE_KEY,JSON.stringify(m));}catch(e){} }
+function markAlertDone(key,titleTxt){
+  const now=new Date();
+  const defDate=now.toISOString().slice(0,10);
+  const defTime=String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  const dt=prompt("ยืนยันเสร็จ · วันที่และเวลาที่ทำเสร็จ (วว/ดด/ปปปป HH:MM)\n\n"+titleTxt+"\n\nเว้นว่าง = ตอนนี้:", fmtThaiDate(defDate)+" "+defTime);
+  if(dt===null) return;
+  let iso=defDate+" "+defTime;
+  if((dt||"").trim()){
+    const m=(dt||"").trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\s+(\d{1,2}):(\d{2})/);
+    if(m){ let y=+m[3]; if(y>2300)y-=543; iso=y+"-"+String(+m[2]).padStart(2,"0")+"-"+String(+m[1]).padStart(2,"0")+" "+String(+m[4]).padStart(2,"0")+":"+m[5]; }
+    else if(/^\d{4}-\d{2}-\d{2}/.test(dt.trim())) iso=dt.trim();
+  }
+  const map=alertDoneMap();
+  map[key]={at:iso, doneAt:new Date().toISOString()};
+  alertSetDone(map);
+  /* Also snooze so it drops from signals next collect */
+  try{ const sm=aocSnoozeMap(); sm[key]="dismissed"; aocSetSnooze(sm); }catch(e){}
+  try{ renderAlertsMinimal(); }catch(e){}
+  try{ flashSaved("✓ เสร็จแล้ว · "+fmtThaiDate(iso.slice(0,10))+" "+iso.slice(11,16)); }catch(e){}
+}
+function unmarkAlertDone(key){
+  const map=alertDoneMap(); delete map[key]; alertSetDone(map);
+  try{ const sm=aocSnoozeMap(); delete sm[key]; aocSetSnooze(sm); }catch(e){}
+  try{ renderAll(); }catch(e){}
+}
+/* Manual quick-add task (uses DB.rentTasks with type="manual") */
+function acAddManualTask(){
+  const inp=$("#acAddInp"); if(!inp)return;
+  const t=(inp.value||"").trim(); if(!t){inp.focus();return;}
+  if(!Array.isArray(DB.rentTasks)) DB.rentTasks=[];
+  DB.rentTasks.push({id:uid(),title:t,due:todayISO(),status:"open",auto:false,createdAt:todayISO(),kind:"manual"});
+  try{save();}catch(e){}
+  inp.value="";
+  try{ renderAlertsMinimal(); }catch(e){}
+  try{ flashSaved("+ เพิ่มงานแล้ว"); }catch(e){}
+}
+
+function renderAlertsMinimal(){
+  const box=$("#alertsMini"); if(!box)return;
+  const today=todayISO();
+  /* Section 1 · Daily viewing schedule · from DB.appointments today */
+  const todayAppts=(DB.appointments||[]).filter(a=>{
+    if(!a)return false;
+    const d=String(a.date||a.when||"").slice(0,10);
+    return d===today;
+  }).sort((a,b)=>String(a.time||"").localeCompare(String(b.time||"")));
+
+  const schedHTML=todayAppts.length?todayAppts.map(a=>{
+    const p=a.propertyId?(DB.props||[]).find(x=>x.id===a.propertyId):null;
+    const l=a.customerId?(DB.leads||[]).find(x=>x.id===a.customerId):null;
+    const idx=(DB.appointments||[]).indexOf(a);
+    const propTxt=p?(p.code?p.code+" · ":"")+(p.title||""):(a.propTitle||a.propCode||"");
+    const cust=l?l.n:(a.custName||a.text||"");
+    const st=a.status||"นัดแล้ว";
+    const stColor=st==="ชมแล้ว"?"var(--ok)":st==="ยกเลิก"?"var(--muted)":"var(--brand)";
+    return `<div class="ac-sched-row">
+      <div class="ac-time">${esc(a.time||"—")}<small style="color:${stColor}">${esc(st)}</small></div>
+      <div class="ac-body">
+        <div class="t">🏠 ${esc(propTxt||"ทรัพย์")}</div>
+        <div class="m">${cust?'<span class="lb">ลูกค้า:</span> '+esc(cust):""}${a.text?' · '+esc(a.text).slice(0,80):""}</div>
+        <div class="ac-todo-actions">
+          ${p?`<button class="btn sm" onclick="openDetail(${DB.props.indexOf(p)})">📄 เปิดทรัพย์</button>`:""}
+          ${l?`<button class="btn sm" onclick="openCustomer('${esc(l.id)}')">👤 ลูกค้า</button>`:""}
+          <button class="btn sm" onclick="openForm('appointments',${idx})">✏ แก้</button>
+        </div>
+      </div>
+    </div>`;
+  }).join(""):`<div class="ac-empty">📅 ไม่มีนัดวันนี้</div>`;
+
+  /* Section 2 · Simple Todo · pull top 8 signals filtered by "urgent"/"opportunity"/"risk" only · plus manual rentTasks · plus done items */
+  const doneMap=alertDoneMap();
+  const signals=collectSignals().filter(s=>["urgent","opportunity","risk","owner"].includes(s.group)).slice(0,8);
+  const manual=(DB.rentTasks||[]).filter(t=>t&&t.kind==="manual"&&t.status!=="เสร็จสิ้น").map(t=>({
+    key:"manual:"+t.id, isManual:true, taskId:t.id,
+    icon:"📝", title:t.title||"งาน", why:"เพิ่มเอง",
+    nba:{label:t.title}
+  }));
+  const items=manual.concat(signals);
+  const doneKeys=Object.keys(doneMap);
+  const recentDoneToday=doneKeys.map(k=>({k, ...doneMap[k]})).filter(x=>x.at&&x.at.slice(0,10)===today).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")));
+
+  const todoHTML=items.length?items.map((s,i)=>{
+    const key=s.key;
+    return `<div class="ac-todo-row">
+      <div class="ac-chk" onclick="markAlertDone('${esc(key)}', ${JSON.stringify(s.title||"").replace(/"/g,"&quot;")})" title="ติ๊กเสร็จ">✓</div>
+      <div class="ac-body">
+        <div class="t">${s.icon||"•"} ${esc(s.title||"งาน")}</div>
+        ${s.why?`<div class="m">${esc(s.why)}</div>`:""}
+        ${s.nba&&s.nba.label?`<div class="m"><span class="lb">งานถัดไป:</span> ${esc(s.nba.label)}</div>`:""}
+        <div class="ac-todo-actions">
+          ${s.isManual?`<button class="btn sm" onclick="if(confirm('ลบงานนี้?')){DB.rentTasks=DB.rentTasks.filter(x=>x.id!=='${esc(s.taskId)}');save();renderAlertsMinimal();}">🗑 ลบ</button>`:""}
+          ${s.refKind==="property"?`<button class="btn sm" onclick="openDetail(${s.refIndex})">📄 ทรัพย์</button>`:""}
+          ${s.refKind==="lead"?`<button class="btn sm" onclick="openCustomer('${esc(s.refId)}')">👤 ลูกค้า</button>`:""}
+          ${s.refKind==="deal"?`<button class="btn sm" onclick="openForm('deals',${s.refIndex})">💼 ดีล</button>`:""}
+        </div>
+      </div>
+    </div>`;
+  }).join(""):`<div class="ac-empty">✅ ไม่มีงานค้าง · ทุกอย่างอัปเดตครบแล้ว</div>`;
+
+  const doneHTML=recentDoneToday.length?`<details style="margin-top:12px"><summary style="cursor:pointer;font-size:11.5px;color:var(--muted);padding:4px 0">✓ เสร็จวันนี้ (${recentDoneToday.length})</summary>
+    <div style="margin-top:6px">${recentDoneToday.map(d=>{
+      const at=d.at||"";
+      return `<div class="ac-todo-row done">
+        <div class="ac-chk on" onclick="unmarkAlertDone('${esc(d.k)}')" title="เอาเครื่องหมายออก">✓</div>
+        <div class="ac-body">
+          <div class="t">${esc(d.k.replace(/^[a-z]+:/,""))}</div>
+          <div class="ac-done-mark">✓ ${fmtThaiDate(at.slice(0,10))} ${esc(at.slice(11,16))}</div>
+        </div>
+      </div>`;
+    }).join("")}</div></details>`:"";
+
+  box.innerHTML=`
+    <div class="ac-sec">
+      <div class="ac-sec-h">
+        <b>📅 นัดวันนี้</b>
+        <span class="ac-count">${todayAppts.length?todayAppts.length+" นัด":""} · ${fmtThaiDate(today)}</span>
+      </div>
+      ${schedHTML}
+      <div class="ac-add">
+        <button class="btn sm primary" onclick="openForm('appointments')">+ เพิ่มนัดชม</button>
+      </div>
+    </div>
+    <div class="ac-sec">
+      <div class="ac-sec-h">
+        <b>✓ งานวันนี้</b>
+        <span class="ac-count">${items.length} รายการ</span>
+      </div>
+      ${todoHTML}
+      ${doneHTML}
+      <div class="ac-add">
+        <input id="acAddInp" placeholder="+ เพิ่มงานวันนี้ (Enter เพื่อบันทึก)" onkeydown="if(event.key==='Enter'){event.preventDefault();acAddManualTask();}">
+        <button class="btn primary sm" onclick="acAddManualTask()">เพิ่ม</button>
+      </div>
+    </div>`;
+}
+
+function renderAlerts(){
+  /* Aug-18 · always render minimal first · advanced conditional on flag */
+  try{ renderAlertsMinimal(); }catch(e){}
+  const showAdv=localStorage.getItem(ALERTS_MODE_KEY)==="1";
+  const adv=$("#alertsAdv"), btn=$("#alertsAdvBtn");
+  if(adv) adv.style.display=showAdv?"":"none";
+  if(btn) btn.textContent=showAdv?"▴ ซ่อนโหมดขั้นสูง":"▾ แสดงโหมดขั้นสูง (AI Summary + KPI + ตัวกรอง)";
+  if(!showAdv) return; /* skip advanced render if hidden */
+  renderAlertsAdvanced();
+}
+function renderAlertsAdvanced(){ const box=$("#alertList"); if(!box)return; const S=collectSignals(); _aocCache=S;
   const cU=S.filter(x=>x.group==="urgent").length,cO=S.filter(x=>x.group==="opportunity").length,cR=S.filter(x=>x.group==="risk").length,cW=S.filter(x=>x.group==="watch").length;
   const set=(id,v)=>{const e=$(id);if(e)e.textContent=v;}; set("#al-total",S.length); set("#al-u1",cU); set("#al-u2",cO+cR); set("#al-u3",cW);
   const nav=document.querySelector('.nav a[data-id="alerts"]'); if(nav){ let b=nav.querySelector('.navcount'); if(cU>0){ if(!b){b=el("span","navcount");nav.appendChild(b);} b.textContent=cU; } else if(b)b.remove(); }
