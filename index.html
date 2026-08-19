@@ -1977,8 +1977,33 @@ const SEED_LISTINGS=[{"code":"JJ001","title":"เดอะ คอนเนค �
 /* ================= PERSISTENCE ================= */
 function snapshot(){const o={};DBKEYS.forEach(k=>o[k]=DB[k]);return o;}
 /* Data-safety fix (Aug 14): save() ต้องดังพอเมื่อ fail · อย่ากลบเงียบด้วย toast · alert modal + ลอง cloudPush ทันที (ไม่รอ debounce 800ms) เพื่อกันข้อมูลหายตอน refresh */
+/* Aug-19d · Sanity check · warn before overwriting when a store loses data unexpectedly */
+function _saveSanityCheck(){
+  try{
+    const prev=localStorage.getItem(KEY); if(!prev) return true; /* first save · nothing to compare */
+    const prevDoc=JSON.parse(prev);
+    const critical=["leads","props","deals","contracts","owners","projects","appointments","mkt"];
+    const dropped=[];
+    for(const k of critical){
+      const before=Array.isArray(prevDoc.DB&&prevDoc.DB[k])?prevDoc.DB[k].length:0;
+      const after=Array.isArray(DB[k])?DB[k].length:0;
+      if(before>=3 && after===0) dropped.push(k+" ("+before+"→0)"); /* drop from ≥3 to 0 = suspicious */
+    }
+    if(dropped.length){
+      const msg="⚠ ตรวจพบข้อมูลจะหาย!\n\n"+dropped.join("\n")+"\n\nต้องการบันทึกทับหรือไม่?\n\n· กด OK = บันทึก (ข้อมูลจะหาย)\n· กด Cancel = ยกเลิก · ป้องกันข้อมูล";
+      return confirm(msg);
+    }
+    return true;
+  }catch(e){ return true; }
+}
+
 function save(){
   let saved=false, quotaErr=false, errMsg="";
+  /* Aug-19d · Sanity check ก่อนเขียน · ป้องกัน accidental data loss (จาก bug หรือ user action) */
+  if(!_saveSanityCheck()){
+    try{ flashSaved("⛔ ยกเลิกการบันทึก · ข้อมูลเดิมยังอยู่"); }catch(e){}
+    return false;
+  }
   try{
     try{resolveOwnerLinks(true);}catch(e){}
     const payload=JSON.stringify({DB:snapshot(),kb,todos,needsState});
