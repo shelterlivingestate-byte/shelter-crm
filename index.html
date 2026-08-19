@@ -7832,26 +7832,155 @@ function offlineIdeas(p){
   const zone=((p.loc||"").split("·")[0]||"ทำเลนี้").trim();
   return `💡 ไอเดียคอนเทนต์ — ${p.title||"ทรัพย์"}\n\n📍 มุมทำเล\n"อยู่${zone} ${p.nearby?"ใกล้"+p.nearby:"เดินทางสะดวก"} ตอบโจทย์คนเมือง"  → เหมาะ Livinginsider / DDproperty\n\n🏡 มุมไลฟ์สไตล์\n"ภาพชีวิตในบ้านหลังนี้ ${p.facilities?"กับ"+p.facilities:"ที่ลงตัว"}"  → เหมาะ Facebook / Marketplace\n\n💰 มุมคุ้มค่า\n"${p.price||"ราคานี้"} กับสเปก ${p.spec||"ระดับนี้"} หายากในย่าน"  → เหมาะ Property Hub / DDproperty\n\n🎯 มุมกลุ่มเป้าหมาย\n"บ้านที่ใช่สำหรับครอบครัว/คนทำงาน ที่มองหา${zone}"  → เหมาะ Facebook\n\n🏗 มุมโครงการ\n"${p.developer?"พัฒนาโดย "+p.developer+" ":""}${p.facilities?"ส่วนกลางครบ "+p.facilities:"โครงการคุณภาพ"}"  → เหมาะ Livinginsider\n\n✨ มุมเร่งด่วน\n"ทรัพย์แนะนำประจำสัปดาห์ ทักด่วนก่อนถูกจอง"  → เหมาะ แคปชันสั้น / Story`;
 }
+/* Aug-19b · Unified marketing templates · 2 versions (ขาย · เช่า) · ใช้ทุกแพลตฟอร์ม
+ * style parameter kept for backward compat แต่ทุก style คืน template เดียวกันต่อ deal type */
 function offlineCopy(p,style){
-  const deal=p.deal==="เช่า"?"ให้เช่า":"ขาย"; const t=p.title||"ทรัพย์";
-  const catTag=(p.cat||"บ้าน").replace(/\s/g,"");
-  const zone=((p.loc||"").split("·")[0]||"").trim();
-  const zoneTag=zone.replace(/\s/g,"");
-  const hash=`#${catTag} ${zoneTag?"#"+zoneTag+" ":""}#อสังหา #${p.deal==="เช่า"?"บ้านเช่า":"ขายบ้าน"} #SHELTER`;
-  const C=contactBlock();
-  if(style==="short") return `✨ ${deal} ${t}\n📍 ${p.loc||""} ${p.spec||""}\n💰 ${p.price||"สอบถามราคา"}\nสนใจนัดชม ทักแจงได้เลยค่ะ 📩\n\n${C}`;
-  if(style==="lv") return `🏡 ${deal}${p.cat?p.cat:""} ${zone?"ย่าน"+zone:""} เหมาะกับครอบครัวที่มองหาบ้านพร้อมอยู่ค่ะ\n\n${t}${p.code?"\nรหัสทรัพย์ "+p.code:""}\n\n💰 ราคา ${p.price||"สอบถาม"}\n🏠 ${p.cat||"-"} · ${p.spec||"-"}\n📍 ทำเล: ${p.loc||"-"}\n${p.nearby?"🚉 ใกล้: "+p.nearby+"\n":""}${p.facilities?"🏊 ส่วนกลาง: "+p.facilities+"\n":""}${p.developer?"🏗 โครงการ: "+p.developer+"\n":""}\n━━━━━━━━━━━━━━\n📍 แจงลงพื้นที่และถ่ายภาพบ้านหลังนี้ด้วยตัวเองค่ะ\n\nสิ่งที่แจงเห็นจากหน้างาน\n• ${p.note||"สภาพพร้อมเข้าอยู่ ดูแลดี"}\n• ทำเลเดินทางสะดวก${p.nearby?" ใกล้"+p.nearby:""}\n• ${p.facilities?"ส่วนกลางครบ "+p.facilities:"บรรยากาศน่าอยู่"}\n\nสิ่งที่ควรพิจารณา\n• แนะนำนัดชมจริงเพื่อดูสภาพและแสง\n• สอบถามเงื่อนไข/ค่าใช้จ่ายโอนก่อนตัดสินใจ\n\nเหมาะกับ\n✓ ครอบครัวที่อยากได้บ้านพร้อมอยู่\n✓ คนทำงานย่าน${zone||"ใกล้เคียง"}\n━━━━━━━━━━━━━━\nอยากให้แจงช่วยประเมินว่าบ้านหลังนี้เหมาะกับคุณไหม ปรึกษาก่อนไปดูบ้านได้ค่ะ\n\n${C}\n\n${hash}`;
-  if(style==="ph") return `🏠 ${deal} ${t}${p.code?" | "+p.code:""}\n\n📋 รายละเอียดทรัพย์\n• ประเภท: ${p.cat||"-"} (${deal})\n• ขนาด/ห้อง: ${p.spec||"-"}\n• ทำเล: ${p.loc||"-"}\n${p.nearby?"• การเดินทาง: "+p.nearby+"\n":""}${p.facilities?"• สิ่งอำนวยความสะดวก: "+p.facilities+"\n":""}${p.commonFee?"• ค่าส่วนกลาง: "+p.commonFee+"\n":""}• ราคา: ${p.price||"-"}\n${p.note?"\n✨ จุดเด่น: "+p.note+"\n":""}\n📞 ติดต่อ/นัดชม\n${C}\n\n${hash}`;
-  if(style==="fb"){
-    const hook=`🏡 ${zone?"ย่าน"+zone+" ":""}${deal}${p.cat||"บ้าน"} ${p.price?p.price:""} พร้อมอยู่!`;
-    return `${hook}\n${p.spec||""} — แจงลงไปดูมาเองแล้วค่ะ 🔑\n\n✨ จุดเด่น\n📍 ${p.loc||"-"}\n${p.nearby?"🚉 ใกล้ "+p.nearby+"\n":""}${p.facilities?"🌳 "+p.facilities+"\n":""}💰 ${p.price||"สอบถามราคา"}\n${p.note?"⭐ "+p.note+"\n":""}\nสนใจนัดชม/ขอรูปเพิ่ม ทักแจงได้เลยนะคะ 📩\n\n${C}\n\n${hash}`;
-  }
-  if(style==="dd") return `🏡 ${deal} ${t}${p.code?" ("+p.code+")":""}\n\n✅ ${p.cat||"-"} · ${p.spec||"-"}\n📍 ${p.loc||"-"}\n${p.nearby?"🚆 ใกล้ "+p.nearby+"\n":""}${p.facilities?"🌳 "+p.facilities+"\n":""}💰 ${p.price||"สอบถามราคา"}\n${p.note?"\n📝 "+p.note+"\n":""}\n☎️ สนใจติดต่อ · นัดชมได้ทุกวัน\n${C}\n\n${hash}`;
-  if(style==="mkt"){
-    const title=`${deal}${p.cat||"บ้าน"} ${zone||""} ${p.spec||""}`.replace(/\s+/g," ").trim().slice(0,100);
-    return `${title}\n\n💰 ราคา: ${p.price||"สอบถาม"} (กรอกในช่องราคาของ Marketplace)\n📍 ทำเล: ${p.loc||"-"}\n🏡 ${p.cat||"-"} · ${p.spec||"-"}\n${p.nearby?"🚉 ใกล้: "+p.nearby+"\n":""}${p.facilities?"🌳 "+p.facilities+"\n":""}${p.note?"⭐ "+p.note+"\n":""}\nสนใจทักสอบถาม/นัดชมได้เลยค่ะ\n\n${C}`;
-  }
-  return `✨ ${deal} ${t} ✨\n\n📍 ทำเล: ${p.loc||"-"}\n🏠 ${p.cat||""} ${p.spec||""}\n💰 ราคา: ${p.price||"สอบถาม"}\n${p.note?"⭐ "+p.note+"\n":""}\n\n${C}\n\n${hash}`;
+  return p.deal==="เช่า" ? _copyRent(p) : _copySale(p);
+}
+
+function _floorsFromSpec(p){ const m=String(p.spec||"").match(/(\d+)\s*ชั้น/); return m?m[1]:""; }
+function _bullets(text){ if(!text) return []; return String(text).split(/\n|·|,/).map(x=>x.trim()).filter(Boolean); }
+function _lines(text, minCount){ const arr=_bullets(text); while(arr.length<minCount) arr.push("[…]"); return arr.slice(0, Math.max(minCount, arr.length)); }
+
+function _copyRent(p){
+  const proj=(p.projectId&&(DB.projects||[]).find(x=>x.id===p.projectId))||null;
+  const projName=proj?(proj.name||proj.title||""):(p.projectName||"[ชื่อโครงการ]");
+  const nearbyText=(p.nearby||(proj&&proj.nearby)||"");
+  const highlights=_lines(p.pubHighlights||p.tags||p.usp||"", 4);
+  const locations=_lines(nearbyText, 3);
+  const cat=p.cat||"[ประเภททรัพย์]";
+  const heroTag=(p.tags||"").split(/,|·/)[0].trim()||"[จุดเด่นหลัก]";
+  const loc=(p.loc||"[ทำเล]").split("·").pop().trim()||"[ทำเล]";
+  const price=p.price||"[XX,XXX]";
+  const floors=_floorsFromSpec(p);
+  const beds=p.beds||"[X]"; const baths=p.baths||"[X]";
+  const parking=p.parking||"[X]"; const area=p.area||"[XXX]"; const land=p.land||"[XX]";
+  const minlease=p.r_minlease||"[1 ปี]";
+  const advance=p.r_advance!=null&&p.r_advance!==""?p.r_advance:"[1]";
+  const deposit=p.r_deposit!=null&&p.r_deposit!==""?p.r_deposit:"[2]";
+  const commonFee=p.r_common||"[รวมแล้ว / เจ้าของชำระ / ผู้เช่าชำระ]";
+  const furniture=p.furniture||p.r_furniture||"[ครบ / บางส่วน / ไม่มี]";
+  const availability=p.availableDate?"พร้อมอยู่ "+fmtThaiDate(p.availableDate):"พร้อมอยู่";
+  const targetFor=p.targetBuyer||"[ครอบครัว / ผู้บริหาร / ชาวต่างชาติ / ผู้ที่ทำงานย่าน...]";
+  const code=p.code||"[JJXXX]";
+  return `🏡 ${cat} ${heroTag}
+📍 ${projName} — ${loc}
+
+FOR RENT | ให้เช่า
+🔥 ค่าเช่า ${price} บาท/เดือน
+${availability}
+
+💰 เงื่อนไขการเช่า
+• สัญญาขั้นต่ำ ${minlease}
+• ประกัน ${deposit} เดือน
+• ล่วงหน้า ${advance} เดือน
+• ค่าส่วนกลาง ${commonFee}
+
+Property Details
+• ${cat}${floors?" "+floors+" ชั้น":""}
+• ที่ดิน ${land} ตร.ว.
+• พื้นที่ใช้สอย ${area} ตร.ม.
+• ${beds} ห้องนอน | ${baths} ห้องน้ำ
+• ที่จอดรถ ${parking} คัน
+• เฟอร์นิเจอร์ ${furniture}
+
+✨ จุดเด่นของบ้าน
+${highlights.map(x=>"• "+x).join("\n")}
+
+📍 ทำเล & การเดินทาง
+${locations.map(x=>"• "+x).join("\n")}
+
+✨ เหมาะสำหรับ
+${targetFor}
+
+🤝 SHELTER Rental Care
+ดูแลตั้งแต่วันเข้าอยู่ จนถึงวันสิ้นสุดสัญญาเช่า
+• ประสานงานระหว่างผู้เช่าและเจ้าของบ้าน
+• ช่วยดูแลและประสานงานเมื่อเกิดปัญหาเกี่ยวกับบ้าน
+• แจ้งเตือนและประสานงานเรื่องสำคัญตามสัญญา
+• ดูแลการต่อสัญญา / ย้ายออกเมื่อครบกำหนด
+• ให้คำปรึกษาและประสานงานตลอดระยะเวลาการเช่า
+
+«เพราะทุกการตัดสินใจซื้อขาย-บ้านคือก้าวสำคัญของชีวิตเรา
+จึงดูแลทุกขั้นตอนด้วยความจริงใจ»
+
+━━━━━━━━━━━━━━
+
+🏷️ Property Code: ${code}
+
+📞 สนใจนัดชมบ้าน / สอบถามรายละเอียด
+จุ๊บแจง — SHELTER Living Estate
+Tel: 093-650-9879
+LINE: @shelterliving
+
+✔️ รับฝากขายบ้าน
+✔️ รับปล่อยเช่าบ้าน
+✔️ ดูแลผู้เช่าและเจ้าของตลอดสัญญาเช่า
+✔️ ให้คำปรึกษาด้านอสังหาริมทรัพย์`;
+}
+
+function _copySale(p){
+  const proj=(p.projectId&&(DB.projects||[]).find(x=>x.id===p.projectId))||null;
+  const projName=proj?(proj.name||proj.title||""):(p.projectName||"[ชื่อโครงการ]");
+  const nearbyText=(p.nearby||(proj&&proj.nearby)||"");
+  const highlights=_lines(p.pubHighlights||p.tags||p.usp||"", 4);
+  const locations=_lines(nearbyText, 3);
+  const cat=p.cat||"[ประเภททรัพย์]";
+  const heroTag=(p.tags||"").split(/,|·/)[0].trim()||"[จุดขายหลัก]";
+  const loc=(p.loc||"[ทำเล]").split("·").pop().trim()||"[ทำเล]";
+  const price=p.price||"[X,XXX,XXX]";
+  const transferLine=p.transferFeeType?"["+p.transferFeeType+"]":"[ค่าโอน 50/50 / ค่าโอนตามตกลง / ราคาพิเศษ]";
+  const floors=_floorsFromSpec(p);
+  const beds=p.beds||"[X]"; const baths=p.baths||"[X]";
+  const parking=p.parking||"[X]"; const area=p.area||"[XXX]"; const land=p.land||"[XX]";
+  const extra=p.usp||"[ทิศหน้าบ้าน / หน้ากว้าง / ห้องแม่บ้าน / ห้องทำงาน ถ้ามี]";
+  const targetFor=p.targetBuyer||"[ครอบครัว / ครอบครัวขยาย / ผู้บริหาร / ซื้อเพื่ออยู่อาศัย / นักลงทุน]";
+  const code=p.code||"[JJXXX]";
+  return `🏡 ${cat} ${heroTag}
+📍 ${projName} — ${loc}
+
+FOR SALE | ขาย
+🔥 ราคา ${price} บาท
+${transferLine}
+
+Property Details
+• ${cat}${floors?" "+floors+" ชั้น":""}
+• ที่ดิน ${land} ตร.ว.
+• พื้นที่ใช้สอย ${area} ตร.ม.
+• ${beds} ห้องนอน | ${baths} ห้องน้ำ
+• ที่จอดรถ ${parking} คัน
+• ${extra}
+
+✨ จุดเด่นของบ้าน
+${highlights.map(x=>"• "+x).join("\n")}
+
+📍 ทำเล & การเดินทาง
+${locations.map(x=>"• "+x).join("\n")}
+
+✨ เหมาะสำหรับ
+${targetFor}
+
+💡 บริการจาก SHELTER Living Estate
+✔️ ให้คำปรึกษาด้านสินเชื่อ
+✔️ ช่วยประเมินความสามารถในการกู้
+✔️ ดูแลขั้นตอนซื้อ–ขายจนถึงวันโอน
+
+«เพราะทุกการตัดสินใจซื้อขาย-บ้านคือก้าวสำคัญของชีวิตเรา
+จึงดูแลทุกขั้นตอนด้วยความจริงใจ»
+
+━━━━━━━━━━━━━━
+
+🏷️ Property Code: ${code}
+
+📞 นัดชมบ้าน / สอบถามข้อมูล
+จุ๊บแจง — SHELTER Living Estate
+Tel: 093-650-9879
+LINE: @shelterliving
+
+✔️ รับฝากขายบ้าน
+✔️ รับปล่อยเช่าบ้าน
+✔️ ให้คำปรึกษาด้านสินเชื่อ
+✔️ ดูแลทุกขั้นตอนการซื้อ–ขายจนถึงวันโอน`;
 }
 function copyOut(){const o=$("#copyOut");o.select();let ok=false;try{ok=document.execCommand("copy");}catch(e){}if(navigator.clipboard)navigator.clipboard.writeText(o.value).catch(()=>{});$("#copyStatus").textContent="คัดลอกแล้ว ✓";$("#copyStatus").className="ai-status ok";}
 
