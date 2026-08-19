@@ -7075,37 +7075,35 @@ function renderRentCare(){ const tabsBox=$("#rcTabs"); if(!tabsBox)return;
 function rcGo(t){ rcTab=t; renderRentCare(); }
 function rcAddBtn(entity,label){ return `<button class="btn primary sm" onclick="openForm('${entity}')">+ ${label}</button>`; }
 function rcDashboard(){
-  /* Aug-15 refactor · Rental Care Dashboard cleaned per spec §11 */
+  /* Aug-19 · Clean dashboard · KPI งานวันนี้/งานเกินกำหนด ย้ายไปอยู่ Action Center · notification section ลบ · duplication removed */
   const activeAll=DB.contracts.filter(c=>!["สิ้นสุดสัญญา","ย้ายออกแล้ว"].includes(c.status));
   const activeShelter=activeAll.filter(c=>typeof isShelterActiveContract==="function"?isShelterActiveContract(c):false);
   const managedCare=activeAll.filter(isRentCareEligible); /* SHELTER + Tenant + careActive */
   let arrears=0,utilUnpaid=0;
   managedCare.forEach(c=>{ const f=contractFinance(c); arrears+=f.arrears; utilUnpaid+=Math.max(0,f.utilDue-f.utilPaid); });
-  const rem=computeRentReminders(); const red=rem.filter(r=>r.lv===1).length; const soon=rem.filter(r=>r.lv===2).length;
   const expiring30=activeAll.filter(c=>{const dl=daysBetween(todayISO(),c.endDate);return dl!=null&&dl<=30&&dl>=0;}).length;
   const expiring60=activeAll.filter(c=>{const dl=daysBetween(todayISO(),c.endDate);return dl!=null&&dl<=60&&dl>=0;}).length;
   const expiring90=activeAll.filter(c=>{const dl=daysBetween(todayISO(),c.endDate);return dl!=null&&dl<=90&&dl>=0;}).length;
   const repairsOpen=DB.repairs.filter(r=>r.status!=="เสร็จสิ้น").length;
   const nonEligibleShelter=activeShelter.length-managedCare.length;
 
+  /* Only 4 essential KPIs · งานวันนี้/งานเกินกำหนด/งาน+แจ้งเตือนวันนี้ ย้ายไป Action Center */
   const kpis=`<div class="rc-kpis">
-    <div class="rc-kpi"><div class="lbl">งานวันนี้</div><div class="val" style="color:var(--crit)">${red}</div></div>
-    <div class="rc-kpi"><div class="lbl">งานเกินกำหนด</div><div class="val" style="color:#8a6516">${soon}</div></div>
     <div class="rc-kpi"><div class="lbl">ค่าเช่าค้างจริง</div><div class="val" style="color:${arrears?'var(--crit)':'var(--muted)'}">฿${fmtMoney(arrears)}</div><div class="lbl" style="font-size:10px;color:var(--muted)">Managed Care · Tenant + เปิดเก็บค่าเช่า</div></div>
     <div class="rc-kpi"><div class="lbl">งานรอ Owner</div><div class="val">${DB.repairs.filter(r=>r.approveStatus==="รออนุมัติ").length}</div></div>
-    <div class="rc-kpi"><div class="lbl">งานซ่อม</div><div class="val">${repairsOpen}</div></div>
+    <div class="rc-kpi"><div class="lbl">งานซ่อมค้าง</div><div class="val">${repairsOpen}</div></div>
     <div class="rc-kpi"><div class="lbl">ใกล้หมดสัญญา ≤30/60/90</div><div class="val" style="color:#8a6516">${expiring30}/${expiring60}/${expiring90}</div></div>
   </div>`;
 
   const banner=`<div style="background:#f0f9ff;border:1px solid #0284c7;border-left:3px solid #0284c7;padding:10px 12px;border-radius:6px;font-size:11.5px;margin-bottom:10px;line-height:1.6">
-    <b>📋 3 กลุ่มข้อมูล:</b><br>
-    · <b>Managed Care</b> ${managedCare.length} รายการ — สร้างงวด/หนี้/งานได้ (SHELTER + Tenant + เปิดบริการ)<br>
-    · <b>SHELTER Contract อื่น</b> ${nonEligibleShelter} รายการ — มีสัญญา แต่ยังไม่รับดูแล → ไม่สร้างงวด/หนี้<br>
-    · <b>ช่องทางอื่น</b> ${activeAll.length-activeShelter.length} รายการ — Watchlist วันหมดสัญญาเท่านั้น
+    <b>📋 3 กลุ่มข้อมูล:</b>
+    · <b>Managed Care</b> ${managedCare.length}
+    · <b>SHELTER Contract อื่น</b> ${nonEligibleShelter}
+    · <b>ช่องทางอื่น</b> ${activeAll.length-activeShelter.length}
+    <br><span style="color:var(--muted);font-size:10.5px">งานประจำวัน + แจ้งเตือน ดูที่ <a onclick="go('alerts')" style="cursor:pointer;color:var(--brand);text-decoration:underline">Action Center</a></span>
   </div>`;
 
-  const todayList=rem.slice(0,6).map(r=>`<div class="rc-card"><div class="rh"><div><div class="rt">${r.ic} ${esc(r.t)}</div><div class="rm">${esc(r.r)}</div></div><span class="rc-pill ${r.lv===1?'rc-red':'rc-yellow'}">${r.kind}</span></div></div>`).join("")||'<div class="rc-empty">ไม่มีงานเร่งด่วน ✓ · (Managed Care · Tenant · Repairs · Expiry)</div>';
-  return rcCareProps()+banner+kpis+`<div class="rc-sec-title">🔔 งาน/แจ้งเตือนวันนี้</div>`+todayList+(rem.length>6?`<div class="hint">ดูทั้งหมด ${rem.length} รายการในแท็บ "งาน & แจ้งเตือน"</div>`:"");
+  return rcCareProps()+banner+kpis;
 }
 function rcContracts(){
   const head=`<div class="rc-toolbar"><b style="font-size:13px">สัญญาเช่าทั้งหมด</b><div class="spacer"></div>${rcAddBtn("contracts","เพิ่มสัญญา")}</div>`;
