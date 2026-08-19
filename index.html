@@ -2246,7 +2246,20 @@ async function migratePhotosToDrive(){
 }
 function n8nUrl(){ try{return (localStorage.getItem(N8N_URL_KEY)||"").trim();}catch(e){return "";} }
 function n8nAutoOn(){ try{return localStorage.getItem(N8N_AUTO_KEY)==="1";}catch(e){return false;} }
-function saveN8NUrl(){ const u=(($("#n8nUrl")||{}).value||"").trim(); try{localStorage.setItem(N8N_URL_KEY,u);}catch(e){} const s=$("#n8nStatus"); if(!/^https?:\/\//.test(u)){ if(s){s.textContent="ต้องเป็น URL http/https";s.className="ai-status err";} return; } if(s){s.textContent="บันทึกลิงก์แล้ว ✓";s.className="ai-status ok";} }
+function saveN8NUrl(){
+  const u=(($("#n8nUrl")||{}).value||"").trim();
+  const s=$("#n8nStatus");
+  if(!/^https?:\/\//.test(u)){ if(s){s.textContent="ต้องเป็น URL http/https";s.className="ai-status err";} return; }
+  /* Aug-19e · Warn if URL looks like a webpage instead of webhook endpoint */
+  if(/\/(home|workflows|workflow|editor|dashboard|projects)\/?/.test(u)){
+    if(!confirm("⚠ URL นี้เป็นหน้าเว็บ n8n (list/editor) · ไม่ใช่ Webhook endpoint\n\nWebhook URL ต้องมี /webhook/ (ไม่ใช่ /home/, /workflows/)\n\nรูปแบบถูก: https://n8n.<domain>/webhook/xxxxx-xxxxx\n\nต้องการบันทึก URL นี้จริงหรือ?")){
+      if(s){s.textContent="ยกเลิก · ต้องใช้ Production Webhook URL (ไม่ใช่หน้า workflows)";s.className="ai-status err";}
+      return;
+    }
+  }
+  try{localStorage.setItem(N8N_URL_KEY,u);}catch(e){}
+  if(s){s.textContent="บันทึกลิงก์แล้ว ✓";s.className="ai-status ok";}
+}
 function toggleN8NAuto(cb){ try{localStorage.setItem(N8N_AUTO_KEY,cb.checked?"1":"0");}catch(e){} const s=$("#n8nStatus"); if(s){s.textContent=cb.checked?"เปิดส่งอัตโนมัติแล้ว ✓":"ปิดส่งอัตโนมัติ";s.className="ai-status ok";} }
 function buildN8NPayload(){ const base=(typeof buildGSPayload==="function")?buildGSPayload():{app:"SHELTER OS",ts:new Date().toISOString(),tables:{}}; base.owners=(DB.owners||[]).map(o=>({id:o.id,name:o.name,phone:o.phone,line:o.line,email:o.email,notes:o.notes})); base.tables=base.tables||{}; base.tables.Owners=base.owners; return base; }
 /* Aug-19e · n8n diagnostic · shows url + config + data payload + test send */
