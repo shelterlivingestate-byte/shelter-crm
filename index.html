@@ -6280,7 +6280,7 @@ function apptPreview(){
   const dp=apptDateParts(); const time=$("#apptTime").value||"...";
   const proj=$("#apptProject").value||"...", house=$("#apptHouse").value||"...", code=$("#apptCode").value, loc=$("#apptLoc").value||"...";
   const dateLine = dp ? `วัน ${dp.day} ที่ ${dp.date} เดือน ${dp.month} พ.ศ. ${dp.be}` : `วัน [.....] ที่ [.....] เดือน [.....] พ.ศ. [.....]`;
-  const txt=`Confirm ✅ นัดดูบ้าน\n${dateLine}\n\n📍 ชื่อโครงการ ${proj}\n\n🏘 บ้านเลขที่ ${house}${code?" (รหัส "+code+")":""}\n⏰ เวลา ${time}\n\nlocation โครงการ ${loc}`;
+  const txt=`Confirm ✅ นัดดูบ้าน\n${dateLine}\n\n📍 ชื่อโครงการ ${proj}\n\n🏘 บ้านเลขที่ ${house}${code?" (รหัส "+code+")":""}\n⏰ เวลา ${time}\n\nlocation โครงการ ${loc}\n\nขอบคุณค่ะ`;
   $("#apptText").value=txt;
 }
 function copyAppt(){ const o=$("#apptText"); o.select(); try{document.execCommand("copy");}catch(e){} if(navigator.clipboard)navigator.clipboard.writeText(o.value).catch(()=>{}); $("#apptStatus").textContent="คัดลอกข้อความแล้ว ✓"; $("#apptStatus").className="ai-status ok"; }
@@ -6308,7 +6308,9 @@ function lineTextURL(text){return "https://line.me/R/msg/text/?"+encodeURICompon
 function lineChatURL(id){return "https://line.me/R/ti/p/~"+encodeURIComponent(String(id).replace(/^@/,""));}
 function sendApptLine(who){
   const p=(apptIdx!=null)?DB.props[apptIdx]:null;
-  const text=$("#apptText").value||"";
+  /* Aug-19c · Safety strip · ลบ CRM URL ถ้ามีติดมาโดยไม่ได้ตั้งใจ (จาก share sheet auto-append) */
+  let text=$("#apptText").value||"";
+  text=text.split("\n").filter(line=>!/^https?:\/\/(crm\.)?shelterlivingestate\.tech\/?\s*$/i.test(line.trim())).join("\n").replace(/\s+$/,"");
   if(navigator.clipboard)navigator.clipboard.writeText(text).catch(()=>{});
   let url,msg;
   if(who==="owner"){
