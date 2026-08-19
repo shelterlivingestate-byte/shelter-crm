@@ -9,6 +9,14 @@
 <meta name="apple-mobile-web-app-title" content="SHELTER OS">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" id="pwaManifest">
+<!-- Aug-19c · กัน LINE/social preview scrape เวลาแชร์ · referrer=no-referrer · OG tags แบบ branded · blank description กัน internal text หลุด -->
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content=" ">
+<meta property="og:title" content="SHELTER Living Estate">
+<meta property="og:description" content=" ">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SHELTER Living Estate">
 <title>SHELTER OS — Real Estate CRM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -6308,21 +6316,23 @@ function lineTextURL(text){return "https://line.me/R/msg/text/?"+encodeURICompon
 function lineChatURL(id){return "https://line.me/R/ti/p/~"+encodeURIComponent(String(id).replace(/^@/,""));}
 function sendApptLine(who){
   const p=(apptIdx!=null)?DB.props[apptIdx]:null;
-  /* Aug-19c · Safety strip · ลบ CRM URL ถ้ามีติดมาโดยไม่ได้ตั้งใจ (จาก share sheet auto-append) */
+  /* Aug-19c · Strip CRM URL + trailing whitespace */
   let text=$("#apptText").value||"";
   text=text.split("\n").filter(line=>!/^https?:\/\/(crm\.)?shelterlivingestate\.tech\/?\s*$/i.test(line.trim())).join("\n").replace(/\s+$/,"");
   if(navigator.clipboard)navigator.clipboard.writeText(text).catch(()=>{});
-  let url,msg;
+  /* Aug-19c · ยกเลิก lineTextURL (share URL scheme) เพราะ LINE จะแนบ preview card เว็บ CRM
+     ใช้ lineChatURL อย่างเดียว · ถ้าไม่มี LINE ID ให้ user copy แล้ว paste เอง (ไม่เปิด share intent) */
+  let url=null, msg="";
   if(who==="owner"){
-    if(p&&p.ownerLine&&String(p.ownerLine).trim()){ url=lineChatURL(p.ownerLine); msg="เปิดแชทเจ้าของ + คัดลอกข้อความแล้ว — วางเพื่อส่ง ✓"; }
-    else { url=lineTextURL(text); msg="ไม่มี LINE เจ้าของ — เปิด LINE ให้เลือกผู้รับ (คัดลอกข้อความแล้ว)"; }
+    if(p&&p.ownerLine&&String(p.ownerLine).trim()){ url=lineChatURL(p.ownerLine); msg="✓ เปิดแชทเจ้าของ · คัดลอกข้อความแล้ว · วางที่แชท LINE"; }
+    else { msg="⚠ ยังไม่มี LINE ของเจ้าของ · คัดลอกข้อความแล้ว · เปิด LINE เอง แล้ววาง"; }
   } else {
     const cl=($("#apptCustLine").value||"").trim();
-    if(cl){ url=lineChatURL(cl); msg="เปิดแชทลูกค้า + คัดลอกข้อความแล้ว — วางเพื่อส่ง ✓"; }
-    else { url=lineTextURL(text); msg="เปิด LINE ให้เลือกลูกค้า (คัดลอกข้อความแล้ว)"; }
+    if(cl){ url=lineChatURL(cl); msg="✓ เปิดแชทลูกค้า · คัดลอกข้อความแล้ว · วางที่แชท LINE"; }
+    else { msg="⚠ ยังไม่มี LINE ของลูกค้า · คัดลอกข้อความแล้ว · เปิด LINE เอง แล้ววาง"; }
   }
-  window.open(url,"_blank");
-  $("#apptStatus").textContent=msg; $("#apptStatus").className="ai-status ok";
+  if(url) window.open(url,"_blank");
+  $("#apptStatus").textContent=msg; $("#apptStatus").className="ai-status "+(url?"ok":"err");
 }
 function addFeedbackProp(i){ const p=DB.props[i]; const t=prompt("Feedback จากผู้ชม / ลูกค้า"); if(!t)return; if(!Array.isArray(p.logs))p.logs=[]; p.logs.unshift({date:nowStamp(),text:"💬 "+t}); p.updatedAt=todayISO(); save(); renderAll(); if($("#detailView").classList.contains("on"))openDetail(i); }
 function openMore(i){
