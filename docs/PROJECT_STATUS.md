@@ -2,7 +2,7 @@
 
 > **📌 FOR NEW AI SESSIONS:** อ่านไฟล์นี้ก่อนเริ่มงานทุกครั้ง · เข้าใจสถานะทั้งหมดใน 3 นาที · อัพเดทท้ายไฟล์ทุกครั้งที่จบงาน
 
-**Last updated:** 2026-08-20 · **Current commit:** `2c53fd2`
+**Last updated:** 2026-08-20 · **Current commit:** `f1694af`
 **Owner:** shelterlivingestate@gmail.com
 
 ---
@@ -35,6 +35,76 @@
 **Structure:** Single HTML file `index.html` (~2.5 MB · 7,700+ บรรทัด · Vanilla JS · **no build step**)
 
 **Sync flow:** REST POST → poll 20s → BroadcastChannel → `beforeunload` emergencyPush
+
+---
+
+## 🛠️ MCP + CLI Toolchain (AI Automation Layer)
+
+**เป้าหมาย:** ให้ AI ทำ setup งานต่างๆ แทนผู้ใช้ให้ได้มากที่สุด · ลด manual clicking
+
+### Required CLIs (ต้องติดตั้งเครื่องผู้ใช้)
+
+| CLI | Command | ทำอะไรได้ | Auth |
+|---|---|---|---|
+| **Node.js** | Installer จาก nodejs.org | Prerequisite ของ npm/wrangler/neonctl | — |
+| **Wrangler** | `npm install -g wrangler` | Cloudflare Pages/Workers/R2 deploy · tail logs · env vars | `wrangler login` |
+| **neonctl** | `npm install -g neonctl` | Neon Postgres query, branch, migration | `neonctl auth` |
+| **gh** | `winget install GitHub.cli` | GitHub PR/issue/release · CI status | `gh auth login` |
+
+### Required MCP Servers (ติดตั้งใน Claude)
+
+| MCP | Install Command | ทำอะไรได้ | ข้อจำกัด |
+|---|---|---|---|
+| **Cloudflare** | `claude mcp add cloudflare npx -y @cloudflare/mcp-server-cloudflare` | R2 bucket, Workers, Pages, DNS, KV, D1 · env vars, secrets | — |
+| **Neon** | `claude mcp add neon npx -y @neondatabase/mcp-server-neon` | Query DB, migrations, branches, schema | ⚠️ **create project ไม่ได้** (region) |
+| **GitHub** | `claude mcp add github npx -y @modelcontextprotocol/server-github` | PRs, issues, releases, CI | ต้อง PAT (Personal Access Token) |
+
+### What AI Can Automate After Setup
+
+**Cloudflare (MCP + Wrangler):**
+- สร้าง R2 bucket · public access · custom domain
+- สร้าง Worker · set env vars · bind R2
+- Deploy Pages · rollback · tail logs
+- Set DNS records · verify domain
+
+**Neon (MCP + neonctl):**
+- Query DB · debug data
+- Create/modify tables + indexes
+- Manage branches (dev/staging/prod)
+- Run migrations · verify schema
+- View slow queries · optimize
+
+**GitHub (MCP + gh):**
+- Create PR · review · merge
+- Comment on issues · create issues from TODOs
+- View CI status · retry failed jobs
+- Create releases + tags
+
+### Time Savings Example
+
+| งาน | Manual | ด้วย MCP+CLI |
+|---|---|---|
+| Setup R2 bucket + Worker | 20 นาที | 30 วิ |
+| Deploy CRM update | 1-2 นาที (git push + build) | 5-10 วิ (`wrangler pages deploy`) |
+| Query DB debug | 5 นาที (เปิด dashboard) | 10 วิ (AI ตอบใน chat) |
+| Create GitHub PR | 5 นาที (browser fill form) | 10 วิ (`gh pr create`) |
+
+### Setup Status
+
+- ⏳ Node.js — user ต้องติดตั้ง
+- ⏳ Wrangler CLI — user ต้อง `npm install -g wrangler`
+- ⏳ neonctl CLI — user ต้อง `npm install -g neonctl`
+- ⏳ gh CLI — user ต้อง `winget install GitHub.cli`
+- ⏳ Cloudflare MCP — user ต้อง `claude mcp add cloudflare ...`
+- ⏳ Neon MCP — user ต้อง `claude mcp add neon ...`
+- ⏳ GitHub MCP — user ต้อง `claude mcp add github ...` + สร้าง PAT
+
+### Security Notes
+
+- MCP servers อ่าน credentials จาก CLI (ทั้ง `wrangler login`, `neonctl auth`, `gh auth`)
+- ห้าม commit tokens ลง git · เก็บใน `~/.claude/config.json` (locked)
+- Rotate PAT ทุก 90 วัน
+- AI จะขอ permission ทุก tool call · auto-approve เฉพาะ read-only ได้ (ตั้งใน `~/.claude/settings.json`)
 
 ---
 
@@ -174,14 +244,11 @@
 ## 🚧 PENDING / IN-PROGRESS
 
 ### 🔴 Critical (do next)
-- ⏳ **Wrangler CLI setup** · user ติดตั้ง Node.js + wrangler + login · จะ deploy ผ่าน CLI แทน GitHub auto
-  - Files ready: `wrangler.toml`, `.gitignore`
-  - User needs: `npm install -g wrangler` → `wrangler login` → `wrangler pages deploy .`
-- ⏳ **Cloudflare R2 setup** · Migrate รูปจาก Supabase Storage → R2
-  - Steps: Create bucket → enable public → create Worker upload proxy → set env vars
-  - Need code changes: `uploadPhotoToSupabase()` → `uploadPhotoToR2()`
-- ⏳ **Neon DB setup** · User creates project (Singapore) → paste connection string → migrate schema from Supabase
-  - **⚠️ Reminder to user:** สร้าง project เอง · Neon MCP เลือก Singapore ไม่ได้
+- ⏳ **MCP + CLI toolchain install** · Node.js + Wrangler + neonctl + gh + 3 MCP servers · ดู "MCP + CLI Toolchain" section
+- ⏳ **Wrangler deploy first test** · หลัง install · `wrangler pages deploy . --project-name=shelter-crm`
+- ⏳ **Cloudflare R2 setup** · หลัง Cloudflare MCP ทำงาน · AI สร้าง bucket + Worker ให้ได้ · migrate `uploadPhotoToSupabase()` → `uploadPhotoToR2()`
+- ⏳ **Neon DB setup** · User สร้าง project (Singapore region) เอง → paste connection string → AI ใช้ Neon MCP migrate schema
+  - **⚠️ Reminder:** Neon MCP สร้าง project ไม่ได้ (region constraint)
 
 ### 🟡 High priority
 - ⏳ **RBAC implementation Phase 1** · Foundation (users + roles + permissions) — see plan above
@@ -253,8 +320,9 @@
 - ✅ สอน R2 setup (6 steps + Worker upload proxy code)
 - ✅ สอน Wrangler CLI setup (7 steps)
 - ✅ RBAC Upgrade Plan · 6 roles + 5 phases + function-by-function map
+- ✅ MCP + CLI Toolchain plan (Cloudflare/Neon/GitHub MCP + wrangler/neonctl/gh CLI)
 - ✅ Memory saved: [[project-shelter-stack]], [[feedback-neon-project-creation]], [[project-shelter-rbac]]
-- ⏳ Waiting: user setup Node.js/Wrangler + R2 bucket + Neon project
+- ⏳ Waiting: user install Node.js + CLIs + MCP servers → then AI can automate R2/Neon setup
 
 ### 2026-08-20 · Session 1
 - ✅ Rental commission other-channel = 1 month rent (`1380b37`)
