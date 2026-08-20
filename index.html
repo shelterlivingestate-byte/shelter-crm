@@ -4109,10 +4109,16 @@ function computeRentalCommission(c, rc){ rc=rc||rentalCommOf(c.id)||{}; const st
   else if(rule.indexOf("คงที่")>=0)potential=num(rc.ruleValue);
   else if(rule.indexOf("เปอร์เซ็นต์")>=0)potential=Math.round(rent*12*num(rc.ruleValue)/100);
   else potential=num(rc.ruleValue)||Math.round(baseMonthsFromTerm(months)*rent);
-  const cb=c.leaseClosedByType||""; const isOwnerDirect=cb.indexOf("Owner Direct")>=0,isOther=cb.indexOf("Other Agent")>=0,isCo=cb.indexOf("Co-Agent")>=0;
+  const cb=c.leaseClosedByType||"";
+  const isOwnerDirect=cb.indexOf("Owner Direct")>=0;
+  const isOtherAgent=cb.indexOf("Other Agent")>=0;
+  /* Aug-19f · recognize "ปิดเช่าจากช่องทางอื่น" (unified other-channel label) */
+  const isOtherChannel=cb.indexOf("ปิดเช่าจากช่องทางอื่น")>=0;
+  const isCo=cb.indexOf("Co-Agent")>=0;
+  const isLost=isOwnerDirect||isOtherAgent||isOtherChannel; /* we didn't close · we don't collect */
   let gross; const go2=rc.grossOverride;
   if(go2!==""&&go2!=null&&num(go2)>0)gross=num(go2);
-  else if(isOwnerDirect||isOther)gross=0;
+  else if(isLost)gross=0;
   else if(isCo)gross=Math.round(potential*(num(rc.ourSharePct)||100)/100);
   else gross=potential;
   const coAgent=Math.round(gross*(num(rc.coAgentPct)||0)/100);
@@ -4121,10 +4127,12 @@ function computeRentalCommission(c, rc){ rc=rc||rentalCommOf(c.id)||{}; const st
   const vat=Math.round(gross*num(st.vatPct)/100), wht=Math.round(gross*num(st.whtPct)/100);
   const mktExp=num(rc.mktExp), otherExp=num(rc.otherExp);
   const net=Math.round(gross-coAgent-company-mktExp-otherExp-vat-wht);
-  const ourActual=(isOwnerDirect||isOther)?0:net; // net money we actually get
-  const ourGross=(isOwnerDirect||isOther)?0:gross; // for lost-opportunity comparison (before internal split)
-  const lost=Math.max(0,potential-ourGross); // 0 when we close fully ourselves
-  return {potential,gross,coAgent,company,salesperson,vat,wht,mktExp,otherExp,net,ourActual,ourGross,lost,vatPct:num(st.vatPct),whtPct:num(st.whtPct),lostSource:isOwnerDirect?"owner":isOther?"other":isCo?"coagent":"none"};
+  const ourActual=isLost?0:net; // net money we actually get
+  const ourGross=isLost?0:gross; // for lost-opportunity comparison (before internal split)
+  /* Aug-19f · Lost opportunity = 1 เดือน ของค่าเช่า สำหรับ other-channel (user rule)
+     Legacy Owner Direct / Other Agent ก็ใช้กฎเดียวกันตามคำสั่ง user */
+  const lost = isLost ? rent : Math.max(0, potential-ourGross);
+  return {potential,gross,coAgent,company,salesperson,vat,wht,mktExp,otherExp,net,ourActual,ourGross,lost,vatPct:num(st.vatPct),whtPct:num(st.whtPct),lostSource:isOwnerDirect?"owner":isOtherChannel?"other_channel":isOtherAgent?"other":isCo?"coagent":"none"};
 }
 function contractDataComplete(c){ return !!(c&&c.startDate&&c.endDate); }
 // ---- Lease Closing form (opens when status → ปล่อยเช่าแล้ว) ----
