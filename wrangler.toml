@@ -1,0 +1,10 @@
+# Cloudflare Pages · SHELTER CRM
+# Deploy: wrangler pages deploy .
+# Preview: wrangler pages dev .
+
+name = "shelter-crm"
+compatibility_date = "2026-08-20"
+pages_build_output_dir = "."
+
+# Ignore ไฟล์ที่ไม่ต้อง deploy
+# (docs/, .git/, node_modules/, wrangler.toml เอง · ถูก ignore อัตโนมัติ)
