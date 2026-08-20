@@ -6415,9 +6415,8 @@ function sendApptLine(who){
   let text=$("#apptText").value||"";
   text=text.split("\n").filter(line=>!/^https?:\/\/(crm\.)?shelterlivingestate\.tech\/?\s*$/i.test(line.trim())).join("\n").replace(/\s+$/,"");
   if(navigator.clipboard)navigator.clipboard.writeText(text).catch(()=>{});
-  /* Aug-19g · Desktop vs Mobile · desktop lineTextURL opens ล่าช้า/พัง (social-plugins) · ใช้ clipboard flow */
-  const isMobile=/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  let url=null, msg="";
+  /* Aug-19h · เปิด LINE ทุกกรณี · user เลือกผู้รับเอง · clipboard พร้อม paste */
+  let url, msg;
   let lineId="";
   if(who==="owner"){
     lineId=(p&&p.ownerLine)?String(p.ownerLine).trim():"";
@@ -6425,19 +6424,16 @@ function sendApptLine(who){
     lineId=($("#apptCustLine").value||"").trim();
   }
   if(lineId){
-    /* มี LINE ID → เปิดแชทตรง (ทำงานทั้ง desktop + mobile) */
+    /* มี LINE ID → เปิดแชทตรง */
     url=lineChatURL(lineId);
-    msg="✓ เปิดแชท "+(who==="owner"?"เจ้าของ":"ลูกค้า")+" · คัดลอกข้อความแล้ว · กด Ctrl+V (Cmd+V) เพื่อวาง";
-  } else if(isMobile){
-    /* Mobile ไม่มี LINE ID → line.me/R/msg/text ทำงานได้ · เปิด LINE app เลือกผู้รับ */
-    url=lineTextURL(text);
-    msg="เปิด LINE ให้เลือกผู้รับ · ข้อความจะติดไปด้วย";
+    msg="✓ เปิดแชท "+(who==="owner"?"เจ้าของ":"ลูกค้า")+" · คัดลอกแล้ว · กด Ctrl+V (Cmd+V) วาง → Enter";
   } else {
-    /* Desktop ไม่มี LINE ID → social-plugins.line.me broken · แค่ copy + alert */
-    msg="✓ คัดลอกข้อความแล้ว · กรุณาเปิด LINE บนคอม → เลือกลูกค้า → Ctrl+V paste → Enter";
-    alert("✅ คัดลอกข้อความแล้ว\n\nเนื่องจากยังไม่ได้กรอก LINE ID ของ"+(who==="owner"?"เจ้าของ":"ลูกค้า")+"\nระบบจึงไม่ทราบว่าจะเปิดแชทของใคร\n\nวิธีส่ง:\n1. เปิด LINE บนคอมพิวเตอร์ (หรือ web.line.me)\n2. เลือกแชทของลูกค้า\n3. Ctrl+V เพื่อวาง (หรือ Cmd+V บน Mac)\n4. Enter ส่ง\n\n💡 Tip · ครั้งหน้ากรอก LINE ID ใน 'ช่อง LINE "+(who==="owner"?"เจ้าของ":"ลูกค้า")+"' ก่อน · ระบบจะเปิดแชทให้อัตโนมัติ");
+    /* ไม่มี LINE ID → เปิด LINE Share (mobile: LINE app · desktop: social-plugins.line.me)
+       user เลือกลูกค้าเอง · กด 'แชท' ที่ plugin หรือ paste ในแชทที่เลือก */
+    url=lineTextURL(text);
+    msg="✓ เปิด LINE · เลือกลูกค้า → กด 'แชท' (คัดลอกไว้แล้ว · paste ก็ได้)";
   }
-  if(url) window.open(url,"_blank");
+  window.open(url,"_blank");
   $("#apptStatus").textContent=msg; $("#apptStatus").className="ai-status ok";
 }
 function addFeedbackProp(i){ const p=DB.props[i]; const t=prompt("Feedback จากผู้ชม / ลูกค้า"); if(!t)return; if(!Array.isArray(p.logs))p.logs=[]; p.logs.unshift({date:nowStamp(),text:"💬 "+t}); p.updatedAt=todayISO(); save(); renderAll(); if($("#detailView").classList.contains("on"))openDetail(i); }
