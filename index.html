@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="SHELTER OS">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" id="pwaManifest">
+<link rel="icon" type="image/jpeg" href="logo.jpg">
+<link rel="apple-touch-icon" href="logo.jpg">
 <!-- Aug-19c · กัน LINE/social preview scrape เวลาแชร์ · referrer=no-referrer · OG tags แบบ branded · blank description กัน internal text หลุด -->
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
@@ -17,6 +19,7 @@
 <meta property="og:description" content=" ">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="SHELTER Living Estate">
+<meta property="og:image" content="logo.jpg">
 <title>SHELTER OS — Real Estate CRM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,7 +57,7 @@ body{font-family:var(--sans);background:var(--plane);color:var(--ink);font-size:
 .app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
 .sidebar{background:var(--surface-1);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
 .brand{padding:18px 18px 14px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border)}
-.brand .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:grid;place-items:center;color:#fff;flex:0 0 auto}
+.brand .logo{width:40px;height:40px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#fff;flex:0 0 auto;overflow:hidden}
 .brand .logo svg{width:22px;height:22px}
 .brand .name{font-weight:750;font-size:15px;letter-spacing:.2px;line-height:1.15}
 .brand .name span{display:block;font-size:10.5px;font-weight:600;color:var(--muted);letter-spacing:1.4px;margin-top:1px}
@@ -683,7 +686,8 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
 <!-- LOGIN GATE -->
 <div id="authGate" class="auth-gate">
   <div class="auth-card">
-    <div class="auth-logo">🏠 SHELTER OS</div>
+    <img src="logo.jpg" alt="SHELTER Living Estate" style="width:96px;height:96px;border-radius:50%;object-fit:cover;margin:0 auto 10px;display:block;box-shadow:0 4px 14px rgba(106,8,7,.18)">
+    <div class="auth-logo">SHELTER OS</div>
     <div class="auth-sub" id="authSub">เข้าสู่ระบบ</div>
     <input type="email" id="authEmail" placeholder="อีเมล" autocomplete="username">
     <input type="password" id="authPw" placeholder="รหัสผ่าน" autocomplete="current-password">
@@ -853,7 +857,7 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
 <div class="app">
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg></div>
+      <div class="logo"><img src="logo.jpg" alt="SHELTER" style="width:100%;height:100%;object-fit:cover;border-radius:inherit"></div>
       <div class="name">SHELTER OS<span>REAL ESTATE CRM</span></div>
     </div>
     <nav class="nav" id="nav"><div class="grp">OPERATING SYSTEM</div></nav>
