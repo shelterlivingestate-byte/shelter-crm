@@ -1170,7 +1170,11 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
       </div>
       <div class="or-grid">
         <div class="card">
-          <div class="or-field"><label>เลือกทรัพย์ (Property)</label><select id="orProp" onchange="orFillMaster()"></select></div>
+          <div class="or-field"><label>เลือกทรัพย์ (Property)</label>
+            <input type="text" id="orPropSearch" list="orPropList" placeholder="🔍 พิมพ์เพื่อค้นหา (รหัส · ชื่อ · ทำเล · เจ้าของ)" oninput="orPickFromSearch()" style="margin-bottom:6px" autocomplete="off">
+            <datalist id="orPropList"></datalist>
+            <select id="orProp" onchange="orSyncSearchFromSelect();orFillMaster()"></select>
+          </div>
           <div class="or-field"><label>ช่วงเวลาของรายงาน</label><input type="text" id="orPeriod" placeholder="เช่น 1–30 มิ.ย. 2026"></div>
           <div class="or-field"><label>Property Master (ดึงอัตโนมัติ)</label><div class="or-master" id="orMaster">— เลือกทรัพย์ก่อน —</div></div>
         </div>
@@ -1186,7 +1190,17 @@ label.fld input:focus,label.fld select:focus,label.fld textarea:focus{outline:2p
         </div>
       </div>
       <div class="card" id="orResultCard" style="display:none;margin-top:14px">
-        <div class="chart-head"><h3>Owner Report</h3><button class="btn sm" onclick="copyOwner()">คัดลอกรายงาน</button></div>
+        <div class="chart-head" style="flex-wrap:wrap;gap:8px">
+          <h3>Owner Report</h3>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto">
+            <button class="btn sm" onclick="copyOwner()" title="คัดลอกข้อความรายงาน">📋 คัดลอก</button>
+            <button class="btn sm" onclick="downloadOwner()" title="ดาวน์โหลดเป็นไฟล์ .txt">📥 ดาวน์โหลด</button>
+            <button class="btn sm" onclick="downloadOwnerHTML()" title="ดาวน์โหลดเป็น HTML สำหรับพิมพ์/PDF">📄 HTML</button>
+            <button class="btn sm" onclick="sendOwnerLine()" title="เปิด LINE เพื่อส่งรายงานให้เจ้าของ">💬 ส่งไลน์</button>
+            <button class="btn sm" onclick="sendOwnerEmail()" title="เปิดอีเมลไปหาเจ้าของ">📧 อีเมล</button>
+          </div>
+        </div>
+        <div id="orOwnerHint" class="hint" style="margin-bottom:8px;display:none"></div>
         <div class="asst-out" id="orOut"></div>
       </div>
     </section>
@@ -4029,10 +4043,31 @@ I. Owner Decision Required
 - ห้ามสร้างหรือสมมติประกาศคู่แข่ง ชื่อโครงการ ราคา ขนาด หรือระยะทางเองโดยเด็ดขาด ใช้ได้เฉพาะข้อมูลใน [Competitor Analysis] ที่ให้มาเท่านั้น
 - ในข้อ E. Competitor Analysis ต้องแสดง: จำนวนคู่แข่งที่ใช้เปรียบเทียบ, แหล่งข้อมูล, วันที่ตรวจล่าสุด, จำนวนโครงการเดียวกันและโครงการใกล้เคียง, ช่วงราคา, ราคาเฉลี่ยและมัธยฐาน, ช่วงเนื้อที่ดินและพื้นที่ใช้สอย, ระยะทาง, สภาพบ้าน, ส่วนต่างราคาของทรัพย์เราเทียบคู่แข่ง และสรุปจุดแข็ง/ข้อเสียของทรัพย์เราเมื่อเทียบคู่แข่ง
 - หากไม่มีข้อมูลคู่แข่ง หรือข้อมูลคู่แข่งเก่ากว่า 30 วัน ให้ระบุตรง ๆ ในข้อ E ว่า "ข้อมูลคู่แข่งยังไม่เพียงพอหรือควรอัปเดตก่อนใช้ประกอบการตัดสินใจ" และห้ามเดาตัวเลขแทน`;
+function orPropLabel(p,i){ return (p.code||('#'+(i+1)))+" · "+(p.title||'')+" ("+(p.deal||'')+")"; }
 function refreshOwnerSelect(){
   const sel=$("#orProp"); if(!sel)return; const cur=sel.value;
-  sel.innerHTML='<option value="">— เลือกทรัพย์ —</option>'+DB.props.map((p,i)=>`<option value="${i}">${esc(p.code||('#'+(i+1)))} · ${esc(p.title||'')} (${esc(p.deal||'')})</option>`).join("");
+  sel.innerHTML='<option value="">— เลือกทรัพย์ —</option>'+DB.props.map((p,i)=>`<option value="${i}">${esc(orPropLabel(p,i))}</option>`).join("");
   if(cur&&+cur<DB.props.length)sel.value=cur;
+  const dl=$("#orPropList"); if(dl){
+    dl.innerHTML=DB.props.map((p,i)=>{
+      const bits=[p.code,p.title,p.loc,p.ownerName].filter(Boolean).join(" · ");
+      return `<option data-idx="${i}" value="${esc(bits)}"></option>`;
+    }).join("");
+  }
+  orSyncSearchFromSelect();
+}
+function orSyncSearchFromSelect(){
+  const s=$("#orPropSearch"), sel=$("#orProp"); if(!s||!sel)return;
+  const i=sel.value; if(i===""){s.value="";return;}
+  const p=DB.props[+i]; if(!p)return;
+  s.value=[p.code,p.title,p.loc,p.ownerName].filter(Boolean).join(" · ");
+}
+function orPickFromSearch(){
+  const s=$("#orPropSearch"), sel=$("#orProp"); if(!s||!sel)return;
+  const q=(s.value||"").toLowerCase().trim(); if(!q){sel.value="";orFillMaster();return;}
+  let idx=DB.props.findIndex(p=>[p.code,p.title,p.loc,p.ownerName].filter(Boolean).join(" · ").toLowerCase()===q);
+  if(idx<0) idx=DB.props.findIndex(p=>((p.code||"")+" "+(p.title||"")+" "+(p.loc||"")+" "+(p.ownerName||"")).toLowerCase().includes(q));
+  if(idx>=0){ sel.value=String(idx); orFillMaster(); }
 }
 function orMasterText(p){
   const pr=projOf(p);
@@ -5014,11 +5049,105 @@ async function runOwnerReport(){
     const txt=await callAI(prompt,2200,OWNER_REPORT_SYSTEM);
     const rec=upsertOwnerReport(p.id, D.reportPeriod, {status:"Draft", advisorAnalysis:txt});
     $("#orOut").innerHTML=`<div class="hint" style="margin-bottom:8px">📄 Report ID: ${esc(rec.id)} · ช่วง: ${esc(D.reportPeriod)} · อัปเดตข้อมูล: ${esc(D.dataUpdatedAt)} · สร้าง: ${esc(rec.createdAt)} · สถานะ: <b>${esc(rec.status)}</b></div>`+fmtAsst(txt); $("#orResultCard").style.display="block";
+    _curOwnerReport={prop:p, period:D.reportPeriod, text:txt, reportId:rec.id, createdAt:rec.createdAt};
+    orShowOwnerHint();
     st.textContent="สร้างรายงานเสร็จ ✓ (บันทึกเป็น Draft)";st.className="ai-status ok";
     $("#orResultCard").scrollIntoView({behavior:"smooth",block:"nearest"});
   }catch(e){ st.textContent="ผิดพลาด: "+e.message; st.className="ai-status err"; }
 }
 function copyOwner(){const t=$("#orOut").innerText;if(navigator.clipboard)navigator.clipboard.writeText(t).catch(()=>{});$("#orStatus").textContent="คัดลอกแล้ว ✓";$("#orStatus").className="ai-status ok";}
+let _curOwnerReport=null;
+function orSetStatus(msg,cls){const s=$("#orStatus"); if(!s)return; s.textContent=msg; s.className="ai-status "+(cls||"");}
+function orSafeName(s){return String(s||"report").replace(/[\\/:*?"<>|]+/g,"_").replace(/\s+/g,"_").slice(0,80);}
+function orShowOwnerHint(){
+  const h=$("#orOwnerHint"); if(!h)return;
+  const r=_curOwnerReport; if(!r){h.style.display="none";return;}
+  const p=r.prop||{};
+  const parts=[];
+  if(p.ownerName) parts.push("👤 "+esc(p.ownerName));
+  if(p.ownerPhone) parts.push("📞 "+esc(p.ownerPhone));
+  if(p.ownerLine) parts.push("💬 LINE: "+esc(p.ownerLine));
+  if(p.ownerEmail) parts.push("📧 "+esc(p.ownerEmail));
+  if(!parts.length){ h.innerHTML='ยังไม่มีข้อมูลติดต่อเจ้าของในทรัพย์นี้ · เพิ่มได้ในฐานข้อมูลทรัพย์ (ownerName / ownerPhone / ownerLine / ownerEmail)'; }
+  else { h.innerHTML="ผู้รับ: "+parts.join(" · "); }
+  h.style.display="block";
+}
+function orBuildText(){
+  const r=_curOwnerReport; if(!r) return "";
+  const p=r.prop||{};
+  const header=[
+    "SHELTER — Owner Report",
+    "ทรัพย์: "+(p.title||p.code||"-")+(p.code?" ("+p.code+")":""),
+    "ทำเล: "+(p.loc||"-"),
+    "ราคา: "+(p.price||"-"),
+    "ช่วงเวลา: "+(r.period||"-"),
+    "Report ID: "+(r.reportId||"-")+" · สร้าง: "+(r.createdAt||"-"),
+    p.ownerName?"เรียน คุณ"+p.ownerName:"",
+    "-".repeat(48)
+  ].filter(Boolean).join("\n");
+  return header+"\n\n"+(r.text||$("#orOut").innerText||"");
+}
+function downloadOwner(){
+  if(!_curOwnerReport){orSetStatus("ยังไม่มีรายงาน สร้างก่อน","err");return;}
+  const p=_curOwnerReport.prop||{};
+  const fname="OwnerReport_"+orSafeName(p.code||p.title||"property")+"_"+orSafeName(_curOwnerReport.period||"")+".txt";
+  const blob=new Blob([orBuildText()],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=fname; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  orSetStatus("ดาวน์โหลดไฟล์แล้ว ✓","ok");
+}
+function downloadOwnerHTML(){
+  if(!_curOwnerReport){orSetStatus("ยังไม่มีรายงาน สร้างก่อน","err");return;}
+  const p=_curOwnerReport.prop||{};
+  const body=$("#orOut").innerHTML||"";
+  const title="Owner Report — "+(p.title||p.code||"Property");
+  const html=`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${esc(title)}</title>
+<style>
+body{font-family:'Sarabun','Segoe UI',Tahoma,sans-serif;max-width:820px;margin:32px auto;padding:0 20px;color:#1c1c1e;line-height:1.55}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:18px 0 6px;color:#7a3b2e}
+.meta{color:#666;font-size:13px;margin-bottom:16px;border-bottom:1px solid #eee;padding-bottom:12px}
+.section{margin:14px 0}
+@media print{body{margin:16px}}
+</style></head><body>
+<h1>${esc(title)}</h1>
+<div class="meta">
+  ทำเล: ${esc(p.loc||"-")} · ราคา: ${esc(p.price||"-")}<br>
+  ช่วงเวลา: ${esc(_curOwnerReport.period||"-")} · Report ID: ${esc(_curOwnerReport.reportId||"-")} · สร้าง: ${esc(_curOwnerReport.createdAt||"-")}<br>
+  ${p.ownerName?"เรียน คุณ"+esc(p.ownerName):""}
+</div>
+<div class="section">${body}</div>
+<div class="meta" style="margin-top:20px;border-top:1px solid #eee;border-bottom:none;padding-top:12px">
+  จัดทำโดย SHELTER Living Estate · Owner Report Analyst
+</div>
+</body></html>`;
+  const fname="OwnerReport_"+orSafeName(p.code||p.title||"property")+"_"+orSafeName(_curOwnerReport.period||"")+".html";
+  const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=fname; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  orSetStatus("ดาวน์โหลด HTML แล้ว ✓ (พิมพ์เป็น PDF ได้จากเบราว์เซอร์)","ok");
+}
+function sendOwnerLine(){
+  if(!_curOwnerReport){orSetStatus("ยังไม่มีรายงาน สร้างก่อน","err");return;}
+  const full=orBuildText();
+  let msg=full; const LIMIT=1800;
+  if(msg.length>LIMIT){ msg=msg.slice(0,LIMIT)+"\n\n… (ตัดข้อความเพื่อส่งผ่าน LINE — ดูฉบับเต็มในไฟล์แนบ)"; }
+  const url="https://line.me/R/msg/text/?"+encodeURIComponent(msg);
+  window.open(url,"_blank","noopener");
+  const p=_curOwnerReport.prop||{};
+  orSetStatus("เปิด LINE ให้แล้ว ✓"+(p.ownerLine?" · เลือกส่งให้ "+p.ownerLine:"")+(full.length>LIMIT?" · ข้อความยาว — แนะนำแนบไฟล์ .txt เพิ่ม":""),"ok");
+}
+function sendOwnerEmail(){
+  if(!_curOwnerReport){orSetStatus("ยังไม่มีรายงาน สร้างก่อน","err");return;}
+  const p=_curOwnerReport.prop||{};
+  const to=p.ownerEmail||"";
+  const subject="Owner Report — "+(p.title||p.code||"Property")+" · "+(_curOwnerReport.period||"");
+  const body=orBuildText();
+  const mailto="mailto:"+encodeURIComponent(to)+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);
+  window.location.href=mailto;
+  orSetStatus(to?("เปิดอีเมลถึง "+to+" ✓"):"เปิดอีเมลแล้ว (ยังไม่มีอีเมลเจ้าของในระบบ)","ok");
+}
 // linked project (fallback to legacy inline fields for backward compatibility)
 function projOf(p){ if(p.projectId){const pj=DB.projects.find(x=>x.id===p.projectId); if(pj)return pj;} return {name:p.projectName||"",developer:p.developer,units:p.units,commonFee:p.commonFee,nearby:p.nearby,facilities:p.facilities,highlights:p.facilities,zone:p.loc}; }
 function renderProjects(){
